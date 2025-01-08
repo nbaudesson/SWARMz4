@@ -1,0 +1,34 @@
+{
+    "onshape_api": "https://cad.onshape.com",
+    "onshape_access_key": "qPDPLwcri0YeWNFGEVWedBJ6",
+    "onshape_secret_key": "ekDfgyugwsmqBk0EyiP2Hlyeu0BCUStrVRfOTCoeOYxRGsmb",
+    "documentId": "483c803918afc4d52e2647f0",
+    "assemblyName": "robot",
+    "outputFormat": "urdf",
+    "drawFrames": false,
+    "drawCollisions": false,
+    "useScads": true,
+    "noDynamics": false,
+    "mergeSTLs": "no",
+    "simplifySTLs": "no",
+    "maxSTLSize": 3,
+    "jointMaxEffort": {
+        "default": 1.5,
+        "head_pitch": 0.5
+    },
+    "jointMaxVelocity": 22,
+    "dynamics": {
+        "motorcase": {
+            "mass": 0.5,
+            "com": [0, 0.1, 0],
+            "inertia": [0.1, 0, 0,
+                        0, 0.1, 0,
+                        0, 0, 0.1]
+        },
+        "base": "fixed"
+    },
+    "ignore": [
+        "small_screw",
+        "small_nut"
+    ]
+}

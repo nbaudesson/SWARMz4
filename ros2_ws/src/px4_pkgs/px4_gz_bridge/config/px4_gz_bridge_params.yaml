@@ -1,0 +1,8 @@
+- ros_topic_name: "laser_beam"
+  gz_topic_name: "laser"
+  ros_type_name: "sensor_msgs/msg/LaserScan"
+  gz_type_name: "gz.msgs.LaserScan"
+  subscriber_queue: 20
+  publisher_queue: 20
+  lazy: false
+  direction: GZ_TO_ROS

@@ -1,0 +1,56 @@
+{
+    // You should store those three in environment variables
+    "onshape_api": "https://cad.onshape.com",
+    "onshape_access_key": "qPDPLwcri0YeWNFGEVWedBJ6",
+    "onshape_secret_key": "ekDfgyugwsmqBk0EyiP2Hlyeu0BCUStrVRfOTCoeOYxRGsmb",
+
+    // Can be found in the URL when editing the assembly
+    "documentId": "483c803918afc4d52e2647f0",
+    // If not specified, the first assembly will be used
+    "assemblyName": "robot",
+    // Can be urdf or sdf
+    "outputFormat": "urdf",
+    // The frames parts are kept in the final file
+    "drawFrames": false,
+    // Collisions (pure shapes) are also used in the visual section
+    "drawCollisions": false,
+    // Wether or not the scan for SCAD files (pure shapes) should be done
+    "useScads": true,
+    // Masses, com and inertias will be zero (can be used if you import a static
+    // field for example)
+    "noDynamics": false,
+    // Should the STLs of the same link be merged?
+    "mergeSTLs": "no",
+    // Should we simplify STLs files?
+    "simplifySTLs": "no",
+    // Maximum size (M) of STL files to run simplification (required meshlab)
+    "maxSTLSize": 3,
+
+    // Those can be used to configure the joint max efforts and velocity, and
+    // overriden for specific joints
+    "jointMaxEffort": {
+        "default": 1.5,
+        "head_pitch": 0.5
+    },
+    "jointMaxVelocity": 22,
+
+    // This can be used to override the dynamics of some part (suppose it's a compound
+    // which dynamics is well specified)
+    "dynamics": {
+        "motorcase": {
+            "mass": 0.5,
+            "com": [0, 0.1, 0],
+            "inertia": [0.1, 0, 0,
+                        0, 0.1, 0,
+                        0, 0, 0.1]
+        },
+        // "fixed" can be used to assign a null mass to the object, which makes it fixed (non-dynamics)
+        "base": "fixed"
+    },
+
+    // Some parts can be totally ignored during import
+    "ignore": [
+        "small_screw",
+        "small_nut"
+    ]
+}
