@@ -1,3 +1,9 @@
 [submodule "ros2_ws/src/px4_pkgs/px4-ros2-interface-lib"]
 	path = ros2_ws/src/px4_pkgs/px4-ros2-interface-lib
 	url = https://github.com/Auterion/px4-ros2-interface-lib.git
+[submodule "ros2_ws/src/px4_pkgs/px4_msgs"]
+	path = ros2_ws/src/px4_pkgs/px4_msgs
+	url = https://github.com/PX4/px4_msgs.git
+[submodule "ros2_ws/src/px4_pkgs/px4_ros_com"]
+	path = ros2_ws/src/px4_pkgs/px4_ros_com
+	url = https://github.com/PX4/px4_ros_com.git
