@@ -1,47 +1,54 @@
-# Project Title
+# SWARMz4: Drone and Ship Battle Challenge
 
 ## Description
-A brief description of what the project does and its purpose.
+SWARMz4 is a workspace for a drone and ship battle challenge in a Gazebo simulation. This repository provides scripts to install the necessary tools and dependencies to run the simulation and control the drones.
 
 ## Features
-- Feature 1
-- Feature 2
-- Feature 3
+- Gazebo simulation environment for drone and ship battles
+- Integration with PX4, ROS2, and QGroundControl
+- Custom ROS2 packages for game management
+- Example packages for drone control
 
 ## Installation
 To install the project, follow these steps:
 1. Clone the repository:
     ```bash
-    git clone https://github.com/yourusername/your-repo.git
+    git clone https://github.com/nbaudesson/SWARMz4.git
     ```
 2. Navigate to the project directory:
     ```bash
-    cd your-repo
+    cd SWARMz4
     ```
-3. Install the dependencies:
+3. Run the installation script:
     ```bash
-    npm install
+    ./install_scripts/install_swarmz.sh
+    ```
+4. Build the ROS2 workspace
+    ```bash
+    cd ros2_ws
+    colcon build && source install/setup.bash
     ```
 
 ## Usage
-Instructions on how to use the project:
-1. Start the application:
+To run a game, you need to start the Gazebo simulation with the appropriate number of robots. The SWARMz4 challenge makes two teams of 5 drones and 1 flagship fight each other over a 500 x 250 m field.
+
+### Starting the Simulation
+1. Run the launch script:
     ```bash
-    npm start
+    ./launch_scripts/launch_simulation.sh [HEADLESS] [NUM_DRONES_PER_TEAM] [FIELD_LENGTH] [FIELD_WIDTH] [WORLD]
     ```
-2. Open your browser and navigate to `http://localhost:3000`.
+    - `HEADLESS`: Set to `1` for headless mode (default), `0` for GUI mode.
+    - `NUM_DRONES_PER_TEAM`: Number of drones per team (default is 5).
+    - `FIELD_LENGTH`: Length of the field in meters (default is 500).
+    - `FIELD_WIDTH`: Width of the field in meters (default is 250).
+    - `WORLD`: Name of the Gazebo world to use (default is `swarmz_world`).
 
-## Contributing
-To contribute to this project, please follow these steps:
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature-branch`).
-3. Make your changes.
-4. Commit your changes (`git commit -m 'Add some feature'`).
-5. Push to the branch (`git push origin feature-branch`).
-6. Open a pull request.
-
-## License
-This project is licensed under the [LICENSE] file. See the LICENSE file for details.
+2. Start a game by running the game master launcher in a different terminal:
+    ```bash
+    cd SWARMZ4/ros2_ws
+    source install/setup.bash
+    ros2 launch game_master game_master.launch.py
+    ```
 
 ## Contact
-For any questions or feedback, please contact [your-email@example.com].
+For any questions or feedback, please contact [nicolas.baudesson@alten.com].
