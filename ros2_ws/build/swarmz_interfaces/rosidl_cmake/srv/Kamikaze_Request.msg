@@ -1,1 +1,0 @@
-string robot_name # use namespace to tell to the GM who is blowing up

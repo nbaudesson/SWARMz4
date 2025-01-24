@@ -3,3 +3,7 @@ Micro-XRCE-DDS-Agent
 stand_alone_gazebo/QGroundControl.AppImage
 QGroundControl.AppImage
 game_results
+ros2_ws/install/
+ros2_ws/build/
+ros2_ws/log/
+!ros2_ws/src/

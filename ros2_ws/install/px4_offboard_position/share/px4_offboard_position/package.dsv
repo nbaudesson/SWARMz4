@@ -1,6 +1,0 @@
-source;share/px4_offboard_position/hook/pythonpath.ps1
-source;share/px4_offboard_position/hook/pythonpath.dsv
-source;share/px4_offboard_position/hook/pythonpath.sh
-source;share/px4_offboard_position/hook/ament_prefix_path.ps1
-source;share/px4_offboard_position/hook/ament_prefix_path.dsv
-source;share/px4_offboard_position/hook/ament_prefix_path.sh

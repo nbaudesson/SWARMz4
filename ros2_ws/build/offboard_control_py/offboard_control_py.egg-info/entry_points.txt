@@ -1,8 +1,0 @@
-[console_scripts]
-mission_control = offboard_control_py.mission_control:main
-offboard_control = offboard_control_py.offboard_control:main
-offboard_control_goto = offboard_control_py.offboard_control_goto:main
-simu_circle = offboard_control_py.simu_circle:main
-simu_processes = offboard_control_py.simu_processes:main
-tight_circle = offboard_control_py.tight_circle:main
-
