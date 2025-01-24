@@ -1,0 +1,362 @@
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found ament_cmake: 1.3.11 (/opt/ros/humble/share/ament_cmake/cmake)
+-- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+-- Found rosidl_default_generators: 1.2.0 (/opt/ros/humble/share/rosidl_default_generators/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Found rosidl_adapter: 3.1.6 (/opt/ros/humble/share/rosidl_adapter/cmake)
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found std_msgs: 4.2.4 (/opt/ros/humble/share/std_msgs/cmake)
+-- Found geometry_msgs: 4.2.4 (/opt/ros/humble/share/geometry_msgs/cmake)
+-- Found ament_cmake_ros: 0.10.0 (/opt/ros/humble/share/ament_cmake_ros/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found PythonInterp: /usr/bin/python3 (found suitable version "3.10.12", minimum required is "3.6") 
+-- Found python_cmake_module: 0.10.0 (/opt/ros/humble/share/python_cmake_module/cmake)
+-- Found PythonLibs: /usr/lib/x86_64-linux-gnu/libpython3.10.so (found suitable version "3.10.12", minimum required is "3.5") 
+-- Using PYTHON_EXECUTABLE: /usr/bin/python3
+-- Using PYTHON_INCLUDE_DIRS: /usr/include/python3.10
+-- Using PYTHON_LIBRARIES: /usr/lib/x86_64-linux-gnu/libpython3.10.so
+-- Found PythonExtra: .so  
+-- Found ament_lint_auto: 0.12.11 (/opt/ros/humble/share/ament_lint_auto/cmake)
+-- Added test 'lint_cmake' to check CMake code style
+-- Added test 'xmllint' to check XML markup files
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/nb_adm/SWARMz4/ros2_ws/build/swarmz_interfaces
+[  1%] [34m[1mGenerating C code for ROS interfaces[0m
+[  3%] [34m[1mGenerating C++ code for ROS interfaces[0m
+[  3%] Built target ament_cmake_python_copy_swarmz_interfaces
+running egg_info
+creating swarmz_interfaces.egg-info
+writing swarmz_interfaces.egg-info/PKG-INFO
+writing dependency_links to swarmz_interfaces.egg-info/dependency_links.txt
+writing top-level names to swarmz_interfaces.egg-info/top_level.txt
+writing manifest file 'swarmz_interfaces.egg-info/SOURCES.txt'
+reading manifest file 'swarmz_interfaces.egg-info/SOURCES.txt'
+writing manifest file 'swarmz_interfaces.egg-info/SOURCES.txt'
+[  3%] Built target ament_cmake_python_build_swarmz_interfaces_egg
+[  4%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_generator_c.dir/rosidl_generator_c/swarmz_interfaces/srv/detail/kamikaze__functions.c.o[0m
+[  7%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_generator_c.dir/rosidl_generator_c/swarmz_interfaces/msg/detail/detections__functions.c.o[0m
+[  7%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_generator_c.dir/rosidl_generator_c/swarmz_interfaces/msg/detail/detection__functions.c.o[0m
+[ 11%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_generator_c.dir/rosidl_generator_c/swarmz_interfaces/srv/detail/missile__functions.c.o[0m
+[ 11%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_generator_c.dir/rosidl_generator_c/swarmz_interfaces/srv/detail/update_health__functions.c.o[0m
+[ 11%] Built target swarmz_interfaces__cpp
+[ 15%] [34m[1mGenerating C++ introspection for ROS interfaces[0m
+[ 15%] [34m[1mGenerating C++ type support for eProsima Fast-RTPS[0m
+[ 15%] [34m[1mGenerating C++ type support dispatch for ROS interfaces[0m
+[ 17%] [32m[1mLinking C shared library libswarmz_interfaces__rosidl_generator_c.so[0m
+[ 17%] Built target swarmz_interfaces__rosidl_generator_c
+[ 19%] [34m[1mGenerating C type support for eProsima Fast-RTPS[0m
+[ 20%] [34m[1mGenerating C type support dispatch for ROS interfaces[0m
+[ 22%] [34m[1mGenerating C introspection for ROS interfaces[0m
+[ 26%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_c.dir/rosidl_typesupport_c/swarmz_interfaces/msg/detections__type_support.cpp.o[0m
+[ 26%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_c.dir/rosidl_typesupport_c/swarmz_interfaces/srv/update_health__type_support.cpp.o[0m
+[ 26%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_c.dir/rosidl_typesupport_c/swarmz_interfaces/msg/detection__type_support.cpp.o[0m
+[ 30%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_c.dir/rosidl_typesupport_c/swarmz_interfaces/srv/kamikaze__type_support.cpp.o[0m
+[ 30%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_c.dir/rosidl_typesupport_c/swarmz_interfaces/srv/missile__type_support.cpp.o[0m
+[ 31%] [32m[1mLinking CXX shared library libswarmz_interfaces__rosidl_typesupport_c.so[0m
+[ 34%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/srv/detail/dds_fastrtps/kamikaze__type_support.cpp.o[0m
+[ 34%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/msg/detail/dds_fastrtps/detections__type_support.cpp.o[0m
+[ 38%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/srv/detail/dds_fastrtps/missile__type_support.cpp.o[0m
+[ 38%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/srv/detail/dds_fastrtps/update_health__type_support.cpp.o[0m
+[ 39%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/msg/detail/dds_fastrtps/detection__type_support.cpp.o[0m
+[ 41%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/swarmz_interfaces/srv/kamikaze__type_support.cpp.o[0m
+[ 42%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/swarmz_interfaces/msg/detection__type_support.cpp.o[0m
+[ 44%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/swarmz_interfaces/srv/update_health__type_support.cpp.o[0m
+[ 46%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/swarmz_interfaces/msg/detections__type_support.cpp.o[0m
+[ 47%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/swarmz_interfaces/srv/missile__type_support.cpp.o[0m
+[ 47%] Built target swarmz_interfaces__rosidl_typesupport_c
+[ 50%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/swarmz_interfaces/msg/detail/detections__type_support.cpp.o[0m
+[ 50%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/swarmz_interfaces/msg/detail/detection__type_support.cpp.o[0m
+[ 52%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/swarmz_interfaces/srv/detail/kamikaze__type_support.cpp.o[0m
+[ 55%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/swarmz_interfaces/srv/detail/update_health__type_support.cpp.o[0m
+[ 55%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/swarmz_interfaces/srv/detail/missile__type_support.cpp.o[0m
+[ 57%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/swarmz_interfaces/msg/detail/detections__type_support.c.o[0m
+[ 58%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/swarmz_interfaces/msg/detail/detection__type_support.c.o[0m
+[ 60%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/swarmz_interfaces/srv/detail/kamikaze__type_support.c.o[0m
+[ 61%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/swarmz_interfaces/srv/detail/missile__type_support.c.o[0m
+[ 63%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/swarmz_interfaces/srv/detail/update_health__type_support.c.o[0m
+[ 65%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/swarmz_interfaces/msg/detail/detections__type_support_c.cpp.o[0m
+[ 69%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/swarmz_interfaces/msg/detail/detection__type_support_c.cpp.o[0m
+[ 69%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/swarmz_interfaces/srv/detail/update_health__type_support_c.cpp.o[0m
+[ 69%] [32m[1mLinking C shared library libswarmz_interfaces__rosidl_typesupport_introspection_c.so[0m
+[ 71%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/swarmz_interfaces/srv/detail/missile__type_support_c.cpp.o[0m
+[ 73%] [32mBuilding CXX object CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/swarmz_interfaces/srv/detail/kamikaze__type_support_c.cpp.o[0m
+[ 73%] Built target swarmz_interfaces__rosidl_typesupport_introspection_c
+[ 74%] [32m[1mLinking CXX shared library libswarmz_interfaces__rosidl_typesupport_cpp.so[0m
+[ 74%] Built target swarmz_interfaces__rosidl_typesupport_cpp
+[ 76%] [32m[1mLinking CXX shared library libswarmz_interfaces__rosidl_typesupport_introspection_cpp.so[0m
+[ 77%] [32m[1mLinking CXX shared library libswarmz_interfaces__rosidl_typesupport_fastrtps_cpp.so[0m
+[ 77%] Built target swarmz_interfaces__rosidl_typesupport_introspection_cpp
+[ 79%] [32m[1mLinking CXX shared library libswarmz_interfaces__rosidl_typesupport_fastrtps_c.so[0m
+[ 79%] Built target swarmz_interfaces__rosidl_typesupport_fastrtps_c
+[ 79%] Built target swarmz_interfaces__rosidl_typesupport_fastrtps_cpp
+[ 79%] Built target swarmz_interfaces
+[ 80%] [34m[1mGenerating Python code for ROS interfaces[0m
+[ 80%] Built target swarmz_interfaces__py
+[ 84%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_generator_py.dir/rosidl_generator_py/swarmz_interfaces/msg/_detections_s.c.o[0m
+[ 84%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_generator_py.dir/rosidl_generator_py/swarmz_interfaces/srv/_missile_s.c.o[0m
+[ 85%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_generator_py.dir/rosidl_generator_py/swarmz_interfaces/msg/_detection_s.c.o[0m
+[ 87%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_generator_py.dir/rosidl_generator_py/swarmz_interfaces/srv/_kamikaze_s.c.o[0m
+[ 88%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_generator_py.dir/rosidl_generator_py/swarmz_interfaces/srv/_update_health_s.c.o[0m
+[ 90%] [32m[1mLinking C shared library rosidl_generator_py/swarmz_interfaces/libswarmz_interfaces__rosidl_generator_py.so[0m
+[ 90%] Built target swarmz_interfaces__rosidl_generator_py
+[ 92%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_typesupport_c__pyext.dir/rosidl_generator_py/swarmz_interfaces/_swarmz_interfaces_s.ep.rosidl_typesupport_c.c.o[0m
+[ 93%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_c__pyext.dir/rosidl_generator_py/swarmz_interfaces/_swarmz_interfaces_s.ep.rosidl_typesupport_fastrtps_c.c.o[0m
+[ 95%] [32mBuilding C object CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c__pyext.dir/rosidl_generator_py/swarmz_interfaces/_swarmz_interfaces_s.ep.rosidl_typesupport_introspection_c.c.o[0m
+[ 98%] [32m[1mLinking C shared library rosidl_generator_py/swarmz_interfaces/swarmz_interfaces_s__rosidl_typesupport_fastrtps_c.cpython-310-x86_64-linux-gnu.so[0m
+[ 98%] [32m[1mLinking C shared library rosidl_generator_py/swarmz_interfaces/swarmz_interfaces_s__rosidl_typesupport_c.cpython-310-x86_64-linux-gnu.so[0m
+[ 98%] Built target swarmz_interfaces__rosidl_typesupport_fastrtps_c__pyext
+[ 98%] Built target swarmz_interfaces__rosidl_typesupport_c__pyext
+[100%] [32m[1mLinking C shared library rosidl_generator_py/swarmz_interfaces/swarmz_interfaces_s__rosidl_typesupport_introspection_c.cpython-310-x86_64-linux-gnu.so[0m
+[100%] Built target swarmz_interfaces__rosidl_typesupport_introspection_c__pyext
+-- Install configuration: ""
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/ament_index/resource_index/rosidl_interfaces/swarmz_interfaces
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/missile.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/kamikaze.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/update_health.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/missile__functions.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/update_health__struct.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/missile__functions.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/kamikaze__struct.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/kamikaze__functions.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/missile__struct.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/kamikaze__type_support.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/kamikaze__functions.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/missile__type_support.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/update_health__type_support.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/update_health__functions.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/update_health__functions.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detections.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detection.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detections__struct.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detection__struct.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detections__functions.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detection__functions.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detection__type_support.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detections__functions.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detection__functions.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detections__type_support.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/rosidl_generator_c__visibility_control.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/environment/library_path.sh
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/environment/library_path.dsv
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_generator_c.so
+-- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_generator_c.so" to ""
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/update_health__rosidl_typesupport_fastrtps_c.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/missile__rosidl_typesupport_fastrtps_c.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/kamikaze__rosidl_typesupport_fastrtps_c.h
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/rosidl_typesupport_fastrtps_c__visibility_control.h
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detection__rosidl_typesupport_fastrtps_c.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detections__rosidl_typesupport_fastrtps_c.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_typesupport_fastrtps_c.so
+-- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_typesupport_fastrtps_c.so" to ""
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/update_health__type_support.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/kamikaze__type_support.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/update_health__rosidl_typesupport_introspection_c.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/missile__rosidl_typesupport_introspection_c.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/kamikaze__rosidl_typesupport_introspection_c.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/missile__type_support.c
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detections__rosidl_typesupport_introspection_c.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detection__rosidl_typesupport_introspection_c.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detection__type_support.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detections__type_support.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/rosidl_typesupport_introspection_c__visibility_control.h
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_typesupport_introspection_c.so
+-- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_typesupport_introspection_c.so" to ""
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_typesupport_c.so
+-- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_typesupport_c.so" to ""
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/update_health.hpp
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/kamikaze__traits.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/missile__struct.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/kamikaze__type_support.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/missile__type_support.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/missile__builder.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/update_health__traits.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/kamikaze__struct.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/missile__traits.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/update_health__builder.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/kamikaze__builder.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/update_health__struct.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/update_health__type_support.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/kamikaze.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/missile.hpp
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detection.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detections.hpp
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detection__builder.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detection__type_support.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detection__traits.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detections__struct.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detections__type_support.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detections__builder.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detections__traits.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detection__struct.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/rosidl_generator_cpp__visibility_control.hpp
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/dds_fastrtps
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/update_health__rosidl_typesupport_fastrtps_cpp.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/missile__rosidl_typesupport_fastrtps_cpp.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/kamikaze__rosidl_typesupport_fastrtps_cpp.hpp
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/rosidl_typesupport_fastrtps_cpp__visibility_control.h
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detections__rosidl_typesupport_fastrtps_cpp.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detection__rosidl_typesupport_fastrtps_cpp.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/dds_fastrtps
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_typesupport_fastrtps_cpp.so
+-- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_typesupport_fastrtps_cpp.so" to ""
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/missile__rosidl_typesupport_introspection_cpp.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/update_health__type_support.cpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/kamikaze__rosidl_typesupport_introspection_cpp.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/kamikaze__type_support.cpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/missile__type_support.cpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/srv/detail/update_health__rosidl_typesupport_introspection_cpp.hpp
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detections__type_support.cpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detection__rosidl_typesupport_introspection_cpp.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detections__rosidl_typesupport_introspection_cpp.hpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/include/swarmz_interfaces/swarmz_interfaces/msg/detail/detection__type_support.cpp
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_typesupport_introspection_cpp.so
+-- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_typesupport_introspection_cpp.so" to ""
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_typesupport_cpp.so
+-- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_typesupport_cpp.so" to ""
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/environment/pythonpath.sh
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/environment/pythonpath.dsv
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces-0.0.0-py3.10.egg-info
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces-0.0.0-py3.10.egg-info/dependency_links.txt
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces-0.0.0-py3.10.egg-info/PKG-INFO
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces-0.0.0-py3.10.egg-info/SOURCES.txt
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces-0.0.0-py3.10.egg-info/top_level.txt
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/_swarmz_interfaces_s.ep.rosidl_typesupport_introspection_c.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/_swarmz_interfaces_s.ep.rosidl_typesupport_fastrtps_c.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/swarmz_interfaces_s__rosidl_typesupport_c.cpython-310-x86_64-linux-gnu.so
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/__init__.py
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/srv
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/srv/_missile_s.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/srv/_update_health_s.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/srv/_kamikaze.py
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/srv/__init__.py
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/srv/_missile.py
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/srv/_update_health.py
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/srv/_kamikaze_s.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/_swarmz_interfaces_s.ep.rosidl_typesupport_c.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/swarmz_interfaces_s__rosidl_typesupport_fastrtps_c.cpython-310-x86_64-linux-gnu.so
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/swarmz_interfaces_s__rosidl_typesupport_introspection_c.cpython-310-x86_64-linux-gnu.so
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/msg
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/msg/_detection.py
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/msg/_detections_s.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/msg/__init__.py
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/msg/_detection_s.c
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/msg/_detections.py
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/libswarmz_interfaces__rosidl_generator_py.so
+Listing '/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces'...
+Compiling '/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/__init__.py'...
+Listing '/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/msg'...
+Compiling '/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/msg/__init__.py'...
+Compiling '/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/msg/_detection.py'...
+Compiling '/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/msg/_detections.py'...
+Listing '/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/srv'...
+Compiling '/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/srv/__init__.py'...
+Compiling '/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/srv/_kamikaze.py'...
+Compiling '/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/srv/_missile.py'...
+Compiling '/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/srv/_update_health.py'...
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/swarmz_interfaces_s__rosidl_typesupport_fastrtps_c.cpython-310-x86_64-linux-gnu.so
+-- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/swarmz_interfaces_s__rosidl_typesupport_fastrtps_c.cpython-310-x86_64-linux-gnu.so" to ""
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/swarmz_interfaces_s__rosidl_typesupport_introspection_c.cpython-310-x86_64-linux-gnu.so
+-- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/swarmz_interfaces_s__rosidl_typesupport_introspection_c.cpython-310-x86_64-linux-gnu.so" to ""
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/swarmz_interfaces_s__rosidl_typesupport_c.cpython-310-x86_64-linux-gnu.so
+-- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/local/lib/python3.10/dist-packages/swarmz_interfaces/swarmz_interfaces_s__rosidl_typesupport_c.cpython-310-x86_64-linux-gnu.so" to ""
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_generator_py.so
+-- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib/libswarmz_interfaces__rosidl_generator_py.so" to ""
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/msg/Detection.idl
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/msg/Detections.idl
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/srv/Kamikaze.idl
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/srv/Missile.idl
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/srv/UpdateHealth.idl
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/msg/Detection.msg
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/msg/Detections.msg
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/srv/Kamikaze.srv
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/srv/Kamikaze_Request.msg
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/srv/Kamikaze_Response.msg
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/srv/Missile.srv
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/srv/Missile_Request.msg
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/srv/Missile_Response.msg
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/srv/UpdateHealth.srv
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/srv/UpdateHealth_Request.msg
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/srv/UpdateHealth_Response.msg
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/ament_index/resource_index/package_run_dependencies/swarmz_interfaces
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/ament_index/resource_index/parent_prefix_path/swarmz_interfaces
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/environment/ament_prefix_path.sh
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/environment/ament_prefix_path.dsv
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/environment/path.sh
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/environment/path.dsv
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/local_setup.bash
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/local_setup.sh
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/local_setup.zsh
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/local_setup.dsv
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/package.dsv
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/ament_index/resource_index/packages/swarmz_interfaces
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/export_swarmz_interfaces__rosidl_generator_cExport.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/export_swarmz_interfaces__rosidl_generator_cExport-noconfig.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/export_swarmz_interfaces__rosidl_typesupport_fastrtps_cExport.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/export_swarmz_interfaces__rosidl_typesupport_fastrtps_cExport-noconfig.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/swarmz_interfaces__rosidl_typesupport_introspection_cExport.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/swarmz_interfaces__rosidl_typesupport_introspection_cExport-noconfig.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/swarmz_interfaces__rosidl_typesupport_cExport.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/swarmz_interfaces__rosidl_typesupport_cExport-noconfig.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/export_swarmz_interfaces__rosidl_generator_cppExport.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/export_swarmz_interfaces__rosidl_typesupport_fastrtps_cppExport.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/export_swarmz_interfaces__rosidl_typesupport_fastrtps_cppExport-noconfig.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/swarmz_interfaces__rosidl_typesupport_introspection_cppExport.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/swarmz_interfaces__rosidl_typesupport_introspection_cppExport-noconfig.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/swarmz_interfaces__rosidl_typesupport_cppExport.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/swarmz_interfaces__rosidl_typesupport_cppExport-noconfig.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/export_swarmz_interfaces__rosidl_generator_pyExport.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/export_swarmz_interfaces__rosidl_generator_pyExport-noconfig.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/rosidl_cmake-extras.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/ament_cmake_export_dependencies-extras.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/ament_cmake_export_include_directories-extras.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/ament_cmake_export_libraries-extras.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/ament_cmake_export_targets-extras.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/rosidl_cmake_export_typesupport_targets-extras.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/swarmz_interfacesConfig.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/cmake/swarmz_interfacesConfig-version.cmake
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/share/swarmz_interfaces/package.xml

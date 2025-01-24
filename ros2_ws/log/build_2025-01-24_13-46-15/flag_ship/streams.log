@@ -1,0 +1,35 @@
+[1.837s] Invoking command in '/home/nb_adm/SWARMz4/ros2_ws/src/swarmz_pkgs/flag_ship': PYTHONPATH=/home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../../build/flag_ship build --build-base /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/build install --record /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/install.log --single-version-externally-managed install_data
+[2.043s] running egg_info
+[2.043s] creating ../../../build/flag_ship/flag_ship.egg-info
+[2.043s] writing ../../../build/flag_ship/flag_ship.egg-info/PKG-INFO
+[2.043s] writing dependency_links to ../../../build/flag_ship/flag_ship.egg-info/dependency_links.txt
+[2.043s] writing entry points to ../../../build/flag_ship/flag_ship.egg-info/entry_points.txt
+[2.043s] writing requirements to ../../../build/flag_ship/flag_ship.egg-info/requires.txt
+[2.043s] writing top-level names to ../../../build/flag_ship/flag_ship.egg-info/top_level.txt
+[2.044s] writing manifest file '../../../build/flag_ship/flag_ship.egg-info/SOURCES.txt'
+[2.044s] reading manifest file '../../../build/flag_ship/flag_ship.egg-info/SOURCES.txt'
+[2.045s] writing manifest file '../../../build/flag_ship/flag_ship.egg-info/SOURCES.txt'
+[2.045s] running build
+[2.045s] running build_py
+[2.045s] creating /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/build
+[2.045s] creating /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/build/lib
+[2.045s] creating /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/build/lib/flag_ship
+[2.045s] copying flag_ship/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/build/lib/flag_ship
+[2.045s] running install
+[2.045s] running install_lib
+[2.046s] creating /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/lib/python3.10/site-packages/flag_ship
+[2.046s] copying /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/build/lib/flag_ship/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/lib/python3.10/site-packages/flag_ship
+[2.046s] byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/lib/python3.10/site-packages/flag_ship/__init__.py to __init__.cpython-310.pyc
+[2.046s] running install_data
+[2.046s] copying package.xml -> /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/share/flag_ship
+[2.046s] creating /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/share/flag_ship/urdf
+[2.047s] creating /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/share/flag_ship/sdf
+[2.047s] creating /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/share/flag_ship/launch
+[2.047s] copying launch/rviz2.launch.py -> /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/share/flag_ship/launch
+[2.047s] copying launch/gazebo.launch.py -> /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/share/flag_ship/launch
+[2.047s] creating /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/share/flag_ship/meshes
+[2.047s] running install_egg_info
+[2.048s] Copying ../../../build/flag_ship/flag_ship.egg-info to /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/lib/python3.10/site-packages/flag_ship-0.0.0-py3.10.egg-info
+[2.048s] running install_scripts
+[2.062s] writing list of installed files to '/home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/install.log'
+[2.086s] Invoked command in '/home/nb_adm/SWARMz4/ros2_ws/src/swarmz_pkgs/flag_ship' returned '0': PYTHONPATH=/home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../../build/flag_ship build --build-base /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/build install --record /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/install.log --single-version-externally-managed install_data

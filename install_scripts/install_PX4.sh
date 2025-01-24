@@ -46,9 +46,35 @@ install_px4() {
     echo "PX4-Autopilot installation completed."
 }
 
+# Function to check if custom_world is already installed
+check_custom_world_installed() {
+    if [ -f "$HOME/.simulation-gazebo/worlds/swarmz_world.sdf" ]; then
+        echo "custom_world is already installed at $HOME/.simulation-gazebo/worlds/swarmz_world.sdf."
+        return 0
+    else
+        echo "custom_world is not installed at $HOME/.simulation-gazebo/worlds/swarmz_world.sdf."
+        return 1
+    fi
+}
+
+copy_world() {
+    echo "Copying custom world file to gazebo worlds directory."
+    if [ ! -d "$HOME/.simulation-gazebo/worlds" ]; then
+        mkdir -p "$HOME/.simulation-gazebo/worlds"
+    fi
+    cp $SWARMZ4_PATH/launch_scripts/swarmz_world.sdf "$HOME/.simulation-gazebo/worlds/swarmz_world.sdf"
+}
+
 # Main function for PX4
 if ! check_px4_installed; then
     install_px4
 else
     echo "PX4-Autopilot is already installed, skipping."
+fi
+
+# Copying the custom world file named swarmz_world.sdf
+if ! check_custom_world_installed; then
+    copy_world
+else
+    echo "custom world is already installed, skipping."
 fi

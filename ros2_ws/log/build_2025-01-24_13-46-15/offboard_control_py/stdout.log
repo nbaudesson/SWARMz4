@@ -1,0 +1,61 @@
+running egg_info
+creating ../../../../build/offboard_control_py/offboard_control_py.egg-info
+writing ../../../../build/offboard_control_py/offboard_control_py.egg-info/PKG-INFO
+writing dependency_links to ../../../../build/offboard_control_py/offboard_control_py.egg-info/dependency_links.txt
+writing entry points to ../../../../build/offboard_control_py/offboard_control_py.egg-info/entry_points.txt
+writing requirements to ../../../../build/offboard_control_py/offboard_control_py.egg-info/requires.txt
+writing top-level names to ../../../../build/offboard_control_py/offboard_control_py.egg-info/top_level.txt
+writing manifest file '../../../../build/offboard_control_py/offboard_control_py.egg-info/SOURCES.txt'
+reading manifest file '../../../../build/offboard_control_py/offboard_control_py.egg-info/SOURCES.txt'
+writing manifest file '../../../../build/offboard_control_py/offboard_control_py.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build
+creating /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib
+creating /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib/offboard_control_py
+copying offboard_control_py/offboard_control_goto.py -> /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib/offboard_control_py
+copying offboard_control_py/offboard_control.py -> /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib/offboard_control_py
+copying offboard_control_py/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib/offboard_control_py
+copying offboard_control_py/simu_processes.py -> /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib/offboard_control_py
+copying offboard_control_py/tight_circle.py -> /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib/offboard_control_py
+copying offboard_control_py/mission_control.py -> /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib/offboard_control_py
+copying offboard_control_py/simu_circle.py -> /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib/offboard_control_py
+running install
+running install_lib
+creating /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py
+copying /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib/offboard_control_py/offboard_control_goto.py -> /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py
+copying /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib/offboard_control_py/offboard_control.py -> /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py
+copying /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib/offboard_control_py/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py
+copying /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib/offboard_control_py/simu_processes.py -> /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py
+copying /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib/offboard_control_py/tight_circle.py -> /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py
+copying /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib/offboard_control_py/mission_control.py -> /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py
+copying /home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/build/lib/offboard_control_py/simu_circle.py -> /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py/offboard_control_goto.py to offboard_control_goto.cpython-310.pyc
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py/offboard_control.py to offboard_control.cpython-310.pyc
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py/__init__.py to __init__.cpython-310.pyc
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py/simu_processes.py to simu_processes.cpython-310.pyc
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py/tight_circle.py to tight_circle.cpython-310.pyc
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py/mission_control.py to mission_control.cpython-310.pyc
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py/simu_circle.py to simu_circle.cpython-310.pyc
+running install_data
+creating /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/share/ament_index
+creating /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/share/ament_index/resource_index
+creating /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/share/ament_index/resource_index/packages
+copying resource/offboard_control_py -> /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/share/ament_index/resource_index/packages
+copying package.xml -> /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/share/offboard_control_py
+creating /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/share/offboard_control_py/launch
+copying launch/SwarmZ_simu_cpp.launch.py -> /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/share/offboard_control_py/launch
+copying launch/SwarmZ_mission.launch.py -> /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/share/offboard_control_py/launch
+copying launch/SwarmZ_simu.launch.py -> /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/share/offboard_control_py/launch
+copying launch/offboard_control_goto.launch.py -> /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/share/offboard_control_py/launch
+copying launch/new_mission_launch.py -> /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/share/offboard_control_py/launch
+running install_egg_info
+Copying ../../../../build/offboard_control_py/offboard_control_py.egg-info to /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py-0.0.0-py3.10.egg-info
+running install_scripts
+Installing mission_control script to /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/offboard_control_py
+Installing offboard_control script to /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/offboard_control_py
+Installing offboard_control_goto script to /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/offboard_control_py
+Installing simu_circle script to /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/offboard_control_py
+Installing simu_processes script to /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/offboard_control_py
+Installing tight_circle script to /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/offboard_control_py
+writing list of installed files to '/home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/install.log'

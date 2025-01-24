@@ -1,0 +1,5 @@
+/home/nb_adm/SWARMz4/ros2_ws/build/swarmz_interfaces/rosidl_adapter/swarmz_interfaces:msg/Detection.idl
+/home/nb_adm/SWARMz4/ros2_ws/build/swarmz_interfaces/rosidl_adapter/swarmz_interfaces:msg/Detections.idl
+/home/nb_adm/SWARMz4/ros2_ws/build/swarmz_interfaces/rosidl_adapter/swarmz_interfaces:srv/Kamikaze.idl
+/home/nb_adm/SWARMz4/ros2_ws/build/swarmz_interfaces/rosidl_adapter/swarmz_interfaces:srv/Missile.idl
+/home/nb_adm/SWARMz4/ros2_ws/build/swarmz_interfaces/rosidl_adapter/swarmz_interfaces:srv/UpdateHealth.idl

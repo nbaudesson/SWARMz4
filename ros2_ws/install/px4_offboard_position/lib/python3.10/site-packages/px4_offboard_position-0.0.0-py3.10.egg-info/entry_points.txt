@@ -1,0 +1,4 @@
+[console_scripts]
+offboard_control = px4_offboard_position.offboard_control:main
+visualizer = px4_offboard_position.visualizer:main
+

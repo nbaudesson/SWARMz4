@@ -1,0 +1,166 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-452bdb2371791e9aca31.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.12"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						8
+					]
+				},
+				{
+					"build" : "gtest",
+					"jsonFile" : "directory-gtest-a2408fe1a73b92c5e636.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 1,
+					"source" : "/opt/ros/humble/src/gtest_vendor",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				}
+			],
+			"name" : "",
+			"projects" : 
+			[
+				{
+					"childIndexes" : 
+					[
+						1
+					],
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "px4_ros2_cpp",
+					"targetIndexes" : 
+					[
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						8
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						1
+					],
+					"name" : "gtest",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 1,
+					"id" : "gtest::@0af4add9fe94340e763e",
+					"jsonFile" : "target-gtest-b1c163dece7a270f01be.json",
+					"name" : "gtest",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "gtest_main::@0af4add9fe94340e763e",
+					"jsonFile" : "target-gtest_main-b35349719a4d3e7f2383.json",
+					"name" : "gtest_main",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "integration_tests::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-integration_tests-c31243e9a936459d56ed.json",
+					"name" : "integration_tests",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "integration_utils::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-integration_utils-a25068376d09a3574a95.json",
+					"name" : "integration_utils",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "px4_ros2_cpp::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-px4_ros2_cpp-b651c6f291c9ae0a539a.json",
+					"name" : "px4_ros2_cpp",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "px4_ros2_cpp_uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-px4_ros2_cpp_uninstall-6c25901b57b0bf683dc5.json",
+					"name" : "px4_ros2_cpp_uninstall",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "px4_ros2_cpp_unit_tests::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-px4_ros2_cpp_unit_tests-b9310a5b9768c6e3294d.json",
+					"name" : "px4_ros2_cpp_unit_tests",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-uninstall-a1fdfc9f0f1efc29b1e6.json",
+					"name" : "uninstall",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "unit_utils::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-unit_utils-e0ed6dfaf1164211bdfe.json",
+					"name" : "unit_utils",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/nb_adm/SWARMz4/ros2_ws/build/px4_ros2_cpp",
+		"source" : "/home/nb_adm/SWARMz4/ros2_ws/src/px4_pkgs/px4-ros2-interface-lib/px4_ros2_cpp"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}

@@ -1,0 +1,94 @@
+[0.037s] Invoking command in '/home/nb_adm/SWARMz4/ros2_ws/build/px4_ros2_cpp': CMAKE_PREFIX_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_with_executor_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_rtl_replacement_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_manual_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_global_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_fw_attitude_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_global_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_velocity:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_position:/home/nb_adm/SWARMz4/ros2_ws/install/px4_gz_bridge:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py:/home/nb_adm/SWARMz4/ros2_ws/install/game_master:/home/nb_adm/SWARMz4/ros2_ws/install/flag_ship:/opt/ros/humble LD_LIBRARY_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs/lib:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/lib:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib /usr/bin/cmake --build /home/nb_adm/SWARMz4/ros2_ws/build/px4_ros2_cpp -- -j24 -l24
+[0.496s] [35m[1mConsolidate compiler generated dependencies of target integration_utils[0m
+[0.496s] [35m[1mConsolidate compiler generated dependencies of target gtest_main[0m
+[0.496s] [35m[1mConsolidate compiler generated dependencies of target gtest[0m
+[0.496s] [35m[1mConsolidate compiler generated dependencies of target unit_utils[0m
+[0.496s] [35m[1mConsolidate compiler generated dependencies of target px4_ros2_cpp[0m
+[0.496s] [  4%] Built target gtest
+[0.496s] [  8%] Built target gtest_main
+[0.497s] [ 12%] Built target integration_utils
+[0.497s] [ 17%] Built target unit_utils
+[0.497s] [ 65%] Built target px4_ros2_cpp
+[0.497s] [35m[1mConsolidate compiler generated dependencies of target px4_ros2_cpp_unit_tests[0m
+[0.497s] [35m[1mConsolidate compiler generated dependencies of target integration_tests[0m
+[0.497s] [ 85%] Built target integration_tests
+[0.497s] [100%] Built target px4_ros2_cpp_unit_tests
+[0.512s] Invoked command in '/home/nb_adm/SWARMz4/ros2_ws/build/px4_ros2_cpp' returned '0': CMAKE_PREFIX_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_with_executor_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_rtl_replacement_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_manual_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_global_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_fw_attitude_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_global_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_velocity:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_position:/home/nb_adm/SWARMz4/ros2_ws/install/px4_gz_bridge:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py:/home/nb_adm/SWARMz4/ros2_ws/install/game_master:/home/nb_adm/SWARMz4/ros2_ws/install/flag_ship:/opt/ros/humble LD_LIBRARY_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs/lib:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/lib:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib /usr/bin/cmake --build /home/nb_adm/SWARMz4/ros2_ws/build/px4_ros2_cpp -- -j24 -l24
+[0.513s] Invoking command in '/home/nb_adm/SWARMz4/ros2_ws/build/px4_ros2_cpp': CMAKE_PREFIX_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_with_executor_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_rtl_replacement_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_manual_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_global_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_fw_attitude_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_global_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_velocity:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_position:/home/nb_adm/SWARMz4/ros2_ws/install/px4_gz_bridge:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py:/home/nb_adm/SWARMz4/ros2_ws/install/game_master:/home/nb_adm/SWARMz4/ros2_ws/install/flag_ship:/opt/ros/humble LD_LIBRARY_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs/lib:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/lib:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib /usr/bin/cmake --install /home/nb_adm/SWARMz4/ros2_ws/build/px4_ros2_cpp
+[0.531s] -- Install configuration: ""
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/environment/library_path.sh
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/environment/library_path.dsv
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/components
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/components/health_and_arming_checks.hpp
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/components/mode_executor.hpp
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/components/manual_control_input.hpp
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/components/groups.dox
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/components/message_compatibility_check.hpp
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/components/overrides.hpp
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/components/wait_for_fmu.hpp
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/components/mode.hpp
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/components/events.hpp
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/components/node_with_mode.hpp
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/control
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/control/setpoint_types
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/control/setpoint_types/experimental
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/control/setpoint_types/experimental/rates.hpp
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/control/setpoint_types/experimental/trajectory.hpp
+[0.531s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/control/setpoint_types/experimental/attitude.hpp
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/control/setpoint_types/groups.dox
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/control/setpoint_types/goto.hpp
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/control/setpoint_types/direct_actuators.hpp
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/control/groups.dox
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/control/peripheral_actuators.hpp
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/vehicle_state
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/vehicle_state/home_position.hpp
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/vehicle_state/groups.dox
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/vehicle_state/vtol_status.hpp
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/vehicle_state/vehicle_status.hpp
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/vehicle_state/battery.hpp
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/vehicle_state/land_detected.hpp
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/utils
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/utils/subscription.hpp
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/utils/groups.dox
+[0.532s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/utils/geodesic.hpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/utils/geometry.hpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/utils/frame_conversion.hpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/odometry
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/odometry/global_position.hpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/odometry/groups.dox
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/odometry/local_position.hpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/odometry/angular_velocity.hpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/odometry/attitude.hpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/common
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/common/setpoint_base.hpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/common/requirement_flags.hpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/common/context.hpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/common/frame.hpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/navigation
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/navigation/experimental
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/navigation/experimental/local_position_measurement_interface.hpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/navigation/experimental/global_position_measurement_interface.hpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/navigation/experimental/navigation_interface_base.hpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/include/px4_ros2/navigation/groups.dox
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/lib/libpx4_ros2_cpp.so
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/ament_index/resource_index/package_run_dependencies/px4_ros2_cpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/ament_index/resource_index/parent_prefix_path/px4_ros2_cpp
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/environment/ament_prefix_path.sh
+[0.533s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/environment/ament_prefix_path.dsv
+[0.534s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/environment/path.sh
+[0.534s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/environment/path.dsv
+[0.534s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/local_setup.bash
+[0.534s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/local_setup.sh
+[0.534s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/local_setup.zsh
+[0.534s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/local_setup.dsv
+[0.534s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/package.dsv
+[0.534s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/ament_index/resource_index/packages/px4_ros2_cpp
+[0.534s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/cmake/px4_ros2_cppExport.cmake
+[0.534s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/cmake/px4_ros2_cppExport-noconfig.cmake
+[0.534s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/cmake/ament_cmake_export_targets-extras.cmake
+[0.534s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/cmake/ament_cmake_export_dependencies-extras.cmake
+[0.534s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/cmake/px4_ros2_cppConfig.cmake
+[0.534s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/cmake/px4_ros2_cppConfig-version.cmake
+[0.534s] -- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/share/px4_ros2_cpp/package.xml
+[0.546s] Invoked command in '/home/nb_adm/SWARMz4/ros2_ws/build/px4_ros2_cpp' returned '0': CMAKE_PREFIX_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_with_executor_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_rtl_replacement_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_manual_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_global_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_fw_attitude_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_global_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_velocity:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_position:/home/nb_adm/SWARMz4/ros2_ws/install/px4_gz_bridge:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py:/home/nb_adm/SWARMz4/ros2_ws/install/game_master:/home/nb_adm/SWARMz4/ros2_ws/install/flag_ship:/opt/ros/humble LD_LIBRARY_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs/lib:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/lib:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib /usr/bin/cmake --install /home/nb_adm/SWARMz4/ros2_ws/build/px4_ros2_cpp

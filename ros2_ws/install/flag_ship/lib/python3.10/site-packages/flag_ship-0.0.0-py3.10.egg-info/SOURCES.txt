@@ -1,0 +1,16 @@
+package.xml
+setup.cfg
+setup.py
+../../../build/flag_ship/flag_ship.egg-info/PKG-INFO
+../../../build/flag_ship/flag_ship.egg-info/SOURCES.txt
+../../../build/flag_ship/flag_ship.egg-info/dependency_links.txt
+../../../build/flag_ship/flag_ship.egg-info/entry_points.txt
+../../../build/flag_ship/flag_ship.egg-info/requires.txt
+../../../build/flag_ship/flag_ship.egg-info/top_level.txt
+../../../build/flag_ship/flag_ship.egg-info/zip-safe
+flag_ship/__init__.py
+launch/gazebo.launch.py
+launch/rviz2.launch.py
+test/test_copyright.py
+test/test_flake8.py
+test/test_pep257.py

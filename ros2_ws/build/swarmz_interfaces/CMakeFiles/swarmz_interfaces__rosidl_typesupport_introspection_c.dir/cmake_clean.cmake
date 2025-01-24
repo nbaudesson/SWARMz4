@@ -1,0 +1,29 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/swarmz_interfaces/msg/detail/detection__type_support.c.o"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/swarmz_interfaces/msg/detail/detection__type_support.c.o.d"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/swarmz_interfaces/msg/detail/detections__type_support.c.o"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/swarmz_interfaces/msg/detail/detections__type_support.c.o.d"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/swarmz_interfaces/srv/detail/kamikaze__type_support.c.o"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/swarmz_interfaces/srv/detail/kamikaze__type_support.c.o.d"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/swarmz_interfaces/srv/detail/missile__type_support.c.o"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/swarmz_interfaces/srv/detail/missile__type_support.c.o.d"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/swarmz_interfaces/srv/detail/update_health__type_support.c.o"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/swarmz_interfaces/srv/detail/update_health__type_support.c.o.d"
+  "libswarmz_interfaces__rosidl_typesupport_introspection_c.pdb"
+  "libswarmz_interfaces__rosidl_typesupport_introspection_c.so"
+  "rosidl_typesupport_introspection_c/swarmz_interfaces/msg/detail/detection__rosidl_typesupport_introspection_c.h"
+  "rosidl_typesupport_introspection_c/swarmz_interfaces/msg/detail/detection__type_support.c"
+  "rosidl_typesupport_introspection_c/swarmz_interfaces/msg/detail/detections__rosidl_typesupport_introspection_c.h"
+  "rosidl_typesupport_introspection_c/swarmz_interfaces/msg/detail/detections__type_support.c"
+  "rosidl_typesupport_introspection_c/swarmz_interfaces/srv/detail/kamikaze__rosidl_typesupport_introspection_c.h"
+  "rosidl_typesupport_introspection_c/swarmz_interfaces/srv/detail/kamikaze__type_support.c"
+  "rosidl_typesupport_introspection_c/swarmz_interfaces/srv/detail/missile__rosidl_typesupport_introspection_c.h"
+  "rosidl_typesupport_introspection_c/swarmz_interfaces/srv/detail/missile__type_support.c"
+  "rosidl_typesupport_introspection_c/swarmz_interfaces/srv/detail/update_health__rosidl_typesupport_introspection_c.h"
+  "rosidl_typesupport_introspection_c/swarmz_interfaces/srv/detail/update_health__type_support.c"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang C)
+  include(CMakeFiles/swarmz_interfaces__rosidl_typesupport_introspection_c.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

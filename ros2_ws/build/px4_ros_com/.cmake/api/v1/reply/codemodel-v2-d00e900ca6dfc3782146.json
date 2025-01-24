@@ -1,0 +1,142 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-dcbc2a7a3bd4358d187d.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.12"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						8,
+						9
+					]
+				}
+			],
+			"name" : "",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "px4_ros_com",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						8,
+						9
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "ament_cmake_python_build_px4_ros_com_egg::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-ament_cmake_python_build_px4_ros_com_egg-48c6be0c44e608560b0a.json",
+					"name" : "ament_cmake_python_build_px4_ros_com_egg",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "ament_cmake_python_copy_px4_ros_com::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-ament_cmake_python_copy_px4_ros_com-d43a2352d8fb7614bf8f.json",
+					"name" : "ament_cmake_python_copy_px4_ros_com",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "debug_vect_advertiser::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-debug_vect_advertiser-c76bea70d6d0b527a6c1.json",
+					"name" : "debug_vect_advertiser",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "frame_transforms::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-frame_transforms-d220d8920a039aa12878.json",
+					"name" : "frame_transforms",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "offboard_control::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-offboard_control-5e3a2ab2497d8ea50664.json",
+					"name" : "offboard_control",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "offboard_control_srv::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-offboard_control_srv-17658a9344c07ec7eb32.json",
+					"name" : "offboard_control_srv",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "px4_ros_com_uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-px4_ros_com_uninstall-3dd8eb316872ea42adee.json",
+					"name" : "px4_ros_com_uninstall",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "sensor_combined_listener::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-sensor_combined_listener-04d84ac00ee93fd688ec.json",
+					"name" : "sensor_combined_listener",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-uninstall-358c47a606140c95aa44.json",
+					"name" : "uninstall",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "vehicle_gps_position_listener::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-vehicle_gps_position_listener-cc5aae948f50ac4a135c.json",
+					"name" : "vehicle_gps_position_listener",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/nb_adm/SWARMz4/ros2_ws/build/px4_ros_com",
+		"source" : "/home/nb_adm/SWARMz4/ros2_ws/src/px4_pkgs/px4_ros_com"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}

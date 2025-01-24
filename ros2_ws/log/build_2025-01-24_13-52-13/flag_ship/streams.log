@@ -1,0 +1,20 @@
+[1.683s] Invoking command in '/home/nb_adm/SWARMz4/ros2_ws/src/swarmz_pkgs/flag_ship': PYTHONPATH=/home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../../build/flag_ship build --build-base /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/build install --record /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/install.log --single-version-externally-managed install_data
+[2.036s] running egg_info
+[2.037s] writing ../../../build/flag_ship/flag_ship.egg-info/PKG-INFO
+[2.037s] writing dependency_links to ../../../build/flag_ship/flag_ship.egg-info/dependency_links.txt
+[2.037s] writing entry points to ../../../build/flag_ship/flag_ship.egg-info/entry_points.txt
+[2.037s] writing requirements to ../../../build/flag_ship/flag_ship.egg-info/requires.txt
+[2.037s] writing top-level names to ../../../build/flag_ship/flag_ship.egg-info/top_level.txt
+[2.039s] reading manifest file '../../../build/flag_ship/flag_ship.egg-info/SOURCES.txt'
+[2.040s] writing manifest file '../../../build/flag_ship/flag_ship.egg-info/SOURCES.txt'
+[2.040s] running build
+[2.040s] running build_py
+[2.041s] running install
+[2.041s] running install_lib
+[2.043s] running install_data
+[2.043s] running install_egg_info
+[2.045s] removing '/home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/lib/python3.10/site-packages/flag_ship-0.0.0-py3.10.egg-info' (and everything under it)
+[2.045s] Copying ../../../build/flag_ship/flag_ship.egg-info to /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/lib/python3.10/site-packages/flag_ship-0.0.0-py3.10.egg-info
+[2.046s] running install_scripts
+[2.068s] writing list of installed files to '/home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/install.log'
+[2.342s] Invoked command in '/home/nb_adm/SWARMz4/ros2_ws/src/swarmz_pkgs/flag_ship' returned '0': PYTHONPATH=/home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../../build/flag_ship build --build-base /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/build install --record /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/install.log --single-version-externally-managed install_data

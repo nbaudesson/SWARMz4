@@ -1,0 +1,24 @@
+running egg_info
+writing ../../../../build/offboard_control_py/offboard_control_py.egg-info/PKG-INFO
+writing dependency_links to ../../../../build/offboard_control_py/offboard_control_py.egg-info/dependency_links.txt
+writing entry points to ../../../../build/offboard_control_py/offboard_control_py.egg-info/entry_points.txt
+writing requirements to ../../../../build/offboard_control_py/offboard_control_py.egg-info/requires.txt
+writing top-level names to ../../../../build/offboard_control_py/offboard_control_py.egg-info/top_level.txt
+reading manifest file '../../../../build/offboard_control_py/offboard_control_py.egg-info/SOURCES.txt'
+writing manifest file '../../../../build/offboard_control_py/offboard_control_py.egg-info/SOURCES.txt'
+running build
+running build_py
+running install
+running install_lib
+running install_data
+running install_egg_info
+removing '/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py-0.0.0-py3.10.egg-info' (and everything under it)
+Copying ../../../../build/offboard_control_py/offboard_control_py.egg-info to /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/python3.10/site-packages/offboard_control_py-0.0.0-py3.10.egg-info
+running install_scripts
+Installing mission_control script to /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/offboard_control_py
+Installing offboard_control script to /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/offboard_control_py
+Installing offboard_control_goto script to /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/offboard_control_py
+Installing simu_circle script to /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/offboard_control_py
+Installing simu_processes script to /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/offboard_control_py
+Installing tight_circle script to /home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py/lib/offboard_control_py
+writing list of installed files to '/home/nb_adm/SWARMz4/ros2_ws/build/offboard_control_py/install.log'

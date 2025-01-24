@@ -1,0 +1,77 @@
+running egg_info
+creating ../../../build/game_master/game_master.egg-info
+writing ../../../build/game_master/game_master.egg-info/PKG-INFO
+writing dependency_links to ../../../build/game_master/game_master.egg-info/dependency_links.txt
+writing entry points to ../../../build/game_master/game_master.egg-info/entry_points.txt
+writing requirements to ../../../build/game_master/game_master.egg-info/requires.txt
+writing top-level names to ../../../build/game_master/game_master.egg-info/top_level.txt
+writing manifest file '../../../build/game_master/game_master.egg-info/SOURCES.txt'
+reading manifest file '../../../build/game_master/game_master.egg-info/SOURCES.txt'
+writing manifest file '../../../build/game_master/game_master.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build
+creating /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib
+creating /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/exemple
+copying exemple/game_master_client.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/exemple
+copying exemple/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/exemple
+creating /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils
+copying utils/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils
+copying utils/tools.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils
+copying utils/kill_drone.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils
+copying utils/gazebo_subscriber.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils
+creating /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master
+copying game_master/missile_server.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master
+copying game_master/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master
+copying game_master/kamikaze_server.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master
+copying game_master/game_master_node.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master
+running install
+running install_lib
+creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/exemple
+copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/exemple/game_master_client.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/exemple
+copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/exemple/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/exemple
+creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils
+copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils
+copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils/tools.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils
+copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils/kill_drone.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils
+copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils/gazebo_subscriber.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils
+creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master
+copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master/missile_server.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master
+copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master
+copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master/kamikaze_server.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master
+copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master/game_master_node.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/exemple/game_master_client.py to game_master_client.cpython-310.pyc
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/exemple/__init__.py to __init__.cpython-310.pyc
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils/__init__.py to __init__.cpython-310.pyc
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils/tools.py to tools.cpython-310.pyc
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils/kill_drone.py to kill_drone.cpython-310.pyc
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils/gazebo_subscriber.py to gazebo_subscriber.cpython-310.pyc
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master/missile_server.py to missile_server.cpython-310.pyc
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master/__init__.py to __init__.cpython-310.pyc
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master/kamikaze_server.py to kamikaze_server.cpython-310.pyc
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master/game_master_node.py to game_master_node.cpython-310.pyc
+running install_data
+creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/ament_index
+creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/ament_index/resource_index
+creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/ament_index/resource_index/packages
+copying resource/game_master -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/ament_index/resource_index/packages
+copying package.xml -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master
+creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/launch
+copying launch/start_game.launch.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/launch
+copying launch/game_client.launch.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/launch
+copying launch/game_master.launch.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/launch
+creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/config
+copying config/game_master_params.yaml -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/config
+creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/utils
+copying utils/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/utils
+copying utils/tools.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/utils
+copying utils/kill_drone.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/utils
+copying utils/gazebo_subscriber.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/utils
+running install_egg_info
+Copying ../../../build/game_master/game_master.egg-info to /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master-0.0.0-py3.10.egg-info
+running install_scripts
+Installing game_master_client_node script to /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/game_master
+Installing game_master_node script to /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/game_master
+Installing kamikaze_server script to /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/game_master
+Installing missile_server script to /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/game_master
+writing list of installed files to '/home/nb_adm/SWARMz4/ros2_ws/build/game_master/install.log'

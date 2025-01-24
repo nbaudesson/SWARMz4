@@ -1,0 +1,147 @@
+[0.663s] Invoking command in '/home/nb_adm/SWARMz4/ros2_ws/build/px4_ros_com': CMAKE_PREFIX_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_with_executor_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_rtl_replacement_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_manual_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_global_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_fw_attitude_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_global_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_velocity:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_position:/home/nb_adm/SWARMz4/ros2_ws/install/px4_gz_bridge:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py:/home/nb_adm/SWARMz4/ros2_ws/install/game_master:/home/nb_adm/SWARMz4/ros2_ws/install/flag_ship:/opt/ros/humble LD_LIBRARY_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs/lib:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/lib:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib /usr/bin/cmake /home/nb_adm/SWARMz4/ros2_ws/src/px4_pkgs/px4_ros_com -DCMAKE_INSTALL_PREFIX=/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com
+[0.718s] -- The C compiler identification is GNU 11.4.0
+[0.785s] -- The CXX compiler identification is GNU 11.4.0
+[0.793s] -- Detecting C compiler ABI info
+[0.860s] -- Detecting C compiler ABI info - done
+[0.868s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.868s] -- Detecting C compile features
+[0.868s] -- Detecting C compile features - done
+[0.872s] -- Detecting CXX compiler ABI info
+[0.947s] -- Detecting CXX compiler ABI info - done
+[0.955s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.955s] -- Detecting CXX compile features
+[0.956s] -- Detecting CXX compile features - done
+[0.959s] -- Found ament_cmake: 1.3.11 (/opt/ros/humble/share/ament_cmake/cmake)
+[1.149s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[1.237s] -- Found builtin_interfaces: 1.2.1 (/opt/ros/humble/share/builtin_interfaces/cmake)
+[1.278s] -- Found rosidl_generator_c: 3.1.6 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[1.285s] -- Found rosidl_adapter: 3.1.6 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[1.295s] -- Found rosidl_generator_cpp: 3.1.6 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[1.310s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[1.331s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[1.350s] -- Found eigen3_cmake_module: 0.1.1 (/opt/ros/humble/share/eigen3_cmake_module/cmake)
+[1.359s] -- Found Eigen3: TRUE (found version "3.4.0") 
+[1.361s] -- Found geometry_msgs: 4.2.4 (/opt/ros/humble/share/geometry_msgs/cmake)
+[1.392s] -- Found px4_msgs: 2.0.1 (/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs/share/px4_msgs/cmake)
+[1.406s] -- Found rclcpp: 16.0.11 (/opt/ros/humble/share/rclcpp/cmake)
+[1.450s] -- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[1.454s] -- Found rmw_fastrtps_cpp: 6.2.7 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[1.549s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+[1.583s] -- Found FastRTPS: /opt/ros/humble/include  
+[1.636s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[1.646s] -- Looking for pthread.h
+[1.792s] -- Looking for pthread.h - found
+[1.793s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[1.898s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+[1.899s] -- Found Threads: TRUE  
+[2.001s] -- Found sensor_msgs: 4.2.4 (/opt/ros/humble/share/sensor_msgs/cmake)
+[2.058s] -- Found rclpy: 3.3.15 (/opt/ros/humble/share/rclpy/cmake)
+[2.084s] -- Found ament_lint_auto: 0.12.11 (/opt/ros/humble/share/ament_lint_auto/cmake)
+[2.437s] -- Added test 'copyright' to check source files copyright and LICENSE
+[2.448s] -- Added test 'cppcheck' to perform static code analysis on C / C++ code
+[2.449s] -- Configured cppcheck include dirs: /home/nb_adm/SWARMz4/ros2_ws/src/px4_pkgs/px4_ros_com/include;$<BUILD_INTERFACE:/home/nb_adm/SWARMz4/ros2_ws/src/px4_pkgs/px4_ros_com/include/px4_ros_com>
+[2.456s] -- Configured cppcheck exclude dirs and/or files: 
+[2.460s] -- Added test 'cpplint' to check C / C++ code against the Google style
+[2.463s] -- Configured cpplint exclude dirs and/or files: 
+[2.472s] -- Added test 'flake8' to check Python code syntax and style conventions
+[2.472s] -- Added test 'lint_cmake' to check CMake code style
+[2.476s] -- Added test 'pep257' to check Python code against some of the docstring style conventions in PEP 257
+[2.487s] -- Added test 'uncrustify' to check C / C++ code style
+[2.487s] -- Configured uncrustify additional arguments: 
+[2.490s] -- Added test 'xmllint' to check XML markup files
+[2.495s] -- Configuring done
+[2.570s] -- Generating done
+[2.601s] -- Build files have been written to: /home/nb_adm/SWARMz4/ros2_ws/build/px4_ros_com
+[2.636s] Invoked command in '/home/nb_adm/SWARMz4/ros2_ws/build/px4_ros_com' returned '0': CMAKE_PREFIX_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_with_executor_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_rtl_replacement_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_manual_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_global_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_fw_attitude_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_global_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_velocity:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_position:/home/nb_adm/SWARMz4/ros2_ws/install/px4_gz_bridge:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py:/home/nb_adm/SWARMz4/ros2_ws/install/game_master:/home/nb_adm/SWARMz4/ros2_ws/install/flag_ship:/opt/ros/humble LD_LIBRARY_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs/lib:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/lib:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib /usr/bin/cmake /home/nb_adm/SWARMz4/ros2_ws/src/px4_pkgs/px4_ros_com -DCMAKE_INSTALL_PREFIX=/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com
+[2.637s] Invoking command in '/home/nb_adm/SWARMz4/ros2_ws/build/px4_ros_com': CMAKE_PREFIX_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_with_executor_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_rtl_replacement_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_manual_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_global_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_fw_attitude_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_global_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_velocity:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_position:/home/nb_adm/SWARMz4/ros2_ws/install/px4_gz_bridge:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py:/home/nb_adm/SWARMz4/ros2_ws/install/game_master:/home/nb_adm/SWARMz4/ros2_ws/install/flag_ship:/opt/ros/humble LD_LIBRARY_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs/lib:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/lib:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib /usr/bin/cmake --build /home/nb_adm/SWARMz4/ros2_ws/build/px4_ros_com -- -j24 -l24
+[2.747s] [ 16%] [32mBuilding CXX object CMakeFiles/sensor_combined_listener.dir/src/examples/listeners/sensor_combined_listener.cpp.o[0m
+[2.748s] [ 16%] [32mBuilding CXX object CMakeFiles/debug_vect_advertiser.dir/src/examples/advertisers/debug_vect_advertiser.cpp.o[0m
+[2.751s] [ 33%] [32mBuilding CXX object CMakeFiles/frame_transforms.dir/src/lib/frame_transforms.cpp.o[0m
+[2.751s] [ 33%] [32mBuilding CXX object CMakeFiles/vehicle_gps_position_listener.dir/src/examples/listeners/vehicle_gps_position_listener.cpp.o[0m
+[2.757s] [ 41%] [32mBuilding CXX object CMakeFiles/offboard_control.dir/src/examples/offboard/offboard_control.cpp.o[0m
+[2.759s] [ 50%] [32mBuilding CXX object CMakeFiles/offboard_control_srv.dir/src/examples/offboard/offboard_control_srv.cpp.o[0m
+[2.792s] [ 50%] Built target ament_cmake_python_copy_px4_ros_com
+[3.670s] running egg_info
+[3.671s] creating px4_ros_com.egg-info
+[3.671s] writing px4_ros_com.egg-info/PKG-INFO
+[3.672s] writing dependency_links to px4_ros_com.egg-info/dependency_links.txt
+[3.672s] writing top-level names to px4_ros_com.egg-info/top_level.txt
+[3.672s] writing manifest file 'px4_ros_com.egg-info/SOURCES.txt'
+[3.682s] reading manifest file 'px4_ros_com.egg-info/SOURCES.txt'
+[3.683s] writing manifest file 'px4_ros_com.egg-info/SOURCES.txt'
+[3.803s] [ 50%] Built target ament_cmake_python_build_px4_ros_com_egg
+[9.728s] [ 58%] [32m[1mLinking CXX executable debug_vect_advertiser[0m
+[10.293s] [ 58%] Built target debug_vect_advertiser
+[12.109s] [ 66%] [32m[1mLinking CXX executable offboard_control[0m
+[12.410s] [ 66%] Built target offboard_control
+[12.664s] [ 75%] [32m[1mLinking CXX executable offboard_control_srv[0m
+[12.970s] [ 75%] Built target offboard_control_srv
+[14.859s] [ 83%] [32m[1mLinking CXX executable sensor_combined_listener[0m
+[14.912s] [ 91%] [32m[1mLinking CXX shared library libframe_transforms.so[0m
+[15.191s] [ 91%] Built target sensor_combined_listener
+[15.215s] [ 91%] Built target frame_transforms
+[15.225s] [100%] [32m[1mLinking CXX executable vehicle_gps_position_listener[0m
+[15.486s] [100%] Built target vehicle_gps_position_listener
+[15.497s] Invoked command in '/home/nb_adm/SWARMz4/ros2_ws/build/px4_ros_com' returned '0': CMAKE_PREFIX_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_with_executor_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_rtl_replacement_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_manual_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_global_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_fw_attitude_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_global_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_velocity:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_position:/home/nb_adm/SWARMz4/ros2_ws/install/px4_gz_bridge:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py:/home/nb_adm/SWARMz4/ros2_ws/install/game_master:/home/nb_adm/SWARMz4/ros2_ws/install/flag_ship:/opt/ros/humble LD_LIBRARY_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs/lib:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/lib:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib /usr/bin/cmake --build /home/nb_adm/SWARMz4/ros2_ws/build/px4_ros_com -- -j24 -l24
+[15.498s] Invoking command in '/home/nb_adm/SWARMz4/ros2_ws/build/px4_ros_com': CMAKE_PREFIX_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_with_executor_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_rtl_replacement_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_manual_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_global_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_fw_attitude_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_global_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_velocity:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_position:/home/nb_adm/SWARMz4/ros2_ws/install/px4_gz_bridge:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py:/home/nb_adm/SWARMz4/ros2_ws/install/game_master:/home/nb_adm/SWARMz4/ros2_ws/install/flag_ship:/opt/ros/humble LD_LIBRARY_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs/lib:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/lib:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib /usr/bin/cmake --install /home/nb_adm/SWARMz4/ros2_ws/build/px4_ros_com
+[15.507s] -- Install configuration: ""
+[15.507s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib/px4_ros_com/sensor_combined_listener
+[15.510s] -- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib/px4_ros_com/sensor_combined_listener" to ""
+[15.510s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib/px4_ros_com/vehicle_gps_position_listener
+[15.514s] -- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib/px4_ros_com/vehicle_gps_position_listener" to ""
+[15.514s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib/px4_ros_com/debug_vect_advertiser
+[15.515s] -- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib/px4_ros_com/debug_vect_advertiser" to ""
+[15.515s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib/px4_ros_com/offboard_control
+[15.517s] -- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib/px4_ros_com/offboard_control" to ""
+[15.517s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib/px4_ros_com/offboard_control_srv
+[15.519s] -- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib/px4_ros_com/offboard_control_srv" to ""
+[15.519s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/environment/library_path.sh
+[15.519s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/environment/library_path.dsv
+[15.519s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/include/px4_ros_com
+[15.519s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/include/px4_ros_com/frame_transforms.h
+[15.519s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib/libframe_transforms.so
+[15.523s] -- Set runtime path of "/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib/libframe_transforms.so" to ""
+[15.523s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com//launch
+[15.524s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com//launch/sensor_combined_listener.launch.py
+[15.524s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com//launch/offboard_control_launch.yaml
+[15.524s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com//test
+[15.524s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com//test/__init__.py
+[15.524s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com//test/test_input.py
+[15.524s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com//test/pipeline_io_test.py
+[15.524s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com//test/test_output.py
+[15.524s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/environment/pythonpath.sh
+[15.524s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/environment/pythonpath.dsv
+[15.524s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/local/lib/python3.10/dist-packages/px4_ros_com-0.1.0-py3.10.egg-info
+[15.525s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/local/lib/python3.10/dist-packages/px4_ros_com-0.1.0-py3.10.egg-info/dependency_links.txt
+[15.525s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/local/lib/python3.10/dist-packages/px4_ros_com-0.1.0-py3.10.egg-info/PKG-INFO
+[15.525s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/local/lib/python3.10/dist-packages/px4_ros_com-0.1.0-py3.10.egg-info/SOURCES.txt
+[15.525s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/local/lib/python3.10/dist-packages/px4_ros_com-0.1.0-py3.10.egg-info/top_level.txt
+[15.525s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/local/lib/python3.10/dist-packages/px4_ros_com
+[15.525s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/local/lib/python3.10/dist-packages/px4_ros_com/module_to_import.py
+[15.525s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/local/lib/python3.10/dist-packages/px4_ros_com/__init__.py
+[15.559s] Listing '/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/local/lib/python3.10/dist-packages/px4_ros_com'...
+[15.559s] Compiling '/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/local/lib/python3.10/dist-packages/px4_ros_com/__init__.py'...
+[15.559s] Compiling '/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/local/lib/python3.10/dist-packages/px4_ros_com/module_to_import.py'...
+[15.564s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib/px4_ros_com/offboard_control.py
+[15.564s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/ament_index/resource_index/package_run_dependencies/px4_ros_com
+[15.564s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/ament_index/resource_index/parent_prefix_path/px4_ros_com
+[15.564s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/environment/ament_prefix_path.sh
+[15.564s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/environment/ament_prefix_path.dsv
+[15.564s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/environment/path.sh
+[15.564s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/environment/path.dsv
+[15.564s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/local_setup.bash
+[15.564s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/local_setup.sh
+[15.564s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/local_setup.zsh
+[15.564s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/local_setup.dsv
+[15.565s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/package.dsv
+[15.565s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/ament_index/resource_index/packages/px4_ros_com
+[15.565s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/cmake/export_frame_transformsExport.cmake
+[15.565s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/cmake/export_frame_transformsExport-noconfig.cmake
+[15.565s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/cmake/ament_cmake_export_dependencies-extras.cmake
+[15.565s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/cmake/ament_cmake_export_targets-extras.cmake
+[15.565s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/cmake/ament_cmake_export_include_directories-extras.cmake
+[15.565s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/cmake/ament_cmake_export_libraries-extras.cmake
+[15.565s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/cmake/px4_ros_comConfig.cmake
+[15.565s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/cmake/px4_ros_comConfig-version.cmake
+[15.565s] -- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/share/px4_ros_com/package.xml
+[15.567s] Invoked command in '/home/nb_adm/SWARMz4/ros2_ws/build/px4_ros_com' returned '0': CMAKE_PREFIX_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_with_executor_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_rtl_replacement_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_manual_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_global_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_goto_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_mode_fw_attitude_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/example_global_navigation_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_cpp:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_velocity:/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_position:/home/nb_adm/SWARMz4/ros2_ws/install/px4_gz_bridge:/home/nb_adm/SWARMz4/ros2_ws/install/offboard_control_py:/home/nb_adm/SWARMz4/ros2_ws/install/game_master:/home/nb_adm/SWARMz4/ros2_ws/install/flag_ship:/opt/ros/humble LD_LIBRARY_PATH=/home/nb_adm/SWARMz4/ros2_ws/install/px4_msgs/lib:/home/nb_adm/SWARMz4/ros2_ws/install/swarmz_interfaces/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros_com/lib:/home/nb_adm/SWARMz4/ros2_ws/install/px4_ros2_cpp/lib:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib /usr/bin/cmake --install /home/nb_adm/SWARMz4/ros2_ws/build/px4_ros_com

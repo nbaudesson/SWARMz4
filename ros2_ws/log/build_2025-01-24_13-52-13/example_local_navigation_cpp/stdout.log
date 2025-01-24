@@ -1,0 +1,19 @@
+[35m[1mConsolidate compiler generated dependencies of target example_local_navigation[0m
+[100%] Built target example_local_navigation
+-- Install configuration: ""
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/lib/example_local_navigation_cpp/example_local_navigation
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/share/ament_index/resource_index/package_run_dependencies/example_local_navigation_cpp
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/share/ament_index/resource_index/parent_prefix_path/example_local_navigation_cpp
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/share/example_local_navigation_cpp/environment/ament_prefix_path.sh
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/share/example_local_navigation_cpp/environment/ament_prefix_path.dsv
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/share/example_local_navigation_cpp/environment/path.sh
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/share/example_local_navigation_cpp/environment/path.dsv
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/share/example_local_navigation_cpp/local_setup.bash
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/share/example_local_navigation_cpp/local_setup.sh
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/share/example_local_navigation_cpp/local_setup.zsh
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/share/example_local_navigation_cpp/local_setup.dsv
+-- Installing: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/share/example_local_navigation_cpp/package.dsv
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/share/ament_index/resource_index/packages/example_local_navigation_cpp
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/share/example_local_navigation_cpp/cmake/example_local_navigation_cppConfig.cmake
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/share/example_local_navigation_cpp/cmake/example_local_navigation_cppConfig-version.cmake
+-- Up-to-date: /home/nb_adm/SWARMz4/ros2_ws/install/example_local_navigation_cpp/share/example_local_navigation_cpp/package.xml

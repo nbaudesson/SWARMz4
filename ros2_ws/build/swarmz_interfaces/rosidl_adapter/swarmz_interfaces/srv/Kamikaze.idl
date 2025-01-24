@@ -1,0 +1,17 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from swarmz_interfaces/srv/Kamikaze.srv
+// generated code does not contain a copyright notice
+
+
+module swarmz_interfaces {
+  module srv {
+    struct Kamikaze_Request {
+      @verbatim (language="comment", text=
+        "use namespace to tell to the GM who is blowing up")
+      string robot_name;
+    };
+    struct Kamikaze_Response {
+      uint8 structure_needs_at_least_one_member;
+    };
+  };
+};

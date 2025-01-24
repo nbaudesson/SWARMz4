@@ -1,0 +1,20 @@
+running egg_info
+writing ../../../../build/px4_offboard_position/px4_offboard_position.egg-info/PKG-INFO
+writing dependency_links to ../../../../build/px4_offboard_position/px4_offboard_position.egg-info/dependency_links.txt
+writing entry points to ../../../../build/px4_offboard_position/px4_offboard_position.egg-info/entry_points.txt
+writing requirements to ../../../../build/px4_offboard_position/px4_offboard_position.egg-info/requires.txt
+writing top-level names to ../../../../build/px4_offboard_position/px4_offboard_position.egg-info/top_level.txt
+reading manifest file '../../../../build/px4_offboard_position/px4_offboard_position.egg-info/SOURCES.txt'
+writing manifest file '../../../../build/px4_offboard_position/px4_offboard_position.egg-info/SOURCES.txt'
+running build
+running build_py
+running install
+running install_lib
+running install_data
+running install_egg_info
+removing '/home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_position/lib/python3.10/site-packages/px4_offboard_position-0.0.0-py3.10.egg-info' (and everything under it)
+Copying ../../../../build/px4_offboard_position/px4_offboard_position.egg-info to /home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_position/lib/python3.10/site-packages/px4_offboard_position-0.0.0-py3.10.egg-info
+running install_scripts
+Installing offboard_control script to /home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_position/lib/px4_offboard_position
+Installing visualizer script to /home/nb_adm/SWARMz4/ros2_ws/install/px4_offboard_position/lib/px4_offboard_position
+writing list of installed files to '/home/nb_adm/SWARMz4/ros2_ws/build/px4_offboard_position/install.log'

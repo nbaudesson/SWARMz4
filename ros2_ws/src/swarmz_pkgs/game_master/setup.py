@@ -16,6 +16,8 @@ setup(
         (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', '*launch.[pxy][yma]*'))),
         # Include all config files.
         (os.path.join('share', package_name, 'config'), glob(os.path.join('config', '*.yaml'))),
+        # Include all scripts.
+        (os.path.join('share', package_name, 'utils'), glob(os.path.join('utils', '*.py'))),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -27,8 +29,9 @@ setup(
     entry_points={
         'console_scripts': [
             'game_master_node = game_master.game_master_node:main',
-            'game_master_missile_server = game_master.game_master_missile_server:main',
-            'game_master_kamikaze_server = game_master.game_master_kamikaze_server:main',
+            'missile_server = game_master.missile_server:main',
+            'kamikaze_server = game_master.kamikaze_server:main',
+            'game_master_client_node = exemple.game_master_client:main',
         ],
     },
 )

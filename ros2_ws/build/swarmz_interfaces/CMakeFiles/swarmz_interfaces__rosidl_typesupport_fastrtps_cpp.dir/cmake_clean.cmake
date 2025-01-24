@@ -1,0 +1,29 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/msg/detail/dds_fastrtps/detection__type_support.cpp.o"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/msg/detail/dds_fastrtps/detection__type_support.cpp.o.d"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/msg/detail/dds_fastrtps/detections__type_support.cpp.o"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/msg/detail/dds_fastrtps/detections__type_support.cpp.o.d"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/srv/detail/dds_fastrtps/kamikaze__type_support.cpp.o"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/srv/detail/dds_fastrtps/kamikaze__type_support.cpp.o.d"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/srv/detail/dds_fastrtps/missile__type_support.cpp.o"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/srv/detail/dds_fastrtps/missile__type_support.cpp.o.d"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/srv/detail/dds_fastrtps/update_health__type_support.cpp.o"
+  "CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/srv/detail/dds_fastrtps/update_health__type_support.cpp.o.d"
+  "libswarmz_interfaces__rosidl_typesupport_fastrtps_cpp.pdb"
+  "libswarmz_interfaces__rosidl_typesupport_fastrtps_cpp.so"
+  "rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/msg/detail/dds_fastrtps/detection__type_support.cpp"
+  "rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/msg/detail/dds_fastrtps/detections__type_support.cpp"
+  "rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/msg/detail/detection__rosidl_typesupport_fastrtps_cpp.hpp"
+  "rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/msg/detail/detections__rosidl_typesupport_fastrtps_cpp.hpp"
+  "rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/srv/detail/dds_fastrtps/kamikaze__type_support.cpp"
+  "rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/srv/detail/dds_fastrtps/missile__type_support.cpp"
+  "rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/srv/detail/dds_fastrtps/update_health__type_support.cpp"
+  "rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/srv/detail/kamikaze__rosidl_typesupport_fastrtps_cpp.hpp"
+  "rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/srv/detail/missile__rosidl_typesupport_fastrtps_cpp.hpp"
+  "rosidl_typesupport_fastrtps_cpp/swarmz_interfaces/srv/detail/update_health__rosidl_typesupport_fastrtps_cpp.hpp"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang CXX)
+  include(CMakeFiles/swarmz_interfaces__rosidl_typesupport_fastrtps_cpp.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

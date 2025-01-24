@@ -1,0 +1,33 @@
+running egg_info
+creating ../../../build/flag_ship/flag_ship.egg-info
+writing ../../../build/flag_ship/flag_ship.egg-info/PKG-INFO
+writing dependency_links to ../../../build/flag_ship/flag_ship.egg-info/dependency_links.txt
+writing entry points to ../../../build/flag_ship/flag_ship.egg-info/entry_points.txt
+writing requirements to ../../../build/flag_ship/flag_ship.egg-info/requires.txt
+writing top-level names to ../../../build/flag_ship/flag_ship.egg-info/top_level.txt
+writing manifest file '../../../build/flag_ship/flag_ship.egg-info/SOURCES.txt'
+reading manifest file '../../../build/flag_ship/flag_ship.egg-info/SOURCES.txt'
+writing manifest file '../../../build/flag_ship/flag_ship.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/build
+creating /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/build/lib
+creating /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/build/lib/flag_ship
+copying flag_ship/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/build/lib/flag_ship
+running install
+running install_lib
+creating /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/lib/python3.10/site-packages/flag_ship
+copying /home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/build/lib/flag_ship/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/lib/python3.10/site-packages/flag_ship
+byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/lib/python3.10/site-packages/flag_ship/__init__.py to __init__.cpython-310.pyc
+running install_data
+copying package.xml -> /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/share/flag_ship
+creating /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/share/flag_ship/urdf
+creating /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/share/flag_ship/sdf
+creating /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/share/flag_ship/launch
+copying launch/rviz2.launch.py -> /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/share/flag_ship/launch
+copying launch/gazebo.launch.py -> /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/share/flag_ship/launch
+creating /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/share/flag_ship/meshes
+running install_egg_info
+Copying ../../../build/flag_ship/flag_ship.egg-info to /home/nb_adm/SWARMz4/ros2_ws/install/flag_ship/lib/python3.10/site-packages/flag_ship-0.0.0-py3.10.egg-info
+running install_scripts
+writing list of installed files to '/home/nb_adm/SWARMz4/ros2_ws/build/flag_ship/install.log'

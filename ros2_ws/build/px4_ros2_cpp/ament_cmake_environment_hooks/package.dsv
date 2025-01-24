@@ -1,0 +1,4 @@
+source;share/px4_ros2_cpp/local_setup.bash
+source;share/px4_ros2_cpp/local_setup.dsv
+source;share/px4_ros2_cpp/local_setup.sh
+source;share/px4_ros2_cpp/local_setup.zsh

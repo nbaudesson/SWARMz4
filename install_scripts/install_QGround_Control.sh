@@ -5,7 +5,7 @@ SWARMZ4_PATH=$(find "$HOME" -type d -name "SWARMz4" 2>/dev/null)
 
 # Function to check if QGroundControl is already installed
 check_qgroundcontrol_installed() {
-    if [ -f "$SWARMZ4_PATH/QGroundControl.AppImage" ]; then
+    if [ -f "$SWARMZ4_PATH/launch_scripts/QGroundControl.AppImage" ]; then
         echo "QGroundControl is already installed at $SWARMZ4_PATH."
         return 0
     else
@@ -18,7 +18,7 @@ check_qgroundcontrol_installed() {
 install_qgroundcontrol() {
     echo "Installing QGroundControl..."
     
-    cd $SWARMZ4_PATH
+    cd $SWARMZ4_PATH/launch_scripts || { echo "launch_scripts directory not found!"; exit 1; }
     wget https://d176tv9ibo4jno.cloudfront.net/latest/QGroundControl.AppImage -O QGroundControl.AppImage
     chmod +x QGroundControl.AppImage
 

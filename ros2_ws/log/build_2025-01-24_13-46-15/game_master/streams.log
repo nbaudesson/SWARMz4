@@ -1,0 +1,79 @@
+[2.008s] Invoking command in '/home/nb_adm/SWARMz4/ros2_ws/src/swarmz_pkgs/game_master': PYTHONPATH=/home/nb_adm/SWARMz4/ros2_ws/build/game_master/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../../build/game_master build --build-base /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build install --record /home/nb_adm/SWARMz4/ros2_ws/build/game_master/install.log --single-version-externally-managed install_data
+[2.366s] running egg_info
+[2.367s] creating ../../../build/game_master/game_master.egg-info
+[2.367s] writing ../../../build/game_master/game_master.egg-info/PKG-INFO
+[2.367s] writing dependency_links to ../../../build/game_master/game_master.egg-info/dependency_links.txt
+[2.368s] writing entry points to ../../../build/game_master/game_master.egg-info/entry_points.txt
+[2.368s] writing requirements to ../../../build/game_master/game_master.egg-info/requires.txt
+[2.368s] writing top-level names to ../../../build/game_master/game_master.egg-info/top_level.txt
+[2.368s] writing manifest file '../../../build/game_master/game_master.egg-info/SOURCES.txt'
+[2.371s] reading manifest file '../../../build/game_master/game_master.egg-info/SOURCES.txt'
+[2.371s] writing manifest file '../../../build/game_master/game_master.egg-info/SOURCES.txt'
+[2.372s] running build
+[2.372s] running build_py
+[2.372s] creating /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build
+[2.372s] creating /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib
+[2.372s] creating /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/exemple
+[2.372s] copying exemple/game_master_client.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/exemple
+[2.372s] copying exemple/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/exemple
+[2.372s] creating /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils
+[2.372s] copying utils/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils
+[2.372s] copying utils/tools.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils
+[2.372s] copying utils/kill_drone.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils
+[2.373s] copying utils/gazebo_subscriber.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils
+[2.373s] creating /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master
+[2.373s] copying game_master/missile_server.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master
+[2.373s] copying game_master/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master
+[2.373s] copying game_master/kamikaze_server.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master
+[2.373s] copying game_master/game_master_node.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master
+[2.374s] running install
+[2.374s] running install_lib
+[2.375s] creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/exemple
+[2.375s] copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/exemple/game_master_client.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/exemple
+[2.376s] copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/exemple/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/exemple
+[2.376s] creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils
+[2.376s] copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils
+[2.376s] copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils/tools.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils
+[2.376s] copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils/kill_drone.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils
+[2.376s] copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/utils/gazebo_subscriber.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils
+[2.376s] creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master
+[2.376s] copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master/missile_server.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master
+[2.376s] copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master
+[2.376s] copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master/kamikaze_server.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master
+[2.376s] copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master/game_master_node.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master
+[2.377s] byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/exemple/game_master_client.py to game_master_client.cpython-310.pyc
+[2.378s] byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/exemple/__init__.py to __init__.cpython-310.pyc
+[2.378s] byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils/__init__.py to __init__.cpython-310.pyc
+[2.379s] byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils/tools.py to tools.cpython-310.pyc
+[2.381s] byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils/kill_drone.py to kill_drone.cpython-310.pyc
+[2.381s] byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/utils/gazebo_subscriber.py to gazebo_subscriber.cpython-310.pyc
+[2.382s] byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master/missile_server.py to missile_server.cpython-310.pyc
+[2.384s] byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master/__init__.py to __init__.cpython-310.pyc
+[2.384s] byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master/kamikaze_server.py to kamikaze_server.cpython-310.pyc
+[2.384s] byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master/game_master_node.py to game_master_node.cpython-310.pyc
+[2.387s] running install_data
+[2.387s] creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/ament_index
+[2.387s] creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/ament_index/resource_index
+[2.387s] creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/ament_index/resource_index/packages
+[2.387s] copying resource/game_master -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/ament_index/resource_index/packages
+[2.387s] copying package.xml -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master
+[2.387s] creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/launch
+[2.387s] copying launch/start_game.launch.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/launch
+[2.387s] copying launch/game_client.launch.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/launch
+[2.388s] copying launch/game_master.launch.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/launch
+[2.388s] creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/config
+[2.388s] copying config/game_master_params.yaml -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/config
+[2.388s] creating /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/utils
+[2.388s] copying utils/__init__.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/utils
+[2.388s] copying utils/tools.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/utils
+[2.388s] copying utils/kill_drone.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/utils
+[2.388s] copying utils/gazebo_subscriber.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/share/game_master/utils
+[2.389s] running install_egg_info
+[2.391s] Copying ../../../build/game_master/game_master.egg-info to /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master-0.0.0-py3.10.egg-info
+[2.392s] running install_scripts
+[2.415s] Installing game_master_client_node script to /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/game_master
+[2.415s] Installing game_master_node script to /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/game_master
+[2.415s] Installing kamikaze_server script to /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/game_master
+[2.415s] Installing missile_server script to /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/game_master
+[2.415s] writing list of installed files to '/home/nb_adm/SWARMz4/ros2_ws/build/game_master/install.log'
+[2.447s] Invoked command in '/home/nb_adm/SWARMz4/ros2_ws/src/swarmz_pkgs/game_master' returned '0': PYTHONPATH=/home/nb_adm/SWARMz4/ros2_ws/build/game_master/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../../build/game_master build --build-base /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build install --record /home/nb_adm/SWARMz4/ros2_ws/build/game_master/install.log --single-version-externally-managed install_data

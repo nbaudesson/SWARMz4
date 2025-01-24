@@ -1,0 +1,27 @@
+[1.677s] Invoking command in '/home/nb_adm/SWARMz4/ros2_ws/src/swarmz_pkgs/game_master': PYTHONPATH=/home/nb_adm/SWARMz4/ros2_ws/build/game_master/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../../build/game_master build --build-base /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build install --record /home/nb_adm/SWARMz4/ros2_ws/build/game_master/install.log --single-version-externally-managed install_data
+[1.850s] running egg_info
+[1.851s] writing ../../../build/game_master/game_master.egg-info/PKG-INFO
+[1.851s] writing dependency_links to ../../../build/game_master/game_master.egg-info/dependency_links.txt
+[1.851s] writing entry points to ../../../build/game_master/game_master.egg-info/entry_points.txt
+[1.851s] writing requirements to ../../../build/game_master/game_master.egg-info/requires.txt
+[1.851s] writing top-level names to ../../../build/game_master/game_master.egg-info/top_level.txt
+[1.852s] reading manifest file '../../../build/game_master/game_master.egg-info/SOURCES.txt'
+[1.853s] writing manifest file '../../../build/game_master/game_master.egg-info/SOURCES.txt'
+[1.853s] running build
+[1.853s] running build_py
+[1.854s] copying game_master/game_master_node.py -> /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master
+[1.854s] running install
+[1.854s] running install_lib
+[1.855s] copying /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build/lib/game_master/game_master_node.py -> /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master
+[1.856s] byte-compiling /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master/game_master_node.py to game_master_node.cpython-310.pyc
+[1.858s] running install_data
+[1.858s] running install_egg_info
+[1.859s] removing '/home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master-0.0.0-py3.10.egg-info' (and everything under it)
+[1.859s] Copying ../../../build/game_master/game_master.egg-info to /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages/game_master-0.0.0-py3.10.egg-info
+[1.859s] running install_scripts
+[1.872s] Installing game_master_client_node script to /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/game_master
+[1.872s] Installing game_master_node script to /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/game_master
+[1.872s] Installing kamikaze_server script to /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/game_master
+[1.872s] Installing missile_server script to /home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/game_master
+[1.873s] writing list of installed files to '/home/nb_adm/SWARMz4/ros2_ws/build/game_master/install.log'
+[2.328s] Invoked command in '/home/nb_adm/SWARMz4/ros2_ws/src/swarmz_pkgs/game_master' returned '0': PYTHONPATH=/home/nb_adm/SWARMz4/ros2_ws/build/game_master/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/nb_adm/SWARMz4/ros2_ws/install/game_master/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../../build/game_master build --build-base /home/nb_adm/SWARMz4/ros2_ws/build/game_master/build install --record /home/nb_adm/SWARMz4/ros2_ws/build/game_master/install.log --single-version-externally-managed install_data
