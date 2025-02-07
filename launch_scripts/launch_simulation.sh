@@ -51,7 +51,7 @@ FIELD_LENGTH=5
 FIELD_WIDTH=2
 # FIELD_LENGTH=500
 # FIELD_WIDTH=250
-NUM_DRONES_PER_TEAM=1
+NUM_DRONES_PER_TEAM=2
 TOTAL_DRONES=$((NUM_DRONES_PER_TEAM * 2))
 HEADLESS=1 # headless
 # HEADLESS=0 # GUI
@@ -132,6 +132,11 @@ trap cleanup INT TERM
 launch_team 1 0 0 0            # Team 1 at x=0, y=0, facing forward
 launch_team 2 $FIELD_LENGTH $FIELD_WIDTH-$NUM_DRONES_PER_TEAM+1 3.14159  # Team 2 at x=FIELD_LENGTH, y=246, facing Team 1
 
+### Launch QGroundControl ###
+echo "Launching QGroundControl..."
+cd $SWARMZ4_PATH/launch_scripts || { echo "launch_scripts directory not found!"; exit 1; }
+./QGroundControl.AppImage &
+
 ### Launch Gazebo ###
 
 # Conditionally Launch Gazebo
@@ -157,11 +162,6 @@ ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.C
 CLOCK_BRIDGE_PID=$!
 ros2 launch px4_gz_bridge px4_laser_gz_bridge.launch.py nb_of_drones:=$TOTAL_DRONES &
 LASER_BRIDGE_PID=$!
-
-### Launch QGroundControl ###
-echo "Launching QGroundControl..."
-cd $SWARMZ4_PATH/launch_scripts || { echo "launch_scripts directory not found!"; exit 1; }
-./QGroundControl.AppImage &
 
 # Wait for user to exit
 echo "Press Ctrl+C to terminate all processes."

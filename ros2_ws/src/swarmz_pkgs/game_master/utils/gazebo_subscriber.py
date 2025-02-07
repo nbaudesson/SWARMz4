@@ -31,7 +31,7 @@ class GazeboPosesTracker(Node):
             self.name_mapping[name] = f"{prefix}_{suffix}"
             self.model_names.append(f"{prefix}_{suffix}")
         
-        print(f"Name mapping: {self.name_mapping}")
+        # print(f"Name mapping: {self.name_mapping}")
         # print(f"robot names: {robot_names}")
         # print(f"model names: {self.model_names}")
         
@@ -42,13 +42,13 @@ class GazeboPosesTracker(Node):
             # Subscribe to topics
             try:
                 self.subscribe(Pose_V, self.topic_dynamic_pose, self.dynamic_pose_cb)
-                print(f"Subscribed to topic [{self.topic_dynamic_pose}]")
+                # print(f"Subscribed to topic [{self.topic_dynamic_pose}]")
             except Exception as e:
                 print(f"Error subscribing to topic [{self.topic_dynamic_pose}]: {e}")
         else:
             try:
                 self.subscribe(Pose_V, self.topic_pose, self.pose_cb)
-                print(f"Subscribed to topic [{self.topic_pose}]")
+                # print(f"Subscribed to topic [{self.topic_pose}]")
             except Exception as e:
                 print(f"Error subscribing to topic [{self.topic_pose}]: {e}")
 

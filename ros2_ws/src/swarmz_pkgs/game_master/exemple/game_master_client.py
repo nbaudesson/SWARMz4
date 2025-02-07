@@ -6,6 +6,8 @@ import tty
 import termios
 import select
 
+settings = termios.tcgetattr(sys.stdin)
+
 class WeaponsController(Node):
 
     def __init__(self, robot_name):
@@ -37,7 +39,9 @@ class WeaponsController(Node):
             self.get_logger().error('Failed to fire missile')
 
     def perform_kamikaze(self):
+        self.get_logger().info('Requesting kamikaze...')
         if self.kamikaze_client:
+            self.get_logger().info(f'Performing kamikaze with {self.robot_name}')
             request = Kamikaze.Request()
             request.robot_name = self.robot_name
             future = self.kamikaze_client.call_async(request)
@@ -49,26 +53,20 @@ class WeaponsController(Node):
         else:
             self.get_logger().warn(f'{self.robot_name} does not support kamikaze')
 
-    def display_controls(self):
-        self.get_logger().info("Controls:")
-        self.get_logger().info("M - Fire missile")
-        self.get_logger().info("K - Perform kamikaze")
-        self.get_logger().info("Q - Quit")
+def getKey():
+	tty.setraw(sys.stdin.fileno())
+	select.select([sys.stdin], [], [], 0)
+	key = sys.stdin.read(1)
+	termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+	return key
 
-def get_key():
-    # Setup terminal for raw input
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
-    try:
-        tty.setraw(sys.stdin.fileno())
-        # Check if there's input available
-        if select.select([sys.stdin], [], [], 0)[0]:
-            key = sys.stdin.read(1)
-        else:
-            key = ''
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-    return key
+msg = """
+Reading from the keyboard and activating ROS2 services!
+---------------------------
+m - Fire missile
+k - Perform kamikaze
+q - Quit
+"""
 
 def main(args=None):
     rclpy.init(args=args)
@@ -82,15 +80,15 @@ def main(args=None):
         return
 
     weapons_controller = WeaponsController(robot_name)
-    weapons_controller.display_controls()
+    print(msg)
 
     try:
         while True:
             # Process ROS callbacks
-            rclpy.spin_once(weapons_controller, timeout_sec=0.1)
+            rclpy.spin_once(weapons_controller, timeout_sec=1)
             
             # Check for keyboard input
-            key = get_key()
+            key = getKey()
             
             if key.lower() == 'm':
                 weapons_controller.fire_missile()
@@ -100,8 +98,15 @@ def main(args=None):
                 break
 
     except KeyboardInterrupt:
-        pass
+        from time import sleep
+        sleep(20)
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+        weapons_controller.destroy_node()
+        rclpy.shutdown()
     finally:
+        from time import sleep
+        sleep(20)
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
         weapons_controller.destroy_node()
         rclpy.shutdown()
 

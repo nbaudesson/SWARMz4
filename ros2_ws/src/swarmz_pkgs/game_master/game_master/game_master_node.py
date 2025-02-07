@@ -3,14 +3,19 @@ from rclpy.node import Node
 from std_msgs.msg import String, Int32
 from swarmz_interfaces.msg import Detections, Detection
 from utils.tools import get_all_namespaces, get_distance, get_relative_position
-from utils.kill_drone import kill_drone_processes, get_model_id, remove_model
+# from utils.kill_drone import kill_drone_processes, get_model_id, remove_model
 from utils.gazebo_subscriber import GazeboPosesTracker
 from swarmz_interfaces.srv import UpdateHealth
 import time
 import threading
 import os
 from datetime import datetime
-from ament_index_python.packages import get_package_share_directory
+import subprocess
+from gz.msgs10.scene_pb2 import Scene
+from gz.msgs10.empty_pb2 import Empty
+from gz.msgs10.entity_pb2 import Entity
+from gz.msgs10.boolean_pb2 import Boolean
+from gz.transport13 import Node as GzNode
 
 
 class GameMasterNode(Node):
@@ -48,12 +53,16 @@ class GameMasterNode(Node):
             time.sleep(1)
             self.namespaces = get_all_namespaces(self)
 
+        # Get Gazebo model IDs of the drones
+        self.drone_model_ids = self.get_model_ids(self.namespaces)  # Returns: {"/px4_1": ID1, "/px4_2": ID2, "/px4_3": ID3}
+
+
         # Print the list of detected robots
         self.get_logger().info(f"Detected robots: {self.namespaces}")
 
         # Define teams
-        self.team_1 = ['px4_1', 'px4_2', 'px4_3', 'px4_4', 'px4_5', 'flag_ship_1']
-        self.team_2 = ['px4_6', 'px4_7', 'px4_8', 'px4_9', 'px4_10', 'flag_ship_2']
+        self.team_1 = ['/px4_1', '/px4_2', '/px4_3', '/px4_4', '/px4_5', '/flag_ship_1']
+        self.team_2 = ['/px4_6', '/px4_7', '/px4_8', '/px4_9', '/px4_10', '/flag_ship_2']
 
         # Initialize health points for each robot
         self.health_points = {ns: self.drone_health if 'px4_' in ns else self.ship_health for ns in self.namespaces}
@@ -68,7 +77,7 @@ class GameMasterNode(Node):
         # Initialize team points
         self.team_points = {'team_1': 0, 'team_2': 0}
 
-        # Publishers for health points, detections, and communications
+        # Publishers fohealth_publishersr health points, detections, and communications
         self.health_publishers = {ns: self.create_publisher(Int32, f'{ns}/health', 10) for ns in self.namespaces}
         self.detection_publishers = {ns: self.create_publisher(Detections, f'{ns}/detections', 10) for ns in self.namespaces}
         self.communication_publishers = {ns: self.create_publisher(String, f'{ns}/out_going_messages', 10) for ns in self.namespaces}
@@ -82,11 +91,14 @@ class GameMasterNode(Node):
         self.update_positions_timer = self.create_timer(1.0, self.update_positions)
 
         # Timer to periodically publish detections
-        self.timer = self.create_timer(1.0, self.detections_callback)
+        # self.timer = self.create_timer(1.0, self.detections_callback)
 
         # Timer to track game duration
         self.start_time = time.time()
         self.game_timer = self.create_timer(1.0, self.game_timer_callback)
+
+        # Timer to periodically publish health status
+        self.health_timer = self.create_timer(2.0, self.publish_health_status)
 
         # Create the service to update health
         self.update_health_srv = self.create_service(UpdateHealth, 'update_health', self.update_health_callback)
@@ -102,7 +114,7 @@ class GameMasterNode(Node):
         Periodically publish detections for each robot.
         """
         if self.robot_positions[next(iter(self.robot_positions))][0] is not None:
-            self.get_logger().info(f"detections_callback robot positions: { {key: tuple(int(round(val)) for val in values) for key, values in self.robot_positions.items()} }")
+            # self.get_logger().info(f"detections_callback robot positions: { {key: tuple(int(round(val)) for val in values) for key, values in self.robot_positions.items()} }")
             threads = []
             for ns in self.namespaces:
                 # self.get_logger().info(f"Publishing detections for {ns}")
@@ -200,7 +212,6 @@ class GameMasterNode(Node):
 
         # Write to individual_games
         individual_games_dir = os.path.join(result_dir, 'individual_games')
-        # self.get_logger().info(f"Individual games directory: {individual_games_dir}")
         
         # Ensure the directory exists
         if not os.path.exists(individual_games_dir):
@@ -213,8 +224,6 @@ class GameMasterNode(Node):
         # Create a unique filename with a timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         individual_result_file = os.path.join(individual_games_dir, f'game_results_{timestamp}.txt')
-        # self.get_logger().info(f"Individual results file: {individual_result_file}")
-        # self.get_logger().info(f"Writing individual results to file: {individual_result_file}")
 
         with open(individual_result_file, 'w') as file:
             file.write(result)
@@ -304,7 +313,7 @@ class GameMasterNode(Node):
         ns = request.robot_name
         damage = request.damage
         self.update_health(ns, damage=damage)
-        response.success = True
+        self.get_logger().info(f'Health of {ns} updated by {damage} points')
         return response
 
     def update_health(self, ns, health=None, damage=0):
@@ -314,6 +323,10 @@ class GameMasterNode(Node):
         :param health: The health value to set (optional).
         :param damage: The amount of damage to apply (optional).
         """
+        if ns not in self.namespaces:
+
+            self.get_logger().warn(f'{ns} not found in robot list : {self.namespaces}. Cannot update health.')
+            return
         if damage > 0:
             current_health = self.get_health(ns)
             health = max(0, current_health - damage)
@@ -328,28 +341,130 @@ class GameMasterNode(Node):
                 self.update_team_points(ns)
                 if 'px4_' in ns:
                     self.get_logger().info(f'{ns} is destroyed, awarding {self.drone_points} points')
-                else:
-                    self.get_logger().info(f'{ns} is destroyed, awarding {self.ship_points} points')
-                if 'px4_' in ns:
-                    instance_number = int(ns.split('_')[1])
-                    self.kill_drone(instance_number)
+                    # instance_number = int(ns.split('_')[1])
+                    self.kill_drone(ns)
+                    if ns in self.namespaces:
+                        # Remove the destroyed drone from the list of namespaces
+                        self.namespaces.remove(ns)
+                        # Update the GazeboPosesTracker with the new list of namespaces
+                        self.gz = GazeboPosesTracker(self.namespaces)             
                 elif 'flag_ship_' in ns:
+                    self.get_logger().info(f'{ns} is destroyed, awarding {self.ship_points} points')
                     self.get_logger().info(f'{ns} is destroyed, ending game')
                     self.end_game()
+        return
 
-    def kill_drone(self, instance_number):
+    def get_model_ids(self, robot_list):
+        """
+        Find the IDs of multiple models by their names using the Gazebo Transport API.
+        :param robot_list: A list of robot namespace names (e.g., ["/px4_1", "/px4_2"]).
+        :return: A dictionary mapping each robot namespace to its model ID, or None if not found.
+        """
+        node = GzNode()
+        scene_info = Scene()
+
+        # Request scene info from Gazebo
+        self.get_logger().info("Checking scene info for robots.")
+        result, response = node.request("/world/default/scene/info", Empty(), Empty, Scene, 1000)
+        if not result:
+            self.get_logger().info("Failed to retrieve scene info from Gazebo.")
+            return {}
+        scene_info = response
+
+        # Create a mapping of robot namespaces to expected model names
+        namespace_to_model = {
+            robot_name: f"x500_lidar_front_{robot_name.split('_')[-1]}" for robot_name in robot_list
+        }
+        model_ids = {}
+
+        # Search for matching models in the scene
+        for model in scene_info.model:
+            if model.name in namespace_to_model.values():
+                # Extract instance number from model name
+                instance_number = model.name.split("_")[-1]
+
+                # Find the corresponding namespace key
+                robot_name = f"/px4_{instance_number}"
+                model_ids[robot_name] = model.id
+                self.get_logger().info(f"Found model '{model.name}' (Namespace: '{robot_name}') with ID: {model.id}")
+
+        # Log missing robots
+        for robot_name, model_name in namespace_to_model.items():
+            if robot_name not in model_ids:
+                self.get_logger().info(f"Model '{model_name}' (Namespace: '{robot_name}') not found.")
+
+        return model_ids
+
+    def remove_model(self, model_id):
+        """
+        Remove the model using its ID via Gazebo Transport API.
+        
+        :param model_id: The ID of the model to be removed.
+        """
+        node = GzNode()
+        entity_msg = Entity()
+        entity_msg.id = model_id
+        entity_msg.type = Entity.MODEL  # Type 1 for models
+
+        # Request to remove the model from Gazebo
+        result, response = node.request("/world/default/remove", entity_msg, Entity, Boolean, 1000)
+        if result and response.data:
+            self.get_logger().info(f"Successfully requested removal of model ID {model_id}")
+        else:
+            self.get_logger().info(f"Failed to request removal of model ID {model_id}")
+
+    def kill_drone(self, namespace):
         """
         Kill the drone processes and remove the model from Gazebo.
-        :param instance_number: The instance number of the drone.
+        :param robotnamespace_name: The namespace of the drone.
         """
-        # Kill the drone processes
-        kill_drone_processes(instance_number)
-
         # Remove the drone model from Gazebo
-        model_name = f"x500_lidar_front_{instance_number}"
-        model_id = get_model_id(model_name)
+        model_id = self.drone_model_ids.get(namespace)
+        self.get_logger().info(f'model_id: {model_id}') 
         if model_id:
-            remove_model(model_id)
+            self.remove_model(model_id)
+            self.get_logger().info(f'removed model {namespace} with ID {model_id}')
+        else:
+            self.get_logger().warn(f'failed to find model ID of {namespace}')
+        
+        # Kill the drone processes
+        self.kill_drone_processes(namespace)
+        self.get_logger().info(f'killed drone processes for {namespace}')
+        return
+
+    def kill_drone_processes(self, namespace):
+        """
+        Kill the processes of all ROS 2 nodes running on the concerned px4_ instance.
+        :param namespace: The namespace of the drone.
+        """
+        self.get_logger().info(f'Killing processes of all ROS 2 nodes in namespace {namespace}')
+        try:
+            # Kill ros2 processes in the namespace
+            try:
+                subprocess.run(
+                    f'pgrep -f "\-r __ns:={namespace}" | xargs kill -9',
+                    shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except subprocess.CalledProcessError:
+                pass  # Suppressing errors
+
+            # Kill the px4 processes
+            try:
+                subprocess.run(
+                    f'pkill -f "px4 -i {namespace.split("_")[-1]}"',
+                    shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except subprocess.CalledProcessError:
+                pass  # Suppressing errors
+
+            # Kill any other px4 related processes
+            try:
+                subprocess.run(
+                    f'pkill -f "px4_{namespace.split("_")[-1]}"',
+                    shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except subprocess.CalledProcessError:
+                pass  # Suppressing errors
+
+        except subprocess.CalledProcessError:
+            pass  # Suppressing any remaining errors
 
     def update_team_points(self, ns):
         """
@@ -360,6 +475,15 @@ class GameMasterNode(Node):
             self.team_points['team_2'] += self.drone_points if 'px4_' in ns else self.ship_points
         elif ns in self.team_2:
             self.team_points['team_1'] += self.drone_points if 'px4_' in ns else self.ship_points
+
+    def publish_health_status(self):
+        """
+        Publish health status for all robots every 2 seconds.
+        """
+        for ns in self.namespaces:
+            health_msg = Int32()
+            health_msg.data = self.health_points[ns]
+            self.health_publishers[ns].publish(health_msg)
 
 def main(args=None):
     rclpy.init(args=args)

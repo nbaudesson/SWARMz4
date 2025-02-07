@@ -1,5 +1,6 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch_ros.actions import Node
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from ament_index_python.packages import get_package_share_directory
@@ -35,19 +36,13 @@ def generate_launch_description():
         )
     )
 
-    # Include game_client launch file with arguments
-    game_client_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory('game_master'),
-                'launch',
-                'game_client.launch.py'
-            )
-        ),
-        launch_arguments={
-            'num_px4': LaunchConfiguration('num_px4'),
-            'num_flagships': LaunchConfiguration('num_flagships')
-        }.items()
+    # Include test_game_master_client node
+    test_game_master_client_node = Node(
+        package='game_master',
+        executable='test_game_master_client',
+        name='test_game_master_client',
+        output='screen',
+        parameters=[{'robot_name': '/px4_1'}]
     )
 
     # Return the launch description with all the actions
@@ -55,5 +50,5 @@ def generate_launch_description():
         num_px4_arg,
         num_flagships_arg,
         game_master_launch,
-        game_client_launch,
+        test_game_master_client_node,
     ])

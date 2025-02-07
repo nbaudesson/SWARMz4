@@ -62,7 +62,7 @@ def kill_drone_processes(instance_number):
     try:
         # Kill ros2 processes in the namespace
         try:
-            subprocess.run(f'pgrep -f "\-r __ns:={namespace}" | xargs kill', shell=True, check=True)
+            subprocess.run(f'pgrep -f "\-r __ns:={namespace}" | xargs kill -9', shell=True, check=True)
         except subprocess.CalledProcessError as e:
             print(f'Failed to kill ros2 processes referenced to {namespace} : {e}')
         
