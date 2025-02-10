@@ -5,7 +5,6 @@ from utils.tools import get_all_namespaces, get_distance, is_aligned, is_aligned
 from utils.gazebo_subscriber import GazeboPosesTracker
 import time
 from std_msgs.msg import Int32
-import math
 
 class MissileServiceServer(Node):
 
@@ -74,6 +73,11 @@ class MissileServiceServer(Node):
         # Subscribe to health topics of all robots
         self.health_subscribers = {ns: self.create_subscription(Int32, f'{ns}/health', lambda msg, ns=ns: self.health_callback(msg, ns), 10) for ns in self.namespaces}
 
+        # Create the UpdateHealth client to communicate with the GameMasterNode
+        self.update_health_client = self.create_client(UpdateHealth, 'update_health')
+        while not self.update_health_client.wait_for_service(timeout_sec=2.0):
+            self.get_logger().info('Waiting for update_health service...')
+
         # Create the service
         self.srv = self.create_service(Missile, 'fire_missile', self.fire_missile_callback)
         self.get_logger().info('MissileServiceServer initialized with parameters: '
@@ -102,16 +106,18 @@ class MissileServiceServer(Node):
                 # Instead of destroying immediately, add to destroy_list
                 # self.destroy_list.append(ns)
 
-    # def update_robots_poses(self):
-    #     """
-    #     Update the poses of all robots.
-    #     """
-    #     self.robots_poses = self.gz.poses
-    #     if self.namespaces:
-    #         first_robot = next(iter(self.namespaces))
-    #         self.get_logger().info(
-    #             f'update_robots_poses X of the 1st robot: {self.gz.get_robot_position(first_robot)[0]}'
-    #         )
+    def update_health_request(self, robot_name, damage):
+        """
+        Create a request to update health of a robot.
+        :param robot_name: The name of the robot to update health.
+        :param damage: The amount of damage to apply.
+        :return: The request object.
+        """
+        request = UpdateHealth.Request()
+        request.robot_name = robot_name
+        request.damage = damage
+        future = self.update_health_client.call_async(request)
+        return future
 
     def fire_missile_callback(self, request, response):
         self.get_logger().info(f'Received missile fire request from {request.robot_name}')
@@ -194,7 +200,7 @@ class MissileServiceServer(Node):
                 target_padding,
                 missile_range, # base_length
                 self.laser_width, # base_radius
-                verbose=True
+                verbose=False
             )
             if aligned_result:
                 aligned_targets.append(target)
@@ -207,27 +213,34 @@ class MissileServiceServer(Node):
             damage = self.drone_missile_damage if '/px4_' in shooter_ns else self.ship_missile_damage
             self.get_logger().info(f'Target {target_id} selected for attack with damage {damage}')
             
-            # Call the update_health service of the GameMasterNode
-            client = self.create_client(UpdateHealth, 'update_health')
-            if client.service_is_ready():
-                # Create a request to update health
-                update_request = UpdateHealth.Request()
-                update_request.robot_name = target_id
-                update_request.damage = damage
-                # Call the service asynchronously
-                future = client.call_async(update_request)
-                rclpy.spin_until_future_complete(self, future)
-                if future.result() is not None:
-                    # Log success message
-                    self.get_logger().info(f'Successfully shot {target_id} giving {damage} damage')
-                else:
-                    # Log error message
-                    self.get_logger().error(f'Failed to update health of {target_id}')
-            else:
-                # Log error message if service is not available
-                self.get_logger().error('update_health service is not available')
+            try:
+                self.update_health_request(target_id, damage)
+            except Exception as e:
+                self.get_logger().error(f'Exception occurred while calling update_health service: {e}')
+                return response
+
+            # # Call the update_health service of the GameMasterNode
+            # client = self.create_client(UpdateHealth, 'update_health')
+            # if client.service_is_ready():
+            #     # Create a request to update health
+            #     update_request = UpdateHealth.Request()
+            #     update_request.robot_name = target_id
+            #     update_request.damage = damage
+            #     # Call the service asynchronously
+            #     future = client.call_async(update_request)
+            #     rclpy.spin_until_future_complete(self, future)
+            #     if future.result() is not None:
+            #         # Log success message
+            #         self.get_logger().info(f'Successfully shot {target_id} giving {damage} damage')
+            #     else:
+            #         # Log error message
+            #         self.get_logger().error(f'Failed to update health of {target_id}')
+            # else:
+            #     # Log error message if service is not available
+            #     self.get_logger().error('update_health service is not available')
 
         # 8. return response has_fired = true and ammo = namespace.magazine
+        self.get_logger().info(f'Missile service response: has_fired={response.has_fired}, ammo={response.ammo}')
         return response
 
 def main(args=None):

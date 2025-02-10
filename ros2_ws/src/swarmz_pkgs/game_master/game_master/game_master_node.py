@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Int32
 from swarmz_interfaces.msg import Detections, Detection
-from utils.tools import get_all_namespaces, get_distance, get_relative_position
+from utils.tools import get_all_namespaces, get_distance, get_relative_position, get_relative_position_with_orientation
 # from utils.kill_drone import kill_drone_processes, get_model_id, remove_model
 from utils.gazebo_subscriber import GazeboPosesTracker
 from swarmz_interfaces.srv import UpdateHealth
@@ -88,7 +88,7 @@ class GameMasterNode(Node):
         # Timer to periodically update robot positions
         self.robot_positions = {}
         self.gz = GazeboPosesTracker(self.namespaces)
-        self.update_positions_timer = self.create_timer(1.0, self.update_positions)
+        self.update_positions_timer = self.create_timer(0.1, self.update_positions)
 
         # Timer to periodically publish detections
         # self.timer = self.create_timer(1.0, self.detections_callback)
@@ -102,6 +102,15 @@ class GameMasterNode(Node):
 
         # Create the service to update health
         self.update_health_srv = self.create_service(UpdateHealth, 'update_health', self.update_health_callback)
+
+        # Add debug information about subscribers and publishers
+        self.get_logger().info("Setting up communication channels...")
+        for ns in self.namespaces:
+            self.get_logger().info(f"Created publisher for {ns}/out_going_messages")
+            self.get_logger().info(f"Created subscriber for {ns}/incoming_messages")
+        
+        # Add debug timer
+        self.debug_timer = self.create_timer(5.0, self.debug_communication_status)
 
     def update_positions(self):
         """
@@ -248,7 +257,7 @@ class GameMasterNode(Node):
         """
         detections = []
         transmitter_position = self.robot_positions[namespace]
-        detection_range = self.drone_detection_range if 'px4_' in namespace else self.ship_detection_range
+        detection_range = self.drone_detection_range if '/px4_' in namespace else self.ship_detection_range
         
         for robot, receiver_position in self.robot_positions.items():
             if robot == namespace:
@@ -256,9 +265,9 @@ class GameMasterNode(Node):
             distance = get_distance(transmitter_position, receiver_position)
             if distance <= detection_range:
                 detection = Detection()
-                detection.vehicle_type = Detection.DRONE if 'px4_' in robot else Detection.SHIP
+                detection.vehicle_type = Detection.DRONE if '/px4_' in robot else Detection.SHIP
                 detection.is_friend = self.is_friend(namespace, robot)
-                relative_position = get_relative_position(transmitter_position, receiver_position)
+                relative_position = get_relative_position_with_orientation(transmitter_position, receiver_position)
                 detection.relative_position.position.x = relative_position["x"]
                 detection.relative_position.position.y = relative_position["y"]
                 detection.relative_position.position.z = relative_position["z"]
@@ -272,24 +281,31 @@ class GameMasterNode(Node):
         :param msg: The communication message.
         :param sender_ns: The namespace of the sender robot.
         """
-        # Get the position of the sender robot
-        sender_position = self.gz.get_robot_position(sender_ns)
+        # Check if sender position exists
+        if sender_ns not in self.robot_positions:
+            self.get_logger().warn(f'No position data for sender {sender_ns}')
+            return
+            
+        sender_position = self.robot_positions[sender_ns]
+        if not sender_position or None in sender_position:
+            self.get_logger().warn(f'Invalid position for sender {sender_ns}')
+            return
+
+        communication_range = self.drone_communication_range if '/px4_' in sender_ns else self.ship_communication_range
         
-        # Determine the communication range based on the type of the sender robot
-        communication_range = self.drone_communication_range if 'px4_' in sender_ns else self.ship_communication_range
-        
-        # Iterate through all namespaces to find potential receivers
         for ns in self.namespaces:
             if ns == sender_ns:
-                continue  # Skip the sender itself
-            
-            # Get the position of the receiver robot
-            receiver_position = self.gz.get_robot_position(ns)
-            
-            # Calculate the distance between the sender and the receiver
+                continue
+
+            if ns not in self.robot_positions:
+                continue
+
+            receiver_position = self.robot_positions[ns]
+            if not receiver_position or None in receiver_position:
+                continue
+                
             distance = get_distance(sender_position, receiver_position)
             
-            # If the receiver is within the communication range, forward the message
             if distance <= communication_range:
                 string_msg = String()
                 string_msg.data = msg.data
@@ -480,10 +496,17 @@ class GameMasterNode(Node):
         """
         Publish health status for all robots every 2 seconds.
         """
+        health_status = {ns: self.health_points[ns] for ns in self.namespaces}
         for ns in self.namespaces:
             health_msg = Int32()
             health_msg.data = self.health_points[ns]
             self.health_publishers[ns].publish(health_msg)
+        if self.namespaces:
+            self.get_logger().info(f'Robot health: {health_status}')
+
+    def debug_communication_status(self):
+        """Print debug information about communication system"""
+        pass
 
 def main(args=None):
     rclpy.init(args=args)

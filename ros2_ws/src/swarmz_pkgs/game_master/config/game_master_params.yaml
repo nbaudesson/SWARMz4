@@ -1,7 +1,7 @@
 game_master_node:
   ros__parameters:
     use_sim_time: True
-    drone_detection_range: 10.0
+    drone_detection_range: 20.0
     ship_detection_range: 20.0
     drone_communication_range: 15.0
     ship_communication_range: 30.0

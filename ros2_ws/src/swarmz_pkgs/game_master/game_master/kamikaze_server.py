@@ -45,11 +45,6 @@ class KamikazeServiceServer(Node):
                         f'explosion_damage={self.explosion_damage}, '
                         f'explosion_range={self.explosion_range}')
     
-    # def update_robots_poses(self):
-    #     """
-    #     Update the poses of all robots.
-    #     """
-    #     self.robots_poses = self.gz.poses
 
     def update_health_request(self, robot_name, damage):
         """
@@ -117,7 +112,6 @@ class KamikazeServiceServer(Node):
                         return response
                 else:
                     self.get_logger().info(f'Robot {target_ns} is out of explosion range')
-
         return response
 
 def main(args=None):
