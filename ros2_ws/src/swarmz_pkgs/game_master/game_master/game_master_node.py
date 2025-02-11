@@ -60,9 +60,35 @@ class GameMasterNode(Node):
         # Print the list of detected robots
         self.get_logger().info(f"Detected robots: {self.namespaces}")
 
-        # Define teams
-        self.team_1 = ['/px4_1', '/px4_2', '/px4_3', '/px4_4', '/px4_5', '/flag_ship_1']
-        self.team_2 = ['/px4_6', '/px4_7', '/px4_8', '/px4_9', '/px4_10', '/flag_ship_2']
+        # Automatically compose teams
+        drones = sorted([ns for ns in self.namespaces if '/px4_' in ns])
+        ships = sorted([ns for ns in self.namespaces if '/flag_ship_' in ns])
+        
+        # Verify we have even numbers of both types
+        if len(drones) % 2 != 0:
+            raise ValueError(f"Uneven number of drones detected: {len(drones)}")
+        if len(ships) % 2 != 0:
+            raise ValueError(f"Uneven number of ships detected: {len(ships)}")
+            
+        # Split vehicles into two equal teams
+        drones_per_team = len(drones) // 2
+        ships_per_team = len(ships) // 2
+        
+        # Compose teams
+        self.team_1 = drones[:drones_per_team] + ships[:ships_per_team]
+        self.team_2 = drones[drones_per_team:] + ships[ships_per_team:]
+        
+        # Check for non-standard team composition and warn if needed
+        if drones_per_team > 5 or ships_per_team > 1:
+            warning = "\n" + "!" * 80 + "\n"
+            warning += "WARNING: NON-STANDARD TEAM COMPOSITION DETECTED\n"
+            warning += f"Each team has {drones_per_team} drones (standard is 5)\n"
+            warning += f"Each team has {ships_per_team} ships (standard is 1)\n"
+            warning += "!" * 80
+            self.get_logger().warn(warning)
+        
+        self.get_logger().info(f"Team 1: {self.team_1}")
+        self.get_logger().info(f"Team 2: {self.team_2}")
 
         # Initialize health points for each robot
         self.health_points = {ns: self.drone_health if 'px4_' in ns else self.ship_health for ns in self.namespaces}
@@ -86,12 +112,12 @@ class GameMasterNode(Node):
         self.communication_subscribers = {ns: self.create_subscription(String, f'{ns}/incoming_messages', lambda msg, ns=ns: self.communication_callback(msg, ns), 10) for ns in self.namespaces}
 
         # Timer to periodically update robot positions
-        self.robot_positions = {}
+        self.robot_poses = {}  # Combined position and orientation
         self.gz = GazeboPosesTracker(self.namespaces)
         self.update_positions_timer = self.create_timer(0.1, self.update_positions)
 
         # Timer to periodically publish detections
-        # self.timer = self.create_timer(1.0, self.detections_callback)
+        self.timer = self.create_timer(1.0, self.detections_callback)
 
         # Timer to track game duration
         self.start_time = time.time()
@@ -108,41 +134,23 @@ class GameMasterNode(Node):
         for ns in self.namespaces:
             self.get_logger().info(f"Created publisher for {ns}/out_going_messages")
             self.get_logger().info(f"Created subscriber for {ns}/incoming_messages")
-        
-        # Add debug timer
-        self.debug_timer = self.create_timer(5.0, self.debug_communication_status)
 
     def update_positions(self):
         """
-        Update the positions of all robots.
+        Update the poses of all robots.
         """
-        self.robot_positions = {ns: self.gz.get_robot_position(ns) for ns in self.namespaces}
-
-    def detections_callback(self):
-        """
-        Periodically publish detections for each robot.
-        """
-        if self.robot_positions[next(iter(self.robot_positions))][0] is not None:
-            # self.get_logger().info(f"detections_callback robot positions: { {key: tuple(int(round(val)) for val in values) for key, values in self.robot_positions.items()} }")
-            threads = []
-            for ns in self.namespaces:
-                # self.get_logger().info(f"Publishing detections for {ns}")
-                thread = threading.Thread(target=self.publish_detections, args=(ns,))
-                threads.append(thread)
-                thread.start()
-
-            for thread in threads:
-                thread.join()
-
-    def publish_detections(self, ns):
-        """
-        Publish detections for a specific robot.
-        :param ns: The namespace of the robot.
-        """
-        detections_msg = Detections()
-        detections_msg.header.stamp = self.get_clock().now().to_msg()
-        detections_msg.detections = self.get_detections(ns)
-        self.detection_publishers[ns].publish(detections_msg)
+        for ns in self.namespaces:
+            pose = self.gz.get_pose(ns)
+            # Store poses in a consistent format
+            self.robot_poses[ns] = {
+                'position': (pose['position']['x'], 
+                           pose['position']['y'], 
+                           pose['position']['z']),
+                'orientation': (pose['orientation']['x'],
+                              pose['orientation']['y'],
+                              pose['orientation']['z'],
+                              pose['orientation']['w'])
+            }
 
     def game_timer_callback(self):
         """
@@ -240,6 +248,33 @@ class GameMasterNode(Node):
         self.get_logger().info("Results written successfully. Shutting down.")
         rclpy.shutdown()
 
+    def detections_callback(self):
+        """
+        Periodically publish detections for each robot.
+        """
+        # Check if we have valid pose data
+        if not self.robot_poses or None in self.robot_poses[next(iter(self.robot_poses))]['position']:
+            return
+            
+        threads = []
+        for ns in self.namespaces:
+            thread = threading.Thread(target=self.publish_detections, args=(ns,))
+            threads.append(thread)
+            thread.start()
+
+        for thread in threads:
+            thread.join()
+
+    def publish_detections(self, ns):
+        """
+        Publish detections for a specific robot.
+        :param ns: The namespace of the robot.
+        """
+        detections_msg = Detections()
+        detections_msg.header.stamp = self.get_clock().now().to_msg()
+        detections_msg.detections = self.get_detections(ns)
+        self.detection_publishers[ns].publish(detections_msg)
+
     def is_friend(self, ns1, ns2):
         """
         Determine if two robots are friends.
@@ -256,18 +291,22 @@ class GameMasterNode(Node):
         :return: List of detections.
         """
         detections = []
-        transmitter_position = self.robot_positions[namespace]
+        transmitter_pose = self.robot_poses[namespace]
         detection_range = self.drone_detection_range if '/px4_' in namespace else self.ship_detection_range
         
-        for robot, receiver_position in self.robot_positions.items():
+        for robot, receiver_pose in self.robot_poses.items():
             if robot == namespace:
                 continue
-            distance = get_distance(transmitter_position, receiver_position)
+            distance = get_distance(transmitter_pose['position'], receiver_pose['position'])
             if distance <= detection_range:
                 detection = Detection()
                 detection.vehicle_type = Detection.DRONE if '/px4_' in robot else Detection.SHIP
                 detection.is_friend = self.is_friend(namespace, robot)
-                relative_position = get_relative_position_with_orientation(transmitter_position, receiver_position)
+                relative_position = get_relative_position_with_orientation(
+                    transmitter_pose['position'], 
+                    transmitter_pose['orientation'],
+                    receiver_pose['position']
+                )
                 detection.relative_position.position.x = relative_position["x"]
                 detection.relative_position.position.y = relative_position["y"]
                 detection.relative_position.position.z = relative_position["z"]
@@ -282,12 +321,12 @@ class GameMasterNode(Node):
         :param sender_ns: The namespace of the sender robot.
         """
         # Check if sender position exists
-        if sender_ns not in self.robot_positions:
-            self.get_logger().warn(f'No position data for sender {sender_ns}')
+        if sender_ns not in self.robot_poses:
+            self.get_logger().warn(f'No pose data for sender {sender_ns}')
             return
             
-        sender_position = self.robot_positions[sender_ns]
-        if not sender_position or None in sender_position:
+        sender_pose = self.robot_poses[sender_ns]
+        if None in sender_pose['position']:
             self.get_logger().warn(f'Invalid position for sender {sender_ns}')
             return
 
@@ -297,14 +336,14 @@ class GameMasterNode(Node):
             if ns == sender_ns:
                 continue
 
-            if ns not in self.robot_positions:
+            if ns not in self.robot_poses:
                 continue
 
-            receiver_position = self.robot_positions[ns]
-            if not receiver_position or None in receiver_position:
+            receiver_pose = self.robot_poses[ns]
+            if None in receiver_pose['position']:
                 continue
                 
-            distance = get_distance(sender_position, receiver_position)
+            distance = get_distance(sender_pose['position'], receiver_pose['position'])
             
             if distance <= communication_range:
                 string_msg = String()
@@ -437,7 +476,7 @@ class GameMasterNode(Node):
         # Remove the drone model from Gazebo
         model_id = self.drone_model_ids.get(namespace)
         self.get_logger().info(f'model_id: {model_id}') 
-        if model_id:
+        if (model_id):
             self.remove_model(model_id)
             self.get_logger().info(f'removed model {namespace} with ID {model_id}')
         else:
@@ -503,10 +542,6 @@ class GameMasterNode(Node):
             self.health_publishers[ns].publish(health_msg)
         if self.namespaces:
             self.get_logger().info(f'Robot health: {health_status}')
-
-    def debug_communication_status(self):
-        """Print debug information about communication system"""
-        pass
 
 def main(args=None):
     rclpy.init(args=args)
