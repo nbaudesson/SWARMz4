@@ -291,26 +291,42 @@ class GameMasterNode(Node):
         :return: List of detections.
         """
         detections = []
+        if namespace not in self.robot_poses:
+            return detections
+            
         transmitter_pose = self.robot_poses[namespace]
+        # Validate transmitter pose
+        if None in transmitter_pose['position'] or None in transmitter_pose['orientation']:
+            return detections
+            
         detection_range = self.drone_detection_range if '/px4_' in namespace else self.ship_detection_range
         
         for robot, receiver_pose in self.robot_poses.items():
             if robot == namespace:
                 continue
-            distance = get_distance(transmitter_pose['position'], receiver_pose['position'])
-            if distance <= detection_range:
-                detection = Detection()
-                detection.vehicle_type = Detection.DRONE if '/px4_' in robot else Detection.SHIP
-                detection.is_friend = self.is_friend(namespace, robot)
-                relative_position = get_relative_position_with_orientation(
-                    transmitter_pose['position'], 
-                    transmitter_pose['orientation'],
-                    receiver_pose['position']
-                )
-                detection.relative_position.position.x = relative_position["x"]
-                detection.relative_position.position.y = relative_position["y"]
-                detection.relative_position.position.z = relative_position["z"]
-                detections.append(detection)
+                
+            # Validate receiver pose
+            if None in receiver_pose['position'] or None in receiver_pose['orientation']:
+                continue
+                
+            try:
+                distance = get_distance(transmitter_pose['position'], receiver_pose['position'])
+                if distance <= detection_range:
+                    detection = Detection()
+                    detection.vehicle_type = Detection.DRONE if '/px4_' in robot else Detection.SHIP
+                    detection.is_friend = self.is_friend(namespace, robot)
+                    relative_position = get_relative_position_with_orientation(
+                        transmitter_pose['position'], 
+                        transmitter_pose['orientation'],
+                        receiver_pose['position']
+                    )
+                    detection.relative_position.position.x = relative_position[0]
+                    detection.relative_position.position.y = relative_position[1]
+                    detection.relative_position.position.z = relative_position[2]
+                    detections.append(detection)
+            except (TypeError, ValueError) as e:
+                self.get_logger().warn(f'Error calculating detection between {namespace} and {robot}: {e}')
+                continue
         
         return detections
 

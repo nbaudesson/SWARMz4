@@ -109,8 +109,16 @@ launch_team() {
     local yaw=$4
 
     for i in $(seq 1 $NUM_DRONES_PER_TEAM); do
-        local instance_id=$(($([ "$team_num" -eq 1 ] && echo "$NUM_DRONES_PER_TEAM - $i + 1" || echo "$NUM_DRONES_PER_TEAM + $i")))
-        local y_pos=$(($([ "$team_num" -eq 1 ] && echo "$start_pos_y + $i - 1" || echo "$start_pos_y + $i - 1")))
+        # Calculate instance ID (1-5 for team 1, 6-10 for team 2)
+        local instance_id
+        if [ "$team_num" -eq 1 ]; then
+            instance_id=$i
+        else
+            instance_id=$((NUM_DRONES_PER_TEAM + i))
+        fi
+        
+        # 2m spacing between drones
+        local y_pos=$(((i - 1) * 2))  # This will place drones at 0, 2, 4, 6, 8 etc.
         
         echo "Launching PX4 instance $instance_id for Team $team_num..."
         launch_px4_instance "$instance_id" "$start_pos_x" "$y_pos" "$yaw"
@@ -129,8 +137,8 @@ cleanup() {
 trap cleanup INT TERM
 
 # Launch teams
-launch_team 1 0 0 0            # Team 1 at x=0, y=0, facing forward
-launch_team 2 $FIELD_LENGTH $FIELD_WIDTH-$NUM_DRONES_PER_TEAM+1 3.14159  # Team 2 at x=FIELD_LENGTH, y=246, facing Team 1
+launch_team 1 0 0 0                  # Team 1 at x=0, starting from y=0
+launch_team 2 $FIELD_LENGTH $FIELD_WIDTH 3.14159  # Team 2 at x=FIELD_LENGTH, starting from y=FIELD_WIDTH
 
 ### Launch QGroundControl ###
 echo "Launching QGroundControl..."

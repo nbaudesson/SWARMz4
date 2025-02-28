@@ -1,0 +1,12 @@
+# Goal: Target position to reach
+px4_controllers_interfaces/PointYaw target
+
+---
+# Result: Whether position was reached successfully
+bool success
+
+---
+# Feedback: Current position, distance and time
+px4_controllers_interfaces/PointYaw current_position  # Current drone position
+float64 distance_to_target                           # Distance in meters
+float64 time_elapsed                                 # Time since start in seconds

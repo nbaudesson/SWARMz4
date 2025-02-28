@@ -9,7 +9,7 @@ game_master_node:
     ship_health: 20
     drone_points: 10
     ship_points: 50
-    game_duration: 300  # 5 minutes
+    game_duration: 10  # 5 minutes
 
 missile_server:
   ros__parameters:

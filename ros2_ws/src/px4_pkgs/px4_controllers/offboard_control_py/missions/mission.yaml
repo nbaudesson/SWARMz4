@@ -1,7 +1,14 @@
-{
-  "1":[{"x": 0, "y": 0,  "z": None, "time":120},],
-  "2":[{"x": 60, "y":-35, "z": None, "time":120},],
-  "3":[{"x": 60, "y": 35, "z": None, "time":120},],
-  "4":[{"x":-60, "y":-35, "z": None, "time":120},],
-  "5":[{"x":-60, "y": 35, "z": None, "time":120},]
-}
+# Example multi-drone mission file
+# Format: {drone_id: [{x, y, z, yaw, time}, ...]}
+
+"1": [  # First drone's waypoints
+  {x: 5.0, y: 0.0, z: -2.0, yaw: 90.0, time: 5.0},
+  {x: 5.0, y: 5.0, z: -2.0, yaw: 180.0, time: 3.0},
+  {x: 0.0, y: 0.0, z: -1.0, yaw: 0.0, time: 5.0}
+]
+
+"2": [  # Second drone's waypoints
+  {x: -5.0, y: 0.0, z: -2.0, yaw: -90.0, time: 5.0},
+  {x: -5.0, y: -5.0, z: -2.0, yaw: -180.0, time: 3.0},
+  {x: 0.0, y: 0.0, z: -1.0, yaw: 0.0, time: 5.0}
+]

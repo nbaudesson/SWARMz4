@@ -1,0 +1,9 @@
+{
+    "C_Cpp.default.compilerPath": "/usr/bin/clang",
+    "files.associations": {
+        "string": "cpp",
+        "string_view": "cpp",
+        "*.tcc": "cpp",
+        "array": "cpp"
+    }
+}

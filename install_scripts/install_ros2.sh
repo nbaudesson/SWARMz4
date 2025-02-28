@@ -23,6 +23,7 @@ install_ros2() {
     sudo apt install -y software-properties-common
     sudo add-apt-repository universe
     sudo apt update && sudo apt install -y curl
+    sudo apt install libyaml-cpp-dev -y # Required for ROS 2 to parse yaml files in cpp
 
     sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
 
@@ -34,7 +35,7 @@ install_ros2() {
     echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 
     # Additional Python dependencies
-    pip install --user -U empy==3.3.4 pyros-genmsg setuptools==58.2
+    pip install --user -U empy==3.3.4 pyros-genmsg setuptools==58.2 psutil
 
     echo "ROS 2 Humble installation completed."
 }
