@@ -64,26 +64,20 @@ class GameMasterNode(Node):
         drones = sorted([ns for ns in self.namespaces if '/px4_' in ns])
         ships = sorted([ns for ns in self.namespaces if '/flag_ship_' in ns])
         
-        # Verify we have even numbers of both types
-        if len(drones) % 2 != 0:
-            raise ValueError(f"Uneven number of drones detected: {len(drones)}")
-        if len(ships) % 2 != 0:
-            raise ValueError(f"Uneven number of ships detected: {len(ships)}")
-            
-        # Split vehicles into two equal teams
-        drones_per_team = len(drones) // 2
-        ships_per_team = len(ships) // 2
+        # Calculate team sizes (handling uneven numbers)
+        drones_team_1 = (len(drones) + 1) // 2  # Larger team gets the extra drone if odd
+        ships_team_1 = (len(ships) + 1) // 2    # Larger team gets the extra ship if odd
         
-        # Compose teams
-        self.team_1 = drones[:drones_per_team] + ships[:ships_per_team]
-        self.team_2 = drones[drones_per_team:] + ships[ships_per_team:]
+        # Split vehicles into teams
+        self.team_1 = drones[:drones_team_1] + ships[:ships_team_1]
+        self.team_2 = drones[drones_team_1:] + ships[ships_team_1:]
         
-        # Check for non-standard team composition and warn if needed
-        if drones_per_team > 5 or ships_per_team > 1:
+        # Warn about uneven teams
+        if len(drones) % 2 != 0 or len(ships) % 2 != 0:
             warning = "\n" + "!" * 80 + "\n"
-            warning += "WARNING: NON-STANDARD TEAM COMPOSITION DETECTED\n"
-            warning += f"Each team has {drones_per_team} drones (standard is 5)\n"
-            warning += f"Each team has {ships_per_team} ships (standard is 1)\n"
+            warning += "WARNING: UNEVEN TEAM COMPOSITION DETECTED\n"
+            warning += f"Team 1 has {len(self.team_1)} vehicles ({len(drones[:drones_team_1])} drones, {len(ships[:ships_team_1])} ships)\n"
+            warning += f"Team 2 has {len(self.team_2)} vehicles ({len(drones[drones_team_1:])} drones, {len(ships[ships_team_1:])} ships)\n"
             warning += "!" * 80
             self.get_logger().warn(warning)
         
@@ -122,9 +116,12 @@ class GameMasterNode(Node):
         # Timer to track game duration
         self.start_time = time.time()
         self.game_timer = self.create_timer(1.0, self.game_timer_callback)
+        
+        # Add time publisher
+        self.time_publisher = self.create_publisher(Int32, '/game_master/time', 10)
 
-        # Timer to periodically publish health status
-        self.health_timer = self.create_timer(2.0, self.publish_health_status)
+        # Timer to periodically publish health status (changed from 2.0 to 20.0 seconds)
+        self.health_timer = self.create_timer(20.0, self.publish_health_status)
 
         # Create the service to update health
         self.update_health_srv = self.create_service(UpdateHealth, 'update_health', self.update_health_callback)
@@ -157,6 +154,13 @@ class GameMasterNode(Node):
         Track game duration and end the game if the time is up or a flagship is destroyed.
         """
         elapsed_time = time.time() - self.start_time
+        remaining_time = max(0, int(self.game_duration - elapsed_time))
+        
+        # Publish remaining time
+        time_msg = Int32()
+        time_msg.data = remaining_time
+        self.time_publisher.publish(time_msg)
+        
         if elapsed_time >= self.game_duration:
             self.end_game()
         else:
@@ -286,31 +290,60 @@ class GameMasterNode(Node):
     
     def get_detections(self, namespace):
         """
-        Get detections for the specified robot.
-        :param namespace: The namespace of the robot.
-        :return: List of detections.
+        Get detections for the specified robot in FRD (Forward-Right-Down) coordinates.
+        The detection coordinates are relative to the drone's current orientation:
+        - Forward = Along the drone's nose (x-axis in body frame)
+        - Right = To the right of the drone (y-axis in body frame)
+        - Down = Towards the ground (z-axis in body frame)
         """
         detections = []
+        if namespace not in self.robot_poses:
+            return detections
+            
         transmitter_pose = self.robot_poses[namespace]
+        # Validate transmitter pose
+        if None in transmitter_pose['position'] or None in transmitter_pose['orientation']:
+            return detections
+            
         detection_range = self.drone_detection_range if '/px4_' in namespace else self.ship_detection_range
         
         for robot, receiver_pose in self.robot_poses.items():
             if robot == namespace:
                 continue
-            distance = get_distance(transmitter_pose['position'], receiver_pose['position'])
-            if distance <= detection_range:
-                detection = Detection()
-                detection.vehicle_type = Detection.DRONE if '/px4_' in robot else Detection.SHIP
-                detection.is_friend = self.is_friend(namespace, robot)
-                relative_position = get_relative_position_with_orientation(
-                    transmitter_pose['position'], 
-                    transmitter_pose['orientation'],
-                    receiver_pose['position']
-                )
-                detection.relative_position.position.x = relative_position["x"]
-                detection.relative_position.position.y = relative_position["y"]
-                detection.relative_position.position.z = relative_position["z"]
-                detections.append(detection)
+                
+            # Validate receiver pose
+            if None in receiver_pose['position'] or None in receiver_pose['orientation']:
+                continue
+                
+            try:
+                distance = get_distance(transmitter_pose['position'], receiver_pose['position'])
+                if distance <= detection_range:
+                    detection = Detection()
+                    detection.vehicle_type = Detection.DRONE if '/px4_' in robot else Detection.SHIP
+                    detection.is_friend = self.is_friend(namespace, robot)
+                    
+                    # Get relative position in the drone's body frame
+                    # get_relative_position_with_orientation already accounts for the drone's orientation
+                    relative_position = get_relative_position_with_orientation(
+                        transmitter_pose['position'], 
+                        transmitter_pose['orientation'],
+                        receiver_pose['position']
+                    )
+                    
+                    # Convert to FRD coordinates
+                    # The relative position from get_relative_position_with_orientation is already
+                    # in the drone's frame, we just need to map it to FRD:
+                    # Forward = x (already correct)
+                    # Right = -y (need to negate the y component)
+                    # Down = -z (need to negate the z component)
+                    detection.relative_position.position.x = relative_position[0]  # Forward
+                    detection.relative_position.position.y = relative_position[1]  # Right
+                    detection.relative_position.position.z = -relative_position[2] # Down
+                    
+                    detections.append(detection)
+            except (TypeError, ValueError) as e:
+                self.get_logger().warn(f'Error calculating detection between {namespace} and {robot}: {e}')
+                continue
         
         return detections
 

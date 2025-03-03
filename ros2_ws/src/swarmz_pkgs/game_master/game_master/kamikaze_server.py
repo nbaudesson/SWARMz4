@@ -1,3 +1,49 @@
+"""
+Kamikaze Service Server Node
+===========================
+
+This module implements a ROS2 service server that handles kamikaze (self-destruct) actions
+for robots in a swarm simulation. When a robot triggers the kamikaze action, it damages
+itself and any other robots within a configurable explosion range.
+
+Key Features:
+------------
+- Handles kamikaze service requests from robots
+- Tracks robot positions using Gazebo
+- Applies configurable explosion damage to robots in range
+- Integrates with health system through update_health service
+
+Configuration Parameters:
+-----------------------
+- explosion_damage (int): Amount of damage dealt to robots (default: 100)
+- explosion_range (float): Radius in meters of explosion effect (default: 6.0)
+
+Usage:
+------
+1. Start the node:
+   $ ros2 run game_master kamikaze_server
+
+2. Call the service:
+   $ ros2 service call /kamikaze swarmz_interfaces/srv/Kamikaze "{robot_name: 'robot1'}"
+
+Dependencies:
+------------
+- swarmz_interfaces: Custom interface package with service definitions
+- utils.tools: Namespace and distance calculation utilities
+- utils.gazebo_subscriber: Robot position tracking
+- rclpy: ROS2 Python client library
+
+Implementation Details:
+---------------------
+The server maintains a list of all robot namespaces and their positions.
+When a kamikaze request is received:
+1. Validates the requesting robot's existence
+2. Gets the robot's current position
+3. Applies damage to the kamikaze robot
+4. Finds all robots within explosion_range
+5. Applies damage to affected robots through update_health service
+"""
+
 from swarmz_interfaces.srv import Kamikaze, UpdateHealth
 import rclpy
 from rclpy.node import Node

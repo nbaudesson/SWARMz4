@@ -1,18 +1,90 @@
 #!/usr/bin/env python3
-"""Multi-Drone Mission Client"""
+"""
+Multi-Drone Mission Control Client for PX4 VTOL Aircraft
+
+This node provides high-level mission control for multiple PX4-powered drones.
+It loads mission files in YAML format and executes waypoint-based missions
+with configurable hover times at each point.
+
+Features:
+---------
+- Multi-drone mission coordination
+- YAML-based mission configuration
+- Automatic waypoint progression
+- Configurable hover times
+- Progress monitoring and logging
+- Automatic mission completion detection
+
+Requirements:
+------------
+- ROS 2 (Foxy/Humble)
+- PX4 Autopilot
+- offboard_control_py package
+- px4_controllers_interfaces package
+- YAML mission configuration file
+
+Mission File Format:
+------------------
+drone_1:  # Drone identifier
+  - x: 10.0    # X position in meters
+    y: 0.0     # Y position in meters
+    z: 2.0     # Z position in meters
+    yaw: 0.0   # Yaw angle in radians
+    time: 5.0  # Hover time in seconds
+  # ... more waypoints ...
+drone_2:
+  # ... waypoints for second drone ...
+
+Usage:
+------
+1. Create a mission file in the offboard_control_py/missions directory
+2. Launch the node with:
+   $ ros2 run offboard_control_py mission_control --ros-args -p mission_file:=my_mission.yaml
+
+Parameters:
+----------
+- mission_file: Name of the YAML mission file (required)
+- log_level: Logging verbosity ('debug' or 'info', default: 'info')
+
+Publishers:
+----------
+- Various action clients for each drone (via GotoPosition action)
+
+Subscribers:
+-----------
+- Feedback from each drone's action server
+"""
 
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
 from px4_controllers_interfaces.action import GotoPosition
-from px4_controllers_interfaces.msg import PointYaw
 import yaml
 import time
 from ament_index_python.packages import get_package_share_directory
 import os.path
 
 class DroneActionClient:
+    """
+    Handles individual drone mission execution and monitoring.
+    
+    This class manages:
+    - Waypoint progression
+    - Action client communication
+    - Hover timing
+    - Progress monitoring
+    - Status logging
+    """
+    
     def __init__(self, node: Node, drone_id: str, waypoints: list):
+        """
+        Initialize drone control client.
+        
+        Args:
+            node: Parent ROS node
+            drone_id: Unique identifier for the drone
+            waypoints: List of waypoint dictionaries
+        """
         self.node = node
         self.drone_id = drone_id
         self.waypoints = waypoints
@@ -38,8 +110,22 @@ class DroneActionClient:
         self.log_counter = 0
         self.log_modulo = 5  # Only log every 5th message
 
+        # Add retry configuration
+        self.max_retries = 3  # Maximum number of retry attempts
+        self.retry_delay = 2.0  # Seconds to wait between retries
+        self.current_retry = 0  # Current retry attempt
+        self.failure_reason = None  # Store the reason for failure
+        self.last_goal_status = None  # Track goal status
+        self.retry_timer = None  # Add timer storage
+
     def send_waypoint(self):
-        """Send next waypoint as an action goal"""
+        """
+        Send next waypoint as an action goal.
+        
+        Returns:
+            bool: True if waypoint was sent, False if no more waypoints
+                 or action server unavailable
+        """
         if self.current_waypoint >= len(self.waypoints):
             return False
             
@@ -47,6 +133,10 @@ class DroneActionClient:
         if self.goal_in_progress:
             return False
 
+        # Reset retry counter when sending new waypoint
+        self.current_retry = 0
+        self.failure_reason = None
+        
         waypoint = self.waypoints[self.current_waypoint]
         goal_msg = GotoPosition.Goal()
         goal_msg.target.position.x = float(waypoint['x'])
@@ -54,13 +144,19 @@ class DroneActionClient:
         goal_msg.target.position.z = float(waypoint['z'])
         goal_msg.target.yaw = float(waypoint['yaw'])
 
-        # Wait for action server
+        # Wait for action server with improved error reporting
         if not self._action_client.wait_for_server(timeout_sec=1.0):
-            self.node.get_logger().warn(f'Action server not available for drone {self.drone_id}')
+            self.failure_reason = "Action server not available"
+            self.node.get_logger().error(f'Drone {self.drone_id}: {self.failure_reason}')
             return False
 
         # Send goal and setup callbacks
         self.goal_in_progress = True
+        self.node.get_logger().info(
+            f'Drone {self.drone_id}: Sending waypoint {self.current_waypoint + 1} '
+            f'(Attempt {self.current_retry + 1}/{self.max_retries})'
+        )
+        
         send_goal_future = self._action_client.send_goal_async(
             goal_msg,
             feedback_callback=self.feedback_callback
@@ -69,16 +165,32 @@ class DroneActionClient:
         return True
 
     def goal_response_callback(self, future):
-        """Handle goal acceptance/rejection"""
-        goal_handle = future.result()
-        if not goal_handle.accepted:
-            self.node.get_logger().error(f'Goal rejected for drone {self.drone_id}')
-            self.goal_in_progress = False
-            return
+        """
+        Handle goal acceptance/rejection from action server.
+        
+        Args:
+            future: Future object containing goal response
+        """
+        try:
+            goal_handle = future.result()
+            if not goal_handle.accepted:
+                self.failure_reason = "Goal rejected by action server"
+                self.node.get_logger().warn(
+                    f'Drone {self.drone_id}: {self.failure_reason}. '
+                    f'Attempt {self.current_retry + 1}/{self.max_retries}'
+                )
+                self.handle_failure()
+                return
 
-        self.goal_handle = goal_handle
-        result_future = goal_handle.get_result_async()
-        result_future.add_done_callback(self.get_result_callback)
+            self.goal_handle = goal_handle
+            self.last_goal_status = "ACCEPTED"
+            result_future = goal_handle.get_result_async()
+            result_future.add_done_callback(self.get_result_callback)
+            
+        except Exception as e:
+            self.failure_reason = f"Error in goal response: {str(e)}"
+            self.node.get_logger().error(f'Drone {self.drone_id}: {self.failure_reason}')
+            self.handle_failure()
 
     def get_result_callback(self, future):
         """Handle action result and manage hover time"""
@@ -87,27 +199,68 @@ class DroneActionClient:
             waypoint = self.waypoints[self.current_waypoint]
             status = "succeeded" if result.success else "failed"
             
-            # Always log waypoint completion, but only once
-            current_time = time.time()
-            result_key = (self.current_waypoint, status)
-            
-            if result_key != self.last_result:
-                self.node.get_logger().info(
-                    f'Drone {self.drone_id}: Waypoint {self.current_waypoint + 1}/{len(self.waypoints)} {status}'
+            if not result.success:
+                self.failure_reason = "Goal execution failed"
+                self.last_goal_status = "FAILED"
+                self.node.get_logger().warn(
+                    f'Drone {self.drone_id}: Waypoint {self.current_waypoint + 1} failed. '
+                    f'Position: [{waypoint["x"]}, {waypoint["y"]}, {waypoint["z"]}], '
+                    f'Yaw: {waypoint["yaw"]}. Attempt {self.current_retry + 1}/{self.max_retries}'
                 )
-                self.last_status_time = current_time
-                self.last_result = result_key
-
-            # Start hover timer
-            self.hover_start_time = current_time
+                self.handle_failure()
+                return
+                
+            # Success case
+            self.node.get_logger().info(
+                f'Drone {self.drone_id}: Waypoint {self.current_waypoint + 1} succeeded'
+            )
+            self.last_goal_status = "SUCCEEDED"
+            self.current_retry = 0  # Reset retry counter
+            self.hover_start_time = self.node.get_clock().now().seconds_nanoseconds()[0]
             self.is_hovering = True
             self.goal_in_progress = False
             self.goal_handle = None
             
         except Exception as e:
-            self.node.get_logger().error(f'Error in result callback: {str(e)}')
+            self.failure_reason = f"Error in result callback: {str(e)}"
+            self.node.get_logger().error(f'Drone {self.drone_id}: {self.failure_reason}')
+            self.handle_failure()
+
+    def handle_failure(self):
+        """Handle failures with retry logic."""
+        self.goal_in_progress = False
+        self.goal_handle = None
+        
+        if self.current_retry < self.max_retries:
+            self.current_retry += 1
+            self.node.get_logger().info(
+                f'Drone {self.drone_id}: Retrying waypoint {self.current_waypoint + 1} '
+                f'in {self.retry_delay} seconds (Attempt {self.current_retry}/{self.max_retries})'
+            )
+            # Create and store timer for delayed retry
+            if self.retry_timer:
+                self.retry_timer.cancel()
+            self.retry_timer = self.node.create_timer(
+                self.retry_delay,
+                self.retry_timer_callback
+            )
+        else:
+            self.node.get_logger().error(
+                f'Drone {self.drone_id}: Maximum retries ({self.max_retries}) reached. '
+                f'Last failure reason: {self.failure_reason}. '
+                f'Last goal status: {self.last_goal_status}'
+            )
+            # Move to next waypoint after max retries
+            self.current_waypoint += 1
+            self.current_retry = 0
             self.goal_in_progress = False
-            self.goal_handle = None
+
+    def retry_timer_callback(self):
+        """Handle retry timer callback."""
+        if self.retry_timer:
+            self.retry_timer.cancel()
+            self.retry_timer = None
+        self.send_waypoint()
 
     def feedback_callback(self, feedback_msg):
         """Handle action feedback with reduced logging"""
@@ -153,7 +306,18 @@ class DroneActionClient:
         return False
 
 class MultiDroneMissionClient(Node):
+    """
+    Main mission control node managing multiple drones.
+    
+    This node:
+    - Loads mission configurations
+    - Creates and manages drone clients
+    - Monitors overall mission progress
+    - Handles mission completion
+    """
+    
     def __init__(self):
+        """Initialize the mission control node."""
         super().__init__('offboard_control_client')
         
         # Add logging control with more restrictive defaults
@@ -211,7 +375,14 @@ class MultiDroneMissionClient(Node):
             self.get_logger().error(f'Failed to initialize: {str(e)}')
 
     def mission_timer_callback(self):
-        """Handle mission execution with progress updates"""
+        """
+        Periodic callback to manage mission execution.
+        
+        - Calculates mission progress
+        - Updates status logging
+        - Manages waypoint progression
+        - Detects mission completion
+        """
         try:
             all_complete = True
             completed_waypoints = 0
@@ -258,6 +429,12 @@ class MultiDroneMissionClient(Node):
             self.get_logger().error(f'Error in mission timer: {str(e)}')
 
 def main(args=None):
+    """
+    Main function initializing and running the mission control node.
+    
+    Args:
+        args: Command line arguments passed to ROS
+    """
     rclpy.init(args=args)
     
     try:

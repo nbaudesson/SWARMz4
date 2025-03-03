@@ -137,8 +137,8 @@ class OffboardControlFRD(Node):
         # Flight parameters
         self._mpc_xy_vel_max = 12.0
         self._current_goal_handle = None
-        self._timeout_margin = 2  
-        self._min_timeout = 20.0
+        self._timeout_margin = 1.5
+        self._min_timeout = 15.0
 
         # Launch parameters
         try:
@@ -174,7 +174,7 @@ class OffboardControlFRD(Node):
         # Position tracking parameters
         self._initial_position = None
         self._target_reached = False
-        self._position_threshold = 0.1
+        self._position_threshold = 0.15
         self._landing_in_progress = False
         self._landing_complete = False
         self._landing_start_time = 0.0

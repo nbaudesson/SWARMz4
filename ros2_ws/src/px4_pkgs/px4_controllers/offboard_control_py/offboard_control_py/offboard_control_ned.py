@@ -196,7 +196,7 @@ class OffboardControlNED(Node):
         # Position tracking parameters
         self._initial_position = None  # Initial position after arming, used as reference
         self._target_reached = False  # True when current target is reached
-        self._position_threshold = 0.2  # Distance threshold for position reached (meters)
+        self._position_threshold = 0.15  # Distance threshold for position reached (meters)
         self._landing_in_progress = False  # Set during landing sequence
         self._landing_complete = False  # Set when landing is finished
         self._landing_start_time = 0.0  # Time when landing started

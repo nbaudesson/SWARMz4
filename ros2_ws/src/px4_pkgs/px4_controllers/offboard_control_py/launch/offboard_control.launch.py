@@ -171,26 +171,23 @@ def generate_drone_nodes(context, *args, **kwargs):
         # Determine controller type with detailed logging
         drone_controller = None
         
-        # 1. Try controller config file
-        if controller_config and str(team_id) in controller_config:
+        # 1. Try launch argument
+        if controller_type:
+            drone_controller = controller_type
+            print(f"  → Using controller from launch argument: {controller_type}")
+        
+        # 2. Try controller config file
+        if not drone_controller and controller_config and str(team_id) in controller_config:
             drone_controller = controller_config[str(team_id)].get(str(drone_id))
             if drone_controller:
                 print(f"  → Using controller from config file: {drone_controller}")
             else:
                 print("  → No controller specified in config file")
         
-        # 2. Try launch argument
-        if not drone_controller and controller_type:
-            drone_controller = controller_type
-            print(f"  → Using controller from launch argument: {controller_type}")
-        
         # 3. Use default
         if not drone_controller:
             drone_controller = 'NED'
             print("  → Using default controller: NED")
-            
-        # Final controller decision
-        print(f"  → Final controller selection: {drone_controller}")
         
         # Map controller type to executable name
         node_executable = controller_map.get(drone_controller.upper())
