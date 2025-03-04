@@ -42,8 +42,32 @@ When a kamikaze request is received:
 3. Applies damage to the kamikaze robot
 4. Finds all robots within explosion_range
 5. Applies damage to affected robots through update_health service
+
+Execution Flow:
+-------------
+1. Server Initialization
+   - Load parameters
+   - Setup tracking systems
+   - Initialize services
+
+2. Request Processing
+   - Validate kamikaze robot
+   - Get position data
+   - Apply self-damage
+
+3. Explosion Processing
+   - Find robots in range
+   - Calculate damage
+   - Update health values
+
+4. Cleanup
+   - Log results
+   - Update robot states
 """
 
+# -----------------
+# Imports Section
+# -----------------
 from swarmz_interfaces.srv import Kamikaze, UpdateHealth
 import rclpy
 from rclpy.node import Node
@@ -51,6 +75,9 @@ from utils.tools import get_all_namespaces, get_distance
 from utils.gazebo_subscriber import GazeboPosesTracker
 import time
 
+# ----------------------
+# Main Service Class
+# ----------------------
 class KamikazeServiceServer(Node):
 
     def __init__(self):

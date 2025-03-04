@@ -1,3 +1,23 @@
+"""
+Game Master Node for Multi-Robot Combat Simulation
+
+This module implements a ROS2 node that manages a multi-robot combat simulation game.
+It handles team formation, health tracking, robot detection, communication, and scoring
+for both drones (PX4) and ships in a Gazebo-based simulation environment.
+
+Features:
+- Automatic team formation
+- Health and damage management
+- Detection range simulation
+- Inter-robot communication
+- Score tracking
+- Game state management
+- Automated game results logging
+
+The game involves two teams competing against each other, with both drones and ships
+having different capabilities (health, detection range, communication range).
+"""
+
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Int32
@@ -19,8 +39,31 @@ from gz.transport13 import Node as GzNode
 
 
 class GameMasterNode(Node):
+    """
+    Main node for managing the combat simulation game.
+
+    This node handles:
+    - Team formation and management
+    - Robot health tracking
+    - Detection and communication simulation
+    - Score keeping
+    - Game state management
+    - Results logging
+
+    Parameters (via ROS2 parameters):
+        drone_detection_range (float): Maximum range at which drones can detect others
+        ship_detection_range (float): Maximum range at which ships can detect others
+        drone_communication_range (float): Maximum range for drone communications
+        ship_communication_range (float): Maximum range for ship communications
+        drone_health (int): Initial health points for drones
+        ship_health (int): Initial health points for ships
+        drone_points (int): Points awarded for destroying a drone
+        ship_points (int): Points awarded for destroying a ship
+        game_duration (int): Game duration in seconds
+    """
 
     def __init__(self):
+        """Initialize the Game Master node and set up all necessary components."""
         super().__init__('game_master_node')
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time', rclpy.Parameter.Type.BOOL, True)])
 
@@ -134,7 +177,9 @@ class GameMasterNode(Node):
 
     def update_positions(self):
         """
-        Update the poses of all robots.
+        Update the position and orientation of all robots in the simulation.
+        Gets the latest pose data from Gazebo for each robot and stores it
+        in self.robot_poses in a standardized format.
         """
         for ns in self.namespaces:
             pose = self.gz.get_pose(ns)
@@ -151,7 +196,14 @@ class GameMasterNode(Node):
 
     def game_timer_callback(self):
         """
-        Track game duration and end the game if the time is up or a flagship is destroyed.
+        Monitor game progress and check for end conditions.
+        
+        Tracks:
+        - Remaining game time
+        - Flagship destruction
+        - Game termination conditions
+        
+        Publishes the remaining time to /game_master/time topic.
         """
         elapsed_time = time.time() - self.start_time
         remaining_time = max(0, int(self.game_duration - elapsed_time))
@@ -170,7 +222,13 @@ class GameMasterNode(Node):
 
     def end_game(self):
         """
-        End the game and announce the winner.
+        Handle game termination and results logging.
+        
+        - Determines the winning team
+        - Generates detailed game results
+        - Saves results to:
+            - game_results.txt (cumulative results)
+            - individual_games/game_results_TIMESTAMP.txt (individual game results)
         """
         self.get_logger().info('Game Over')
         result = "Game Over\n"
@@ -254,7 +312,9 @@ class GameMasterNode(Node):
 
     def detections_callback(self):
         """
-        Periodically publish detections for each robot.
+        Manage the periodic publication of detection information.
+        Uses multi-threading to efficiently process and publish
+        detection data for all robots simultaneously.
         """
         # Check if we have valid pose data
         if not self.robot_poses or None in self.robot_poses[next(iter(self.robot_poses))]['position']:
@@ -290,11 +350,16 @@ class GameMasterNode(Node):
     
     def get_detections(self, namespace):
         """
-        Get detections for the specified robot in FRD (Forward-Right-Down) coordinates.
-        For a drone in NED frame:
-        - Forward = Along drone's nose (determined by yaw)
-        - Right = 90° clockwise from Forward
-        - Down = Towards ground (positive NED Z)
+        Calculate which robots are within detection range of the specified robot.
+
+        Args:
+            namespace (str): The namespace of the detecting robot
+
+        Returns:
+            list[Detection]: List of Detection messages containing:
+                - Vehicle type (drone/ship)
+                - Friend/foe status
+                - Relative position in FRD (Forward-Right-Down) coordinates
         """
         detections = []
         if namespace not in self.robot_poses:

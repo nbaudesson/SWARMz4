@@ -1,3 +1,19 @@
+"""
+Game Master Launch File
+=====================
+
+Components Launched:
+-----------------
+1. Game Master Node: Central game controller
+2. Missile Server: Handles missile firing mechanics
+3. Kamikaze Server: Manages self-destruct actions
+
+Configuration:
+------------
+- Loads parameters from game_master_params.yaml
+- Enables simulation time
+"""
+
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
