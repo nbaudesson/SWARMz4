@@ -29,8 +29,7 @@ A ROS 2 package providing high-level control interfaces for multiple PX4-powered
 
 1. Clone this repository into your ROS 2 workspace:
 ```bash
-cd ~/ros2_ws/src
-git clone <repository_url>
+git clone https://github.com/nbaudesson/SWARMz4.git
 ```
 
 2. Build the package:
@@ -44,9 +43,52 @@ colcon build --packages-select offboard_control_py px4_controllers_interfaces
 source install/setup.bash
 ```
 
+## Controller Types
+
+1. **NED Controller** (`offboard_control_ned`):
+   - Global position control
+   - Uses North-East-Down coordinates
+   - Best for absolute positioning
+
+2. **FRD Controller** (`offboard_control_frd`):
+   - Relative position control
+   - Uses Forward-Right-Down coordinates
+   - Best for relative positioning
+
+2. **cmd_vel Controller** (`offboard_control_vel`):
+   - Relative velocity control
+   - Uses FLU, FRD or NED coordinates
+   - Best for relative movements
+
+3. **Mission Control** (`offboard_control_client`):-
+   - Call several controllers throught ROS2 action clients
+   - Multi-drone mission execution
+   - YAML mission configuration
+   - Progress monitoring
+
+## Coordinate Systems
+
+1. **NED Frame**:
+   - X: North (positive)
+   - Y: East (positive)
+   - Z: Down (positive)
+   - Yaw: 0° = North, 90° = East
+
+2. **FRD Frame**:
+   - X: Forward (drone's heading)
+   - Y: Right (relative to heading)
+   - Z: Down (positive)
+   - Yaw: Relative to current heading
+
+3. **FLU Frame**:
+   - X: Forward (drone's heading)
+   - Y: Left (relative to heading)
+   - Z: Up (positive)
+   - Yaw: Relative to current heading
+
 ## Usage
 
-### 1. Basic Control with NED Frame
+### 1. Basic Position Control with NED Frame
 
 Launch a single drone controller:
 ```bash
@@ -62,7 +104,7 @@ ros2 action send_goal /px4_1/goto_position px4_controllers_interfaces/action/Got
 ros2 topic pub /px4_1/target_pose px4_controllers_interfaces/msg/PointYaw "{position: {x: 5.0, y: 0.0, z: -2.0}, yaw: 0.0}"
 ```
 
-### 2. Relative Movement with FRD Frame
+### 2. Relative Position Control with FRD Frame
 
 Launch with FRD controller:
 ```bash
@@ -77,8 +119,46 @@ ros2 action send_goal /px4_1/goto_position px4_controllers_interfaces/action/Got
 # Move 3 meters right and up 1 meter with 90° rotation
 ros2 action send_goal /px4_1/goto_position px4_controllers_interfaces/action/GotoPosition "{target: {position: {x: 0.0, y: 3.0, z: -1.0}, yaw: 90.0}}"
 ```
+### 3. Velocity Control
 
-### 3. Multi-Drone Missions
+The `offboard_control_vel` node provides direct velocity control for PX4 drones. Classical ROS2 movement control using *cmd_vel* as input. It supports:
+
+1. Control Modes:
+   - Position holding when zero velocity commanded
+   - Pure velocity control using cmd_vel
+   - Automatic takeoff and landing sequences
+
+2. Parameters:
+   ```yaml
+   max_horizontal_speed: 12.0     # Maximum horizontal velocity (m/s)
+   max_vertical_speed: 12.0       # Maximum vertical velocity (m/s)
+   max_yaw_rate: 10.0            # Maximum yaw rate (rad/s)
+   velocity_timeout: 2.0          # Time before zeroing velocity (s)
+   frame_type: 'FLU'             # Reference frame (FLU/FRD/NED)
+   takeoff_height: 2.0           # Target takeoff height (m)
+   hover_timeout: 10.0           # Hover time before auto-land (s)
+   land_height_threshold: 1.0    # Height to trigger landing (m)
+   ```
+
+4. Safety Features:
+   - Automatic position holding when no commands received
+   - Velocity command timeout
+   - Maximum speed limits
+   - Auto-landing when near ground
+   - Auto-disarm after landing
+
+5. Usage Example:
+   ```bash
+   # Launch velocity controller
+   ros2 launch offboard_control_py offboard_control.launch.py \
+     team_id:=1 controller_type:=VEL frame_type:=FLU
+
+   # Send velocity commands
+   ros2 topic pub /px4_1/cmd_vel geometry_msgs/msg/Twist \
+     "{linear: {x: 1.0, y: 0.0, z: 0.0}, angular: {z: 0.0}}"
+
+
+### 4. Multi-Drone Missions
 
 1. Create a mission file (e.g., `missions/my_mission.yaml`):
 ```yaml
@@ -128,7 +208,7 @@ Manual editing of this file is not recommended as it will be overwritten on the 
 
 ## Launch Files
 
-1. `offboard_control.launch.py`: Basic controller launch
+1. `offboard_control.launch.py`: Basic controller launch to run several controllers for one team of drones
    ```bash
    ros2 launch offboard_control_py offboard_control.launch.py \
      team_id:=1 \
@@ -137,246 +217,160 @@ Manual editing of this file is not recommended as it will be overwritten on the 
      spawn_file:=my_spawn.yaml
    ```
 
-2. `game_test.launch.py`: Complete test environment
+2. `game_test.launch.py` : Complete test environment : 2 teams launcher + Mission controller for both teams (not acceptable in actual games) + Game Master launcher (to run a game)
    ```bash
    ros2 launch offboard_control_py game_test.launch.py
    ```
 
-## Node Types
-
-1. **NED Controller** (`offboard_control_ned`):
-   - Global position control
-   - Uses North-East-Down coordinates
-   - Best for absolute positioning
-
-2. **FRD Controller** (`offboard_control_frd`):
-   - Relative position control
-   - Uses Forward-Right-Down coordinates
-   - Best for relative movements
-
-3. **Mission Control** (`offboard_control_client`):
-   - Multi-drone mission execution
-   - YAML mission configuration
-   - Progress monitoring
-
-## Coordinate Systems
-
-1. **NED Frame**:
-   - X: North (positive)
-   - Y: East (positive)
-   - Z: Down (positive)
-   - Yaw: 0° = North, 90° = East
-
-2. **FRD Frame**:
-   - X: Forward (drone's heading)
-   - Y: Right (relative to heading)
-   - Z: Down (positive)
-   - Yaw: Relative to current heading
-
 ## Advanced Usage
 
-### Velocity Control
-The `offboard_control_vel` node provides direct velocity control for PX4 drones. It supports:
-
-1. Control Modes:
-   - Position holding when zero velocity commanded
-   - Pure velocity control using cmd_vel
-   - Automatic takeoff and landing sequences
-
-2. Parameters:
-   ```yaml
-   max_horizontal_speed: 12.0     # Maximum horizontal velocity (m/s)
-   max_vertical_speed: 12.0       # Maximum vertical velocity (m/s)
-   max_yaw_rate: 10.0            # Maximum yaw rate (rad/s)
-   velocity_timeout: 2.0          # Time before zeroing velocity (s)
-   frame_type: 'FLU'             # Reference frame (FLU/FRD/NED)
-   takeoff_height: 2.0           # Target takeoff height (m)
-   hover_timeout: 10.0           # Hover time before auto-land (s)
-   land_height_threshold: 1.0    # Height to trigger landing (m)
-   ```
-
-3. Reference Frames:
-   - FLU (Forward-Left-Up):
-     ```python
-     # Forward is drone's nose, Left is port side, Up is skyward
-     cmd_vel.linear.x = 1.0  # Forward velocity
-     cmd_vel.linear.y = -1.0 # Left velocity
-     cmd_vel.linear.z = -1.0 # Up velocity
-     ```
-   
-   - FRD (Forward-Right-Down):
-     ```python
-     # Forward is drone's nose, Right is starboard, Down is earthward
-     cmd_vel.linear.x = 1.0  # Forward velocity
-     cmd_vel.linear.y = 1.0  # Right velocity
-     cmd_vel.linear.z = 1.0  # Down velocity
-     ```
-   
-   - NED (North-East-Down):
-     ```python
-     # North is global North, East is global East, Down is earthward
-     cmd_vel.linear.x = 1.0  # North velocity
-     cmd_vel.linear.y = 1.0  # East velocity
-     cmd_vel.linear.z = 1.0  # Down velocity
-     ```
-
-4. Safety Features:
-   - Automatic position holding when no commands received
-   - Velocity command timeout
-   - Maximum speed limits
-   - Auto-landing when near ground
-   - Auto-disarm after landing
-
-5. Usage Example:
-   ```bash
-   # Launch velocity controller
-   ros2 launch offboard_control_py offboard_control.launch.py \
-     team_id:=1 controller_type:=VEL frame_type:=FLU
-
-   # Send velocity commands
-   ros2 topic pub /px4_1/cmd_vel geometry_msgs/msg/Twist \
-     "{linear: {x: 1.0, y: 0.0, z: 0.0}, angular: {z: 0.0}}"
-   ```
-
 ### Mission Control System
-The `offboard_control_client` demonstrates how to control multiple drones using ROS2 action clients. Here's how it works:
+The `offboard_control_client` demonstrates how to control multiple drones using ROS2 action clients. It is an exemple code to show you how to multiple drones at once from a single node (in this case using the positions controllers). Here are some more exemples:
 
-1. Action Interface:
-```python
-# Each drone exposes an action server at:
-# /px4_{drone_id}/goto_position
+### Controller client Components
 
-# Action Definition (GotoPosition.action):
-# Goal: Target position and yaw
-geometry_msgs/Point position  # x, y, z in meters
-float32 yaw                  # degrees
+1. **Action Client Interface**
+   - Each drone exposes a GotoPosition action server
+   - Commands are sent as action goals
+   - Feedback provides position and distance info
+   - Results indicate success/failure
 
-# Feedback: Current status
-geometry_msgs/Point current_position
-float32 distance_to_target
-float32 time_elapsed
+2. **Position Commands**
+   ```python
+   # Send absolute position (NED frame)
+   ned_client.send_command(x=5.0, y=0.0, z=-2.0, yaw=0.0)
+   
+   # Send relative position (FRD frame)
+   frd_client.send_command(x=2.0, y=1.0, z=0.0, yaw=90.0)
+   ```
 
-# Result: Success status
-bool success
-```
+3. **Goal Tracking**
+   ```python
+   def goal_response_callback(self, future):
+       goal_handle = future.result()
+       if goal_handle.accepted:
+           result_future = goal_handle.get_result_async()
+           result_future.add_done_callback(self.get_result_callback)
 
-2. Basic Usage in Your Code:
-```python
-from rclpy.action import ActionClient
-from px4_controllers_interfaces.action import GotoPosition
+   def get_result_callback(self, future):
+       result = future.result().result
+       if result.success:
+           # Goal reached successfully
+           self.handle_success()
+       else:
+           # Goal failed
+           self.handle_failure()
+   ```
 
-class YourController:
-    def __init__(self, node):
-        # Create action client for each drone
-        self.client = ActionClient(
-            node,
-            GotoPosition,
-            '/px4_1/goto_position'  # For drone 1
-        )
-        
-    async def send_goal(self, x, y, z, yaw):
-        # Wait for action server
-        self.client.wait_for_server()
-        
-        # Create goal
-        goal = GotoPosition.Goal()
-        goal.target.position.x = x
-        goal.target.position.y = y
-        goal.target.position.z = z
-        goal.target.yaw = yaw
-        
-        # Send goal with callbacks
-        self._send_goal_future = await self.client.send_goal_async(
-            goal,
-            feedback_callback=self.feedback_callback
-        )
-        
-    def feedback_callback(self, feedback_msg):
-        # Process feedback
-        fb = feedback_msg.feedback
-        print(f"Distance to target: {fb.distance_to_target}")
-```
+### 3. Example: Simple Waypoint Controller
 
-3. Error Handling Pattern:
-```python
-def send_goal_with_retry(self, x, y, z, yaw, max_retries=3):
-    for attempt in range(max_retries):
-        try:
-            response = await self.send_goal(x, y, z, yaw)
-            if response.accepted:
-                return await response.get_result()
-            else:
-                print(f"Goal rejected, attempt {attempt + 1}")
-        except Exception as e:
-            print(f"Error: {e}, attempt {attempt + 1}")
-    return None
-```
-
-4. Multiple Drone Control:
-```python
-class MultiDroneController:
-    def __init__(self, node, drone_ids):
-        self.clients = {}
-        for drone_id in drone_ids:
-            self.clients[drone_id] = ActionClient(
-                node,
-                GotoPosition,
-                f'/px4_{drone_id}/goto_position'
-            )
-    
-    async def move_formation(self, positions):
-        # Send goals to all drones simultaneously
-        tasks = []
-        for drone_id, pos in positions.items():
-            goal = GotoPosition.Goal()
-            goal.target.position.x = pos['x']
-            goal.target.position.y = pos['y']
-            goal.target.position.z = pos['z']
-            goal.target.yaw = pos['yaw']
-            
-            client = self.clients[drone_id]
-            tasks.append(client.send_goal_async(goal))
-            
-        # Wait for all goals to complete
-        results = await asyncio.gather(*tasks)
-        return results
-```
-
-5. Integration Example:
 ```python
 import rclpy
 from rclpy.node import Node
-import asyncio
+from rclpy.action import ActionClient
+from px4_controllers_interfaces.action import GotoPosition
 
-class YourMissionController(Node):
+class WaypointController(Node):
     def __init__(self):
-        super().__init__('your_mission_controller')
-        self.drone_controller = MultiDroneController(
-            self, 
-            drone_ids=['1', '2']
-        )
+        super().__init__('waypoint_controller')
         
-    async def run_mission(self):
-        # Example formation movement
-        positions = {
-            '1': {'x': 5.0, 'y': 0.0, 'z': -2.0, 'yaw': 0.0},
-            '2': {'x': 5.0, 'y': 2.0, 'z': -2.0, 'yaw': 0.0}
-        }
-        results = await self.drone_controller.move_formation(positions)
+        # Create drone client
+        self.drone = CustomDroneClient(self, drone_id='1')
         
-        # Check results
-        for drone_id, result in zip(positions.keys(), results):
-            if result.accepted:
-                print(f"Drone {drone_id} goal accepted")
-            else:
-                print(f"Drone {drone_id} goal rejected")
+        # Define waypoints
+        self.waypoints = [
+            {'x': 5.0, 'y': 0.0, 'z': -2.0, 'yaw': 0.0},
+            {'x': 5.0, 'y': 5.0, 'z': -2.0, 'yaw': 90.0}
+        ]
+        self.current_waypoint = 0
+        
+        # Start mission
+        self.send_next_waypoint()
+        
+    def send_next_waypoint(self):
+        if self.current_waypoint < len(self.waypoints):
+            wp = self.waypoints[self.current_waypoint]
+            self.drone.send_command(wp['x'], wp['y'], wp['z'], wp['yaw'])
 
-def main():
-    rclpy.init()
-    controller = YourMissionController()
-    
-    # Run async mission
-    asyncio.run(controller.run_mission())
-    
-    rclpy.shutdown()
+    def handle_success(self):
+        self.current_waypoint += 1
+        self.send_next_waypoint()
 ```
+
+### 4. Advanced Features
+
+1. **Retry Logic**
+   ```python
+   class RetryableClient:
+       def __init__(self, max_retries=3, retry_delay=2.0):
+           self.max_retries = max_retries
+           self.retry_delay = retry_delay
+           self.current_retry = 0
+
+       def handle_failure(self):
+           if self.current_retry < self.max_retries:
+               self.current_retry += 1
+               self.node.create_timer(
+                   self.retry_delay,
+                   self.retry_waypoint
+               )
+   ```
+
+2. **Progress Monitoring**
+   ```python
+   class MonitoredClient:
+       def __init__(self):
+           self.start_time = time.time()
+           self.progress_interval = 5.0
+           self.last_progress_time = 0
+
+       def update_progress(self):
+           current_time = time.time()
+           if current_time - self.last_progress_time >= self.progress_interval:
+               # Log progress
+               self.last_progress_time = current_time
+   ```
+
+3. **Position Holding**
+   ```python
+   class HoldPositionClient:
+       def hold_current_position(self):
+           if self.current_pos:
+               self.send_command(
+                   self.current_pos.x,
+                   self.current_pos.y,
+                   self.current_pos.z,
+                   self.current_yaw
+               )
+   ```
+
+### 5. Best Practices
+
+1. **Error Handling**
+   - Always check for valid position data
+   - Implement timeout protection
+   - Handle connection losses gracefully
+
+2. **Resource Management**
+   - Clean up action clients properly
+   - Cancel ongoing goals when needed
+   - Release resources in destructors
+
+3. **Safety Features**
+   - Implement position validation
+   - Add maximum velocity limits
+   - Include emergency stop capability
+
+4. **Testing**
+   ```python
+   def test_controller():
+       rclpy.init()
+       controller = WaypointController()
+       try:
+           rclpy.spin(controller)
+       except KeyboardInterrupt:
+           controller.destroy_node()
+       rclpy.shutdown()
+   ```
+
+Remember that these are building blocks - you can mix and match features based on your specific needs. The key is to maintain robust error handling and clean resource management while implementing your custom control logic.
