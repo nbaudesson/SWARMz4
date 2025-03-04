@@ -30,26 +30,59 @@ To install the project, follow these steps:
     ```
 
 ## Usage
-To run a game, you need to start the Gazebo simulation with the appropriate number of robots. The SWARMz4 challenge makes two teams of 5 drones and 1 flagship fight each other over a 500 x 250 m field.
 
-### Simulation Parameters
+### Launching Simulations
 
-The simulation can be configured using several parameters:
+SWARMz4 provides two different launch scripts:
 
-1. **Environment Parameters**:
+1. **Development Testing** (`launch_simulation.sh`):
+   - Used for development and testing
+   - Spawns drones in fixed, predictable positions
+   - Simplified setup for controller development
    ```bash
    ./launch_scripts/launch_simulation.sh [HEADLESS] [NUM_DRONES_PER_TEAM] [FIELD_LENGTH] [FIELD_WIDTH] [WORLD]
    ```
-   - `HEADLESS`: (0/1) Run without GUI
-   - `NUM_DRONES_PER_TEAM`: (1-10) Number of drones per team
-   - `FIELD_LENGTH`: (100-1000m) Battle arena length
-   - `FIELD_WIDTH`: (100-500m) Battle arena width
-   - `WORLD`: World file name (default: swarmz_world)
 
-2. **Game Parameters** (`ros2 launch game_master game_master.launch.py`):
+2. **Game Environment** (`launch_game.sh`):
+   - Official game launch script
+   - Random team spawn positions within designated areas
+   - Full game setup with proper team separation
    ```bash
-   ros2 launch game_master game_master.launch.py
+   ./launch_scripts/launch_game.sh [HEADLESS] [SPAWN_FILE] [DRONES_PER_TEAM] [FIELD_LENGTH] [FIELD_WIDTH] [WORLD]
    ```
+
+   Parameters:
+   - `HEADLESS`: (0/1) GUI or headless mode (default: 1)
+   - `SPAWN_FILE`: Path to save spawn positions (default: config/spawn_position.yaml)
+   - `DRONES_PER_TEAM`: Number of drones per team (default: 5)
+   - `FIELD_LENGTH`: Field length in meters (default: 500)
+   - `FIELD_WIDTH`: Field width in meters (default: 250)
+   - `WORLD`: Gazebo world file name (default: swarmz_world)
+
+   Game Spawn Rules:
+   - Team 1 spawns randomly in first 20% of field length
+   - Team 2 spawns randomly in last 20% of field length
+   - Drones within each team spawn in a line with 2m spacing
+   - Team 1 faces forward (0°), Team 2 faces Team 1 (180°)
+   - Spawn positions are recorded to YAML file for controller use
+
+   Example:
+   ```bash
+   # Launch game with GUI and 3 drones per team
+   ./launch_game.sh 0 default_spawn.yaml 3
+
+   # Launch full game (5v5) in headless mode
+   ./launch_game.sh 1 default_spawn.yaml 5 500 250 swarmz_world
+   ```
+
+   The script automatically:
+   - Cleans up existing processes
+   - Launches MicroXRCE-DDS Agent
+   - Spawns PX4 instances for all drones
+   - Starts QGroundControl
+   - Launches Gazebo simulation
+   - Sets up ROS2 bridges
+   - Generates and saves spawn positions
 
 ### Drone Control Methods
 
