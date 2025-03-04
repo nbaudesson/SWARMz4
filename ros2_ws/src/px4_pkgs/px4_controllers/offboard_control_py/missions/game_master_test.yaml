@@ -1,5 +1,5 @@
-"1": [  # Northwest drone
-  {x: 15.0, y: 25.0, z: -5.0, yaw: -90.0, time: 5.0}
+"1": [  # Southeast drone
+  {x: 23.0, y: 17.0, z: -5.0, yaw: 0.0, time: 5.0}
 ]
 
 "2": [  # Northeast drone
@@ -7,9 +7,9 @@
 ]
 
 "3": [  # Southwest drone
-  {x: 15.0, y: 15.0, z: -5.0, yaw: 90.0, time: 5.0}
+  {x: 15.0, y: 10.0, z: -5.0, yaw: 90.0, time: 5.0}
 ]
 
-"4": [  # Southeast drone
-  {x: 25.0, y: 15.0, z: -5.0, yaw: 90.0, time: 5.0}
+"4": [  # Northwest drone
+  {x: 25.0, y: 15.0, z: -5.0, yaw: 180.0, time: 5.0}
 ]

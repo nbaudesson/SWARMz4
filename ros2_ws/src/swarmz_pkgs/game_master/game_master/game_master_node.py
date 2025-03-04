@@ -291,10 +291,10 @@ class GameMasterNode(Node):
     def get_detections(self, namespace):
         """
         Get detections for the specified robot in FRD (Forward-Right-Down) coordinates.
-        The detection coordinates are relative to the drone's current orientation:
-        - Forward = Along the drone's nose (x-axis in body frame)
-        - Right = To the right of the drone (y-axis in body frame)
-        - Down = Towards the ground (z-axis in body frame)
+        For a drone in NED frame:
+        - Forward = Along drone's nose (determined by yaw)
+        - Right = 90° clockwise from Forward
+        - Down = Towards ground (positive NED Z)
         """
         detections = []
         if namespace not in self.robot_poses:
@@ -322,23 +322,16 @@ class GameMasterNode(Node):
                     detection.vehicle_type = Detection.DRONE if '/px4_' in robot else Detection.SHIP
                     detection.is_friend = self.is_friend(namespace, robot)
                     
-                    # Get relative position in the drone's body frame
-                    # get_relative_position_with_orientation already accounts for the drone's orientation
+                    # Get relative position in NED frame
                     relative_position = get_relative_position_with_orientation(
                         transmitter_pose['position'], 
                         transmitter_pose['orientation'],
                         receiver_pose['position']
                     )
                     
-                    # Convert to FRD coordinates
-                    # The relative position from get_relative_position_with_orientation is already
-                    # in the drone's frame, we just need to map it to FRD:
-                    # Forward = x (already correct)
-                    # Right = -y (need to negate the y component)
-                    # Down = -z (need to negate the z component)
-                    detection.relative_position.position.x = relative_position[0]  # Forward
-                    detection.relative_position.position.y = relative_position[1]  # Right
-                    detection.relative_position.position.z = -relative_position[2] # Down
+                    detection.relative_position.x = relative_position[0]   # Forward
+                    detection.relative_position.y = -relative_position[1]   # Right
+                    detection.relative_position.z = -relative_position[2]   # Down
                     
                     detections.append(detection)
             except (TypeError, ValueError) as e:
