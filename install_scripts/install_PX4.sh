@@ -44,6 +44,9 @@ install_px4() {
     make px4_sitl
 
     echo "PX4-Autopilot installation completed."
+
+    echo "Running PX4 simulation for 15 seconds..."
+    make px4_sitl gz_x500
 }
 
 # Function to check if standard PX4 worlds are installed
