@@ -21,6 +21,20 @@ Usage:
 2. Start this node:
    $ ros2 run px4_controllers offboard_control_vel
 
+3. Publish velocity commands using geometry_msgs/Twist messages:
+   $ ros2 topic pub -1 ~/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 1.0, y: 0.0, z: 0.0}, angular: {z: 0.0}}"
+
+   Command structure:
+   - linear.x: Forward velocity (m/s)
+   - linear.y: Lateral velocity (m/s) - left(+)/right(-) in FLU, right(+)/left(-) in FRD/NED
+   - linear.z: Vertical velocity (m/s) - up(+)/down(-) in FLU, down(+)/up(-) in FRD/NED
+   - angular.z: Yaw rate (rad/s) - counter-clockwise(+)/clockwise(-)
+
+   Common commands:
+   - Takeoff: First non-zero velocity command initiates automatic takeoff
+   - Hover: Send zero velocity {linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {z: 0.0}}
+   - Land: The drone will auto-land when hovering below land_height_threshold
+
 Parameters:
 -----------
 - max_horizontal_speed: Maximum horizontal velocity (m/s)

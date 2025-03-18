@@ -1,26 +1,46 @@
-#! /bin/sh
+#! /bin/bash
 
-# Check if SWARMZ4_PATH is already set in the environment
+# Check if SWARMZ4_PATH is already set and validate it
 if [ -n "$SWARMZ4_PATH" ]; then
-    echo "Using pre-existing SWARMZ4_PATH: $SWARMZ4_PATH"
-else
-    echo "SWARMZ4_PATH is not set. Searching for 'SWARMz4' directory in $HOME..."
-
-    # Locate the folder named 'swarmz4' starting from the current user's home directory
-    SWARMZ4_PATH=$(find "$HOME" -maxdepth 4 -type d -name "SWARMz4" 2>/dev/null)
-
-    # Check if the folder was found
-    if [ -z "$SWARMZ4_PATH" ]; then
-        echo "Error: 'SWARMz4' directory not found in $HOME!"
-        sleep 5
-        exit 1
+    # Check if the path contains spaces or newlines (indicating multiple paths)
+    if [[ "$SWARMZ4_PATH" == *" "* || "$SWARMZ4_PATH" == *$'\n'* ]]; then
+        echo "Warning: SWARMZ4_PATH contains spaces or line returns. It may be invalid."
+        echo "Resetting SWARMZ4_PATH..."
+        unset SWARMZ4_PATH
     else
-        echo "Found 'SWARMz4' directory at: $SWARMZ4_PATH"
-
-        # Optionally export SWARMZ4_PATH so it persists for subsequent scripts
-        export SWARMZ4_PATH
+        echo "Using pre-existing SWARMZ4_PATH: $SWARMZ4_PATH"
     fi
 fi
+
+# If SWARMZ4_PATH is not set or was reset, determine it from script location
+if [ -z "$SWARMZ4_PATH" ]; then
+    # Find the directory where this script is located and go up 1 level to reach SWARMZ4 root
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    SWARMZ4_PATH="$(dirname "$SCRIPT_DIR")"
+    
+    echo "Set SWARMZ4_PATH to: $SWARMZ4_PATH"
+    
+    # Export SWARMZ4_PATH so it persists for subsequent scripts
+    export SWARMZ4_PATH
+    
+    # Update or add SWARMZ4_PATH to ~/.bashrc for persistence
+    if grep -q "export SWARMZ4_PATH=" ~/.bashrc; then
+        sed -i "s|export SWARMZ4_PATH=.*|export SWARMZ4_PATH=\"$SWARMZ4_PATH\"|g" ~/.bashrc
+        echo "Replacing ~/.bashrc SWARMZ4_PATH with new SWARMZ4_PATH"
+    else
+        echo "export SWARMZ4_PATH=\"$SWARMZ4_PATH\"" >> ~/.bashrc
+        echo "Updated ~/.bashrc with SWARMZ4_PATH"
+    fi
+fi
+
+# Create log directory structure for headless mode
+create_log_dir() {
+    local timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
+    LOG_DIR="$SWARMZ4_PATH/logs/simulation_$timestamp"
+    
+    mkdir -p "$LOG_DIR"
+    echo "Created log directory: $LOG_DIR"
+}
 
 kill_processes() {
     echo "Killing old processes..."
@@ -35,11 +55,6 @@ kill_processes() {
 
 # Call kill_processes function
 kill_processes
-
-### Start Micro-XRCE-DDS Agent ###
-cd $SWARMZ4_PATH/Micro-XRCE-DDS-Agent || { echo "Micro-XRCE-DDS-Agent directory not found!"; exit 1; }
-gnome-terminal --tab --title="MicroXRCEAgent" -- sh -c "MicroXRCEAgent udp4 -p 8888; bash"
-echo "Started MicroXRCEAgent."
 
 ### PX4 Drone Configuration ###
 cd $SWARMZ4_PATH/PX4-Autopilot || { echo "PX4-Autopilot directory not found!"; exit 1; }
@@ -76,6 +91,11 @@ if [ -n "$5" ]; then
   WORLD=$5
 fi
 
+# Create log directory if in headless mode
+if [ "$HEADLESS" -eq 1 ]; then
+  create_log_dir
+fi
+
 # Launch PX4 Instances with improved pose handling
 launch_px4_instance() {
     local instance_id=$1
@@ -95,10 +115,13 @@ launch_px4_instance() {
         "
 
     if [ "$HEADLESS" -eq 1 ]; then
-      cmd="$cmd HEADLESS=1"    
+      cmd="$cmd HEADLESS=1"
+      $cmd $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id > "$LOG_DIR/px4_$instance_id.log" 2>&1 &
+      echo "PX4 instance $instance_id started in background. Logs: $LOG_DIR/px4_$instance_id.log"
+    else
+      echo "$cmd $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id; bash"
+      gnome-terminal --tab --title="px4_$instance_id" -- sh -c "$cmd $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id; bash"
     fi
-    echo "$cmd $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id; bash"
-    gnome-terminal --tab --title="px4_$instance_id" -- sh -c "$cmd $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id; bash"
 }
 
 # Launch drones
@@ -136,6 +159,16 @@ cleanup() {
 }
 trap cleanup INT TERM
 
+### Start Micro-XRCE-DDS Agent ###
+cd $SWARMZ4_PATH/Micro-XRCE-DDS-Agent || { echo "Micro-XRCE-DDS-Agent directory not found!"; exit 1; }
+if [ "$HEADLESS" -eq 1 ]; then
+    MicroXRCEAgent udp4 -p 8888 > "$LOG_DIR/microxrce_agent.log" 2>&1 &
+    echo "Started MicroXRCEAgent in background. Logs: $LOG_DIR/microxrce_agent.log"
+else
+    gnome-terminal --tab --title="MicroXRCEAgent" -- sh -c "MicroXRCEAgent udp4 -p 8888; bash"
+    echo "Started MicroXRCEAgent."
+fi
+
 # Launch teams
 launch_team 1 0 0 0                  # Team 1 at x=0, starting from y=0
 launch_team 2 $FIELD_LENGTH $FIELD_WIDTH 3.14159  # Team 2 at x=FIELD_LENGTH, starting from y=FIELD_WIDTH
@@ -143,22 +176,25 @@ launch_team 2 $FIELD_LENGTH $FIELD_WIDTH 3.14159  # Team 2 at x=FIELD_LENGTH, st
 ### Launch QGroundControl ###
 echo "Launching QGroundControl..."
 cd $SWARMZ4_PATH/launch_scripts || { echo "launch_scripts directory not found!"; exit 1; }
-./QGroundControl.AppImage &
+if [ "$HEADLESS" -eq 1 ]; then
+    ./QGroundControl.AppImage > "$LOG_DIR/qgc.log" 2>&1 &
+    echo "Started QGroundControl in background. Logs: $LOG_DIR/qgc.log"
+else
+    # Full headless mode uses xvfb-run
+    xvfb-run -a ./QGroundControl.AppImage &
+fi
 
 ### Launch Gazebo ###
-
-# Conditionally Launch Gazebo
-if [ "$HEADLESS" -ne 1 ]; then
-  echo "HEADLESS mode is disabled. Launching Gazebo standalone."
-  cd $SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz || { echo "Gazebo tools directory not found!"; exit 1; }
-  gnome-terminal --tab --title="gazebo" -- sh -c "python3 simulation-gazebo --world $WORLD; bash"
-  sleep 10 # Wait for Gazebo to fully launch
+cd $SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz || { echo "Gazebo tools directory not found!"; exit 1; }
+if [ "$HEADLESS" -eq 1 ]; then
+    echo "HEADLESS mode is enabled. Launching Gazebo in headless mode."
+    python3 simulation-gazebo --world $WORLD --headless > "$LOG_DIR/gazebo.log" 2>&1 &
+    echo "Started Gazebo in background. Logs: $LOG_DIR/gazebo.log"
 else
-  echo "HEADLESS mode is enabled. Launching Gazebo in headless mode."
-  cd $SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz || { echo "Gazebo tools directory not found!"; exit 1; }
-  gnome-terminal --tab --title="gazebo" -- sh -c "python3 simulation-gazebo --world $WORLD --headless; bash"
-  sleep 10 # Wait for Gazebo to fully launch
+    echo "HEADLESS mode is disabled. Launching Gazebo standalone."
+    gnome-terminal --tab --title="gazebo" -- sh -c "python3 simulation-gazebo --world $WORLD; bash"
 fi
+sleep 10 # Wait for Gazebo to fully launch
 
 ### ROS 2 Setup ###
 cd $SWARMZ4_PATH/ros2_ws || { echo "ROS 2 workspace directory not found!"; exit 1; }
@@ -166,13 +202,29 @@ source install/setup.bash
 
 # ROS 2 Bridges and Launch Files
 echo "Starting ROS 2 bridges and launch files..."
-ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock &
-CLOCK_BRIDGE_PID=$!
-ros2 launch px4_gz_bridge px4_laser_gz_bridge.launch.py nb_of_drones:=$TOTAL_DRONES &
-LASER_BRIDGE_PID=$!
+if [ "$HEADLESS" -eq 1 ]; then
+    ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock > "$LOG_DIR/clock_bridge.log" 2>&1 &
+    CLOCK_BRIDGE_PID=$!
+    echo "Started clock bridge in background. Logs: $LOG_DIR/clock_bridge.log"
+    
+    ros2 launch px4_gz_bridge px4_laser_gz_bridge.launch.py nb_of_drones:=$TOTAL_DRONES > "$LOG_DIR/laser_bridge.log" 2>&1 &
+    LASER_BRIDGE_PID=$!
+    echo "Started laser bridge in background. Logs: $LOG_DIR/laser_bridge.log"
+else
+    ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock &
+    CLOCK_BRIDGE_PID=$!
+    ros2 launch px4_gz_bridge px4_laser_gz_bridge.launch.py nb_of_drones:=$TOTAL_DRONES &
+    LASER_BRIDGE_PID=$!
+fi
 
 # Wait for user to exit
 echo "Press Ctrl+C to terminate all processes."
 trap "cleanup; exit 0" INT
+
+if [ "$HEADLESS" -eq 1 ]; then
+    echo "All processes started in background."
+    echo "Log directory: $LOG_DIR"
+    echo "Waiting... Press Ctrl+C to terminate all processes."
+fi
 
 wait

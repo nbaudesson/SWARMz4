@@ -14,7 +14,7 @@
 #   - Random team spawn positions
 #   - Configurable number of drones per team
 #   - Customizable field dimensions
-#   - Multiple headless mode levels support
+#   - Headless/GUI mode support
 #   - Automatic spawn position recording
 #   - Process monitoring and cleanup
 #
@@ -27,31 +27,25 @@
 #   - SWARMz4 ROS2 packages
 #
 # Usage:
-#   ./launch_game.sh [HEADLESS_LEVEL] [SPAWN_FILE] [DRONES_PER_TEAM] [FIELD_LENGTH] [FIELD_WIDTH] [WORLD]
+#   ./launch_game.sh [HEADLESS] [SPAWN_FILE] [DRONES_PER_TEAM] [FIELD_LENGTH] [FIELD_WIDTH] [WORLD]
 #
 # Arguments:
-#   HEADLESS_LEVEL    : Headless operation level (default: 0)
-#                        0 = Full GUI mode (everything has GUI)
-#                        1 = Partial headless (Gazebo headless, rest with GUI)
-#                        2 = Full headless (all components headless, minimal logs)
+#   HEADLESS          : 0 for GUI, 1 for headless mode (default: 1)
 #   SPAWN_FILE        : Path to save spawn positions (default: config/spawn_position.yaml)
 #   DRONES_PER_TEAM   : Number of drones per team (default: 5)
 #   FIELD_LENGTH      : Field length in meters (default: 500)
 #   FIELD_WIDTH       : Field width in meters (default: 250)
-#   WORLD             : Gazebo world file name (default: swarmz_world)
+#   WORLD            : Gazebo world file name (default: swarmz_world)
 #
 # Examples:
-#   # Launch with default settings (GUI mode)
+#   # Launch with default settings (headless)
 #   ./launch_game.sh
 #
-#   # Launch with Gazebo headless
-#   ./launch_game.sh 1
+#   # Launch with GUI and 3 drones per team
+#   ./launch_game.sh 0 default_spawn.yaml 3
 #
-#   # Launch in full headless mode with no GUI terminals
-#   ./launch_game.sh 2
-#
-#   # Launch with custom drone settings
-#   ./launch_game.sh 0 default_spawn.yaml 5 500 250
+#   # Launch with custom field size
+#   ./launch_game.sh 1 default_spawn.yaml 5 400 200
 #
 # Features:
 #   - Team 1 spawns randomly between x=[0,100], y=[0,FIELD_WIDTH]
@@ -68,66 +62,27 @@
 #   - Use Ctrl+C to properly terminate all processes
 #
 
-# Check if SWARMZ4_PATH is already set and validate it
+# Check if SWARMZ4_PATH is already set in the environment
 if [ -n "$SWARMZ4_PATH" ]; then
-    # Check if the path contains spaces or newlines (indicating multiple paths)
-    if [[ "$SWARMZ4_PATH" == *" "* || "$SWARMZ4_PATH" == *$'\n'* ]]; then
-        echo "Warning: SWARMZ4_PATH contains spaces or line returns. It may be invalid."
-        echo "Resetting SWARMZ4_PATH..."
-        unset SWARMZ4_PATH
+    echo "Using pre-existing SWARMZ4_PATH: $SWARMZ4_PATH"
+else
+    echo "SWARMZ4_PATH is not set. Searching for 'SWARMz4' directory in $HOME..."
+
+    # Locate the folder named 'swarmz4' starting from the current user's home directory
+    SWARMZ4_PATH=$(find "$HOME" -maxdepth 4 -type d -name "SWARMz4" 2>/dev/null)
+
+    # Check if the folder was found
+    if [ -z "$SWARMZ4_PATH" ]; then
+        echo "Error: 'SWARMz4' directory not found in $HOME!"
+        sleep 5
+        exit 1
     else
-        echo "Using pre-existing SWARMZ4_PATH: $SWARMZ4_PATH"
+        echo "Found 'SWARMz4' directory at: $SWARMZ4_PATH"
+
+        # Optionally export SWARMZ4_PATH so it persists for subsequent scripts
+        export SWARMZ4_PATH
     fi
 fi
-
-# If SWARMZ4_PATH is not set or was reset, determine it from script location
-if [ -z "$SWARMZ4_PATH" ]; then
-    # Find the directory where this script is located and go up 1 level to reach SWARMZ4 root
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    SWARMZ4_PATH="$(dirname "$SCRIPT_DIR")"
-    
-    echo "Set SWARMZ4_PATH to: $SWARMZ4_PATH"
-    
-    # Export SWARMZ4_PATH so it persists for subsequent scripts
-    export SWARMZ4_PATH
-    
-    # Update or add SWARMZ4_PATH to ~/.bashrc for persistence
-    if grep -q "export SWARMZ4_PATH=" ~/.bashrc; then
-        sed -i "s|export SWARMZ4_PATH=.*|export SWARMZ4_PATH=\"$SWARMZ4_PATH\"|g" ~/.bashrc
-        echo "Replacing ~/.bashrc SWARMZ4_PATH with new SWARMZ4_PATH"
-    else
-        echo "export SWARMZ4_PATH=\"$SWARMZ4_PATH\"" >> ~/.bashrc
-        echo "Updated ~/.bashrc with SWARMZ4_PATH"
-    fi
-fi
-
-# Terminal handling function that supports gnome-terminal or background processes
-launch_terminal() {
-    local title="$1"
-    local command="$2"
-    local headless_level="$3"
-    
-    # For level 2 (full headless), just run in background with minimal output
-    if [ "$headless_level" -eq 2 ]; then
-        # Run in background with reduced output
-        if [ -z "$SUPPRESS_OUTPUT" ]; then
-            echo "Starting process: $title"
-            eval "$command > /dev/null 2>&1 &"
-        else
-            eval "$command &"
-        fi
-        return
-    fi
-    
-    # For GUI modes, try to use gnome-terminal or fall back to background
-    if command -v gnome-terminal >/dev/null 2>&1; then
-        gnome-terminal --tab --title="$title" -- bash -c "$command; echo 'Press Enter to close'; read"
-    else
-        # Fallback to just running in background
-        echo "No gnome-terminal found. Running $title in background."
-        eval "$command &"
-    fi
-}
 
 # Consolidated process killing function with better feedback
 kill_processes() {
@@ -148,6 +103,11 @@ kill_processes
 
 ### Start Micro-XRCE-DDS Agent ###
 cd $SWARMZ4_PATH/Micro-XRCE-DDS-Agent || { echo "Micro-XRCE-DDS-Agent directory not found!"; exit 1; }
+gnome-terminal --tab --title="MicroXRCEAgent" -- sh -c "MicroXRCEAgent udp4 -p 8888; bash"
+echo "Started MicroXRCEAgent."
+
+### PX4 Drone Configuration ###
+cd $SWARMZ4_PATH/PX4-Autopilot || { echo "PX4-Autopilot directory not found!"; exit 1; }
 
 # Parameters
 PX4_MODEL="gz_x500_lidar_front" # Change to "gz_x500" for classic x500
@@ -156,51 +116,32 @@ FIELD_LENGTH=500
 FIELD_WIDTH=250
 NUM_DRONES_PER_TEAM=5
 TOTAL_DRONES=$((NUM_DRONES_PER_TEAM * 2))
-HEADLESS_LEVEL=0 # 0=GUI, 1=Gazebo headless, 2=Full headless
+# HEADLESS=1 # headless
+HEADLESS=0 # GUI
+# WORLD="default"
 WORLD="swarmz_world"
 SPAWN_POSITION_FILE="$SWARMZ4_PATH/ros2_ws/src/px4_pkgs/px4_controllers/offboard_control_py/config/spawn_position.yaml"
 
 # Arguments
 if [ -n "$1" ]; then
-  HEADLESS_LEVEL=$1
-  if ! [[ "$HEADLESS_LEVEL" =~ ^[0-2]$ ]]; then
-    echo "Error: HEADLESS_LEVEL must be 0, 1, or 2"
-    exit 1
-  fi
+  HEADLESS=$1
 fi
-
 if [ -n "$2" ]; then
   SPAWN_POSITION_FILE=$2
 fi
-
 if [ -n "$3" ]; then
   NUM_DRONES_PER_TEAM=$3
   TOTAL_DRONES=$((NUM_DRONES_PER_TEAM * 2))
 fi
-
 if [ -n "$4" ]; then
   FIELD_LENGTH=$4
 fi
-
 if [ -n "$5" ]; then
   FIELD_WIDTH=$5
 fi
-
 if [ -n "$6" ]; then
   WORLD=$6
 fi
-
-# For full headless mode, set up logging reduction
-if [ "$HEADLESS_LEVEL" -eq 2 ]; then
-  SUPPRESS_OUTPUT=true
-  echo "Full headless mode activated. Reducing log output."
-fi
-
-launch_terminal "MicroXRCEAgent" "MicroXRCEAgent udp4 -p 8888" "$HEADLESS_LEVEL"
-echo "Started MicroXRCEAgent."
-
-### PX4 Drone Configuration ###
-cd $SWARMZ4_PATH/PX4-Autopilot || { echo "PX4-Autopilot directory not found!"; exit 1; }
 
 # Store spawn positions in memory
 declare -A spawn_positions
@@ -248,12 +189,14 @@ EOL
             
         update)
             # Transform Gazebo coordinates to NED coordinates in the YAML file:
+            # 
             # Convert yaw from radians to degrees and add 90° offset to align with North
             # 1. $yaw * 180/3.14159   -> converts from radians to degrees
             # 2. + 90                 -> adds 90° offset for NED frame (Gazebo 0° = East, NED 0° = North)
             # 3. + 0.5                -> adds 0.5 for proper rounding with int()
-            # 4. int()                -> truncates to integer
+            # 4. int()                -> truncates to integer  
             local yaw_deg=$(awk "BEGIN {print int($yaw * 180/3.14159 + 90 + 0.5)}")
+            
             # Swap x and y when writing to file to fit for NED coordinates in Gazebo
             sed -i "/\"$drone_id\":{/,/}/{s/x: [0-9.-]*/x: $y/}" "$file"
             sed -i "/\"$drone_id\":{/,/}/{s/y: [0-9.-]*/y: $x/}" "$file"
@@ -265,11 +208,13 @@ EOL
 # Launch PX4 Instances with improved pose handling
 launch_px4_instance() {
     local instance_id=$1
-    local x_pos=$2  
+    local x_pos=$2
     local y_pos=$3
     local yaw=${4:-0}  # Default yaw to 0 if not specified
     local pose="$x_pos,$y_pos,0,0,0,$yaw"
+    
     echo "Launching PX4 instance $instance_id at position ($x_pos, $y_pos, 0) with yaw $yaw"
+
     local cmd="
         TIMEOUT=10 \
         PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART \
@@ -278,13 +223,11 @@ launch_px4_instance() {
         PX4_GZ_STANDALONE=1 \
         "
 
-    # Either Gazebo headless or full headless
-    if [ "$HEADLESS_LEVEL" -ge 1 ]; then
-      cmd="$cmd HEADLESS=1"
+    if [ "$HEADLESS" -eq 1 ]; then
+      cmd="$cmd HEADLESS=1"    
     fi
-
-    cmd="$cmd $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id"
-    launch_terminal "px4_$instance_id" "$cmd" "$HEADLESS_LEVEL"
+    echo "$cmd $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id; bash"
+    gnome-terminal --tab --title="px4_$instance_id" -- sh -c "$cmd $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id; bash"
 }
 
 # Add random position generator function
@@ -355,33 +298,21 @@ launch_team 2 $((FIELD_LENGTH*4/5)) $FIELD_LENGTH 0 $FIELD_WIDTH 3.14159  # Team
 ### Launch QGroundControl ###
 echo "Launching QGroundControl..."
 cd $SWARMZ4_PATH/launch_scripts || { echo "launch_scripts directory not found!"; exit 1; }
-
-# Launch QGroundControl based on headless level
-if [ "$HEADLESS_LEVEL" -eq 2 ]; then
-    # Full headless mode uses xvfb-run
-    xvfb-run -a ./QGroundControl.AppImage &
-else
-    # GUI mode
-    ./QGroundControl.AppImage &
-fi
+./QGroundControl.AppImage &
 
 ### Launch Gazebo ###
-# Conditional Gazebo Launch based on headless level
-if [ "$HEADLESS_LEVEL" -eq 0 ]; then
-    echo "Full GUI mode. Launching Gazebo with GUI."
-    cd $SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz || { echo "Gazebo tools directory not found!"; exit 1; }
-    launch_terminal "gazebo" "python3 simulation-gazebo --world $WORLD" "$HEADLESS_LEVEL"
-else
-    echo "Headless mode enabled. Launching Gazebo in headless mode."
-    cd $SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz || { echo "Gazebo tools directory not found!"; exit 1; }
-    launch_terminal "gazebo" "python3 simulation-gazebo --world $WORLD --headless" "$HEADLESS_LEVEL"
-fi
 
-# Wait a bit for Gazebo to initialize
-if [ "$HEADLESS_LEVEL" -lt 2 ]; then
-    sleep 10  # Normal wait time
+# Conditionally Launch Gazebo
+if [ "$HEADLESS" -ne 1 ]; then
+  echo "HEADLESS mode is disabled. Launching Gazebo standalone."
+  cd $SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz || { echo "Gazebo tools directory not found!"; exit 1; }
+  gnome-terminal --tab --title="gazebo" -- sh -c "python3 simulation-gazebo --world $WORLD; bash"
+  sleep 10 # Wait for Gazebo to fully launch
 else
-    sleep 5   # Reduced wait time for headless mode
+  echo "HEADLESS mode is enabled. Launching Gazebo in headless mode."
+  cd $SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz || { echo "Gazebo tools directory not found!"; exit 1; }
+  gnome-terminal --tab --title="gazebo" -- sh -c "python3 simulation-gazebo --world $WORLD --headless; bash"
+  sleep 10 # Wait for Gazebo to fully launch
 fi
 
 ### ROS 2 Setup ###
@@ -390,21 +321,13 @@ source install/setup.bash
 
 # ROS 2 Bridges and Launch Files
 echo "Starting ROS 2 bridges and launch files..."
-if [ "$HEADLESS_LEVEL" -eq 2 ]; then
-    # Minimal output for full headless mode
-    ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock > /dev/null 2>&1 &
-    CLOCK_BRIDGE_PID=$!
-    ros2 launch px4_gz_bridge px4_laser_gz_bridge.launch.py nb_of_drones:=$TOTAL_DRONES > /dev/null 2>&1 &
-    LASER_BRIDGE_PID=$!
-else
-    # Normal output for GUI modes
-    ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock &
-    CLOCK_BRIDGE_PID=$!
-    ros2 launch px4_gz_bridge px4_laser_gz_bridge.launch.py nb_of_drones:=$TOTAL_DRONES &
-    LASER_BRIDGE_PID=$!
-fi
+ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock &
+CLOCK_BRIDGE_PID=$!
+ros2 launch px4_gz_bridge px4_laser_gz_bridge.launch.py nb_of_drones:=$TOTAL_DRONES &
+LASER_BRIDGE_PID=$!
 
 # Wait for user to exit
 echo "Press Ctrl+C to terminate all processes."
 trap "cleanup; exit 0" INT
+
 wait

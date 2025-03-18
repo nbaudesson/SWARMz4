@@ -71,7 +71,7 @@ Execution Flow:
 from swarmz_interfaces.srv import Kamikaze, UpdateHealth
 import rclpy
 from rclpy.node import Node
-from utils.tools import get_all_namespaces, get_distance
+from utils.tools import get_all_namespaces, get_distance, get_stable_namespaces
 from utils.gazebo_subscriber import GazeboPosesTracker
 import time
 
@@ -92,13 +92,9 @@ class KamikazeServiceServer(Node):
         self.explosion_damage = self.get_parameter('explosion_damage').get_parameter_value().integer_value
         self.explosion_range = self.get_parameter('explosion_range').get_parameter_value().double_value
 
-        # Get list of all namespaces
-        self.namespaces = get_all_namespaces(self)
-        # Wait until namespaces are detected
-        while not self.namespaces:
-            self.get_logger().warn("No valid namespaces detected. Waiting...")
-            time.sleep(1)
-            self.namespaces = get_all_namespaces(self)
+        # Get list of all namespaces using the stable detection method
+        self.get_logger().info("Detecting robot namespaces...")
+        self.namespaces = get_stable_namespaces(self, max_attempts=10, wait_time=1.0)
 
         # Print the list of detected robots
         self.get_logger().info(f"Detected robots: {self.namespaces}")

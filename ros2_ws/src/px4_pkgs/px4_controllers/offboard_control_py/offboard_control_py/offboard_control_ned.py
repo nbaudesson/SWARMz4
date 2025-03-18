@@ -141,8 +141,8 @@ class OffboardControlNED(Node):
         # Flight parameters
         self._mpc_xy_vel_max = 12.0  # Maximum horizontal velocity in m/s, used for timeout calculations
         self._current_goal_handle = None  # Stores current action goal, used in execute_goal
-        self._timeout_margin = 1.5  # Multiplier for timeout calculation (50% extra time)
-        self._min_timeout = 10.0  # Minimum timeout duration in seconds
+        self._timeout_margin = 3  # Multiplier for timeout calculation (200% extra time)
+        self._min_timeout = 20.0  # Minimum timeout duration in seconds
 
         # Launch parameters (set via command line or launch file)
         try:
@@ -165,6 +165,7 @@ class OffboardControlNED(Node):
             self.get_parameter('spawn_y').value,
             self.get_parameter('spawn_z').value
         ]
+        
         # self.spawn_yaw = self.get_parameter('spawn_yaw').value  # Used for yaw angle transformations
         self._takeoff_height = self.get_parameter('takeoff_height').value  # Used in takeoff sequence
         self._hover_timeout = self.get_parameter('hover_timeout').value  # Used in handle_navigation_state
@@ -514,7 +515,8 @@ class OffboardControlNED(Node):
         distance = self.calculate_distance(self._current_pos, target_ned)
         
         # Calculate expected time with safety margin
-        velocity = self._mpc_xy_vel_max * 0.7  # Reduced for acceleration/deceleration
+        velocity = self._mpc_xy_vel_max * 0.5 # Reduced for acceleration/deceleration
+        # When the QGC says the drone is moving at 12m/s, it is actually moving at 4m/s (calculating with distance over time)   
         base_time = distance / velocity
         timeout = max(self._min_timeout, base_time * self._timeout_margin)
         
@@ -731,7 +733,7 @@ class OffboardControlNED(Node):
             
             # Calculate timeout
             timeout = self.calculate_timeout(target_pose.position)
-            self.get_logger().info(f'Calculated timeout: {timeout:.1f}s')
+            # self.get_logger().info(f'Calculated timeout: {timeout:.1f}s')
             
             feedback_msg = GotoPosition.Feedback()
             start_time = self.get_clock().now()
@@ -887,7 +889,7 @@ class OffboardControlNED(Node):
                 
                 # Check timeout
                 if elapsed_time > timeout:
-                    self.get_logger().warn(f'Goal timed out: {elapsed_time:.1f}s timeout {timeout:.1f}s')
+                    self.get_logger().warn(f'Goal timed out: {elapsed_time:.1f}')
                     goal_handle.abort()
                     return GotoPosition.Result(success=False)
                 
@@ -920,7 +922,7 @@ class OffboardControlNED(Node):
                 feedback_msg.time_elapsed = elapsed_time
                 
                 goal_handle.publish_feedback(feedback_msg)
-                time.sleep(0.1)  # Faster feedback updates
+                time.sleep(0.5)  # feedback updates
             
             except Exception as e:
                 self.get_logger().error(f'Navigation error: {str(e)}')

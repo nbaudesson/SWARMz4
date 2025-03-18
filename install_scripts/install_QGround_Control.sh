@@ -17,6 +17,12 @@ check_qgroundcontrol_installed() {
 # Function to install QGroundControl
 install_qgroundcontrol() {
     echo "Installing QGroundControl..."
+
+    sudo apt install gstreamer1.0-plugins-bad gstreamer1.0-libav gstreamer1.0-gl -y
+    sudo apt install libfuse2 -y
+    sudo apt install libxcb-xinerama0 libxkbcommon-x11-0 libxcb-cursor-dev -y
+    # to run QGroundControl in a headless environment
+    sudo apt-get install xvfb -y
     
     cd $SWARMZ4_PATH/launch_scripts || { echo "launch_scripts directory not found!"; exit 1; }
     wget https://d176tv9ibo4jno.cloudfront.net/latest/QGroundControl.AppImage -O QGroundControl.AppImage

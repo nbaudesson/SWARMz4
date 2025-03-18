@@ -1,94 +1,90 @@
-#! /bin/sh
+#! /bin/bash
 
-# Check if SWARMZ4_PATH is already set in the environment
+# Check if SWARMZ4_PATH is already set and validate it
 if [ -n "$SWARMZ4_PATH" ]; then
-    echo "Using pre-existing SWARMZ4_PATH: $SWARMZ4_PATH"
-else
-    echo "SWARMZ4_PATH is not set. Searching for 'swarmz4' directory in $HOME..."
-
-    # Locate the folder named 'swarmz4' starting from the current user's home directory
-    SWARMZ4_PATH=$(find "$HOME" -maxdepth 4 -type d -name "SWARMz4" 2>/dev/null)
-
-    # Check if the folder was found
-    if [ -z "$SWARMZ4_PATH" ]; then
-        echo "Error: 'swarmz4' directory not found in $HOME!"
-        sleep 5
-        exit 1
+    # Check if the path contains spaces or newlines (indicating multiple paths)
+    if [[ "$SWARMZ4_PATH" == *" "* || "$SWARMZ4_PATH" == *$'\n'* ]]; then
+        echo "Warning: SWARMZ4_PATH contains spaces or line returns. It may be invalid."
+        echo "Resetting SWARMZ4_PATH..."
+        unset SWARMZ4_PATH
     else
-        echo "Found 'swarmz4' directory at: $SWARMZ4_PATH"
-
-        # Optionally export SWARMZ4_PATH so it persists for subsequent scripts
-        export SWARMZ4_PATH
+        echo "Using pre-existing SWARMZ4_PATH: $SWARMZ4_PATH"
     fi
 fi
 
-# Function to check if a process completed successfully
-check_completion() {
-    local logfile=$1
-    if [ -f "$logfile" ]; then
-        if grep -q "Installation completed successfully" "$logfile"; then
-            return 0
-        fi
-    fi
-    return 1
-}
-
-# Function to wait for required installations
-wait_for_prerequisites() {
-    local ros2_log="/tmp/ros2_install.log"
-    local qgc_log="/tmp/qgc_install.log"
-    local timeout=3600  # 1 hour timeout
-    local start_time=$(date +%s)
+# If SWARMZ4_PATH is not set or was reset, determine it from script location
+if [ -z "$SWARMZ4_PATH" ]; then
+    # Find the directory where this script is located and go up 1 level to reach SWARMZ4 root
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    SWARMZ4_PATH="$(dirname "$SCRIPT_DIR")"
     
-    echo "Waiting for ROS 2 and QGroundControl installations to complete..."
+    echo "Set SWARMZ4_PATH to: $SWARMZ4_PATH"
     
-    while true; do
-        if check_completion "$ros2_log" && check_completion "$qgc_log"; then
-            echo "Prerequisites installed successfully"
-            return 0
-        fi
-        
-        # Check timeout
-        local current_time=$(date +%s)
-        local elapsed=$((current_time - start_time))
-        if [ $elapsed -gt $timeout ]; then
-            echo "Timeout waiting for prerequisites"
-            return 1
-        fi
-        
-        sleep 10
-    done
-}
-
-# Function to run installations in the correct sequence
-install_all() {
-    echo "Starting installation of components..."
+    # Export SWARMZ4_PATH so it persists for subsequent scripts
+    export SWARMZ4_PATH
     
-    # Make all scripts executable
-    chmod +x "$SWARMZ4_PATH/install_scripts/"*.sh
-    
-    # Start ROS 2 installation
-    echo "Installing ROS 2 Humble..."
-    gnome-terminal --tab --title="ros2" -- sh -c "bash $SWARMZ4_PATH/install_scripts/install_ros2.sh > /tmp/ros2_install.log 2>&1; echo 'Installation completed successfully' >> /tmp/ros2_install.log"
-    
-    # Start QGroundControl installation
-    echo "Installing QGroundControl..."
-    gnome-terminal --tab --title="QGroundControl" -- sh -c "bash $SWARMZ4_PATH/install_scripts/install_QGround_Control.sh > /tmp/qgc_install.log 2>&1; echo 'Installation completed successfully' >> /tmp/qgc_install.log"
-    
-    # Start Micro-XRCE in parallel (doesn't need to wait)
-    echo "Installing Micro-XRCE-DDS-Agent..."
-    gnome-terminal --tab --title="Micro-XRC" -- sh -c "bash $SWARMZ4_PATH/install_scripts/install_Micro-XRCE.sh"
-    
-    # Wait for ROS 2 and QGC to complete
-    if wait_for_prerequisites; then
-        # Start PX4 installation only after prerequisites are done
-        echo "Installing PX4-Autopilot..."
-        gnome-terminal --tab --title="PX4" -- sh -c "bash $SWARMZ4_PATH/install_scripts/install_PX4.sh"
+    # Update or add SWARMZ4_PATH to ~/.bashrc for persistence
+    if grep -q "export SWARMZ4_PATH=" ~/.bashrc; then
+        sed -i "s|export SWARMZ4_PATH=.*|export SWARMZ4_PATH=\"$SWARMZ4_PATH\"|g" ~/.bashrc
+        echo "Replacing ~/.bashrc SWARMZ4_PATH with new SWARMZ4_PATH"
     else
-        echo "Error: Prerequisites installation failed or timed out"
-        exit 1
+        echo "export SWARMZ4_PATH=\"$SWARMZ4_PATH\"" >> ~/.bashrc
+        echo "Updated ~/.bashrc with SWARMZ4_PATH"
+    fi
+fi
+
+# Function to run a script interactively with password support
+run_installation() {
+    local script_name=$1
+    local script_path="$SWARMZ4_PATH/install_scripts/$script_name"
+    
+    echo "======================================================="
+    echo "Starting installation: $script_name"
+    echo "======================================================="
+    
+    # Make script executable
+    chmod +x "$script_path"
+    
+    # Run the script interactively (allowing password prompts)
+    bash "$script_path"
+    local status=$?
+    
+    if [ $status -eq 0 ]; then
+        echo "✓ $script_name completed successfully"
+        return 0
+    else
+        echo "✗ $script_name failed with status $status"
+        return 1
     fi
 }
 
-# Execute the main function
-install_all
+echo "Starting sequential installation of components..."
+echo "You may be prompted for your password during installation."
+
+# Install ROS 2
+if ! run_installation "install_ros2.sh"; then
+    echo "Error: ROS 2 installation failed"
+    exit 1
+fi
+
+# Install QGroundControl
+if ! run_installation "install_QGround_Control.sh"; then
+    echo "Error: QGroundControl installation failed"
+    exit 1
+fi
+
+# Install Micro-XRCE
+if ! run_installation "install_Micro-XRCE.sh"; then
+    echo "Error: Micro-XRCE installation failed"
+    exit 1
+fi
+
+# Install PX4
+if ! run_installation "install_PX4.sh"; then
+    echo "Error: PX4 installation failed"
+    exit 1
+fi
+
+echo "All installations completed successfully!"
+echo "SWARMz4 setup is complete."
+exit 0

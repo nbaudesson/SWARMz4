@@ -22,7 +22,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Int32
 from swarmz_interfaces.msg import Detections, Detection
-from utils.tools import get_all_namespaces, get_distance, get_relative_position, get_relative_position_with_orientation
+from utils.tools import get_all_namespaces, get_distance, get_relative_position, get_relative_position_with_orientation, get_stable_namespaces
 # from utils.kill_drone import kill_drone_processes, get_model_id, remove_model
 from utils.gazebo_subscriber import GazeboPosesTracker
 from swarmz_interfaces.srv import UpdateHealth
@@ -72,8 +72,8 @@ class GameMasterNode(Node):
         self.declare_parameter('ship_detection_range', 20.0)
         self.declare_parameter('drone_communication_range', 15.0)
         self.declare_parameter('ship_communication_range', 30.0)
-        self.declare_parameter('drone_health', 100)
-        self.declare_parameter('ship_health', 200)
+        self.declare_parameter('drone_health', 10)
+        self.declare_parameter('ship_health', 20)
         self.declare_parameter('drone_points', 10)
         self.declare_parameter('ship_points', 50)
         self.declare_parameter('game_duration', 300)  # 5 minutes
@@ -88,24 +88,25 @@ class GameMasterNode(Node):
         self.ship_points = self.get_parameter('ship_points').get_parameter_value().integer_value
         self.game_duration = self.get_parameter('game_duration').get_parameter_value().integer_value
 
-        # Get list of all namespaces
-        self.namespaces = get_all_namespaces(self)
-        # Wait until namespaces are detected
-        while not self.namespaces:
-            self.get_logger().warn("No valid namespaces detected. Waiting...")
-            time.sleep(1)
-            self.namespaces = get_all_namespaces(self)
+        # Get list of all namespaces using the stable detection method
+        self.get_logger().info("Detecting robot namespaces...")
+        self.namespaces = get_stable_namespaces(self, max_attempts=10, wait_time=1.0)
 
-        # Get Gazebo model IDs of the drones
-        self.drone_model_ids = self.get_model_ids(self.namespaces)  # Returns: {"/px4_1": ID1, "/px4_2": ID2, "/px4_3": ID3}
-
+        # Get Gazebo model IDs of the drones
+        self.drone_models = self.get_model_ids(self.namespaces)  # Returns: {"/px4_1": ID1, "/px4_2": ID2, "/px4_3": ID3}
 
         # Print the list of detected robots
         self.get_logger().info(f"Detected robots: {self.namespaces}")
 
         # Automatically compose teams
-        drones = sorted([ns for ns in self.namespaces if '/px4_' in ns])
-        ships = sorted([ns for ns in self.namespaces if '/flag_ship_' in ns])
+        drones = [ns for ns in self.namespaces if '/px4_' in ns]
+        ships = [ns for ns in self.namespaces if '/flag_ship_' in ns]
+        
+        # Sort drones by their numeric index instead of lexicographically
+        drones.sort(key=lambda x: int(x.split('_')[-1]))
+        
+        # Sort ships by their numeric index
+        ships.sort(key=lambda x: int(x.split('_')[-1]))
         
         # Calculate team sizes (handling uneven numbers)
         drones_team_1 = (len(drones) + 1) // 2  # Larger team gets the extra drone if odd
@@ -504,7 +505,8 @@ class GameMasterNode(Node):
         """
         Find the IDs of multiple models by their names using the Gazebo Transport API.
         :param robot_list: A list of robot namespace names (e.g., ["/px4_1", "/px4_2"]).
-        :return: A dictionary mapping each robot namespace to its model ID, or None if not found.
+        :return: A dictionary mapping each robot namespace to a sub-dictionary containing model ID and name.
+                Example: {"/px4_1": {"id": 123, "name": "x500_lidar_front_1"}}
         """
         node = GzNode()
         scene_info = Scene()
@@ -531,7 +533,10 @@ class GameMasterNode(Node):
 
                 # Find the corresponding namespace key
                 robot_name = f"/px4_{instance_number}"
-                model_ids[robot_name] = model.id
+                model_ids[robot_name] = {
+                    "id": model.id,
+                    "name": model.name
+                }
                 self.get_logger().info(f"Found model '{model.name}' (Namespace: '{robot_name}') with ID: {model.id}")
 
         # Log missing robots
@@ -541,23 +546,48 @@ class GameMasterNode(Node):
 
         return model_ids
 
-    def remove_model(self, model_id):
+    def remove_model(self, model):
         """
-        Remove the model using its ID via Gazebo Transport API.
+        Remove the model from Gazebo using its ID and name via Gazebo Transport API.
+        If removal by ID fails, attempts removal by model name as a fallback.
         
-        :param model_id: The ID of the model to be removed.
+        :param model: A dictionary containing the model ID and name of the drone to be removed
+        :return: True if removal was successful, False otherwise
         """
         node = GzNode()
-        entity_msg = Entity()
-        entity_msg.id = model_id
-        entity_msg.type = Entity.MODEL  # Type 1 for models
-
-        # Request to remove the model from Gazebo
-        result, response = node.request("/world/default/remove", entity_msg, Entity, Boolean, 1000)
-        if result and response.data:
-            self.get_logger().info(f"Successfully requested removal of model ID {model_id}")
-        else:
-            self.get_logger().info(f"Failed to request removal of model ID {model_id}")
+        success = False
+        
+        # First attempt: Remove by model ID
+        if "id" in model:
+            entity_msg = Entity()
+            entity_msg.id = model.get("id")
+            entity_msg.type = Entity.MODEL
+            
+            self.get_logger().info(f"Attempting to remove model by ID: {model.get('id')}")
+            result, response = node.request("/world/default/remove", entity_msg, Entity, Boolean, 1000)
+            
+            if result and response.data:
+                self.get_logger().info(f"Successfully removed model with ID {model.get('id')}")
+                success = True
+            else:
+                self.get_logger().info(f"Failed to remove model by ID {model.get('id')}, will try by name")
+        
+        # Second attempt: Remove by model name (if ID attempt failed or no ID provided)
+        if not success and "name" in model:
+            entity_msg = Entity()
+            entity_msg.name = model.get("name")
+            entity_msg.type = Entity.MODEL
+            
+            self.get_logger().info(f"Attempting to remove model by name: {model.get('name')}")
+            result, response = node.request("/world/default/remove", entity_msg, Entity, Boolean, 1000)
+            
+            if result and response.data:
+                self.get_logger().info(f"Successfully removed model with name {model.get('name')}")
+                success = True
+            else:
+                self.get_logger().info(f"Failed to remove model by name {model.get('name')}")
+        
+        return success
 
     def kill_drone(self, namespace):
         """
@@ -565,11 +595,11 @@ class GameMasterNode(Node):
         :param robotnamespace_name: The namespace of the drone.
         """
         # Remove the drone model from Gazebo
-        model_id = self.drone_model_ids.get(namespace)
-        self.get_logger().info(f'model_id: {model_id}') 
-        if (model_id):
-            self.remove_model(model_id)
-            self.get_logger().info(f'removed model {namespace} with ID {model_id}')
+        model = self.drone_models.get(namespace)
+        self.get_logger().info(f'model_id: {model}') 
+        if (model):
+            self.remove_model(model)
+            self.get_logger().info(f'removed model {namespace} with ID {model}')
         else:
             self.get_logger().warn(f'failed to find model ID of {namespace}')
         

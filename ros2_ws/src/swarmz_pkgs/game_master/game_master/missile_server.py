@@ -22,7 +22,6 @@ Parameters:
     - drone_magazine: Number of missiles per drone (default: 5)
     - ship_magazine: Number of missiles per ship (default: 10)
     - laser_width: Width of targeting laser (default: 0.1)
-    - laser_length: Length of targeting laser (default: 1.0)
     - padding parameters: Hit box dimensions for drones and ships
 
 Usage:
@@ -41,7 +40,7 @@ Manual Service Call:
 from swarmz_interfaces.srv import Missile, UpdateHealth
 import rclpy
 from rclpy.node import Node
-from utils.tools import get_all_namespaces, get_distance, is_aligned, is_aligned_HB
+from utils.tools import get_all_namespaces, get_distance, is_aligned, is_aligned_HB, get_stable_namespaces
 from utils.gazebo_subscriber import GazeboPosesTracker
 import time
 from std_msgs.msg import Int32
@@ -66,16 +65,15 @@ class MissileServiceServer(Node):
 
     def _init_parameters(self):
         """Initialize and load all parameters for the missile system"""
-        self.declare_parameter('drone_missile_range', 100)
-        self.declare_parameter('ship_missile_range', 200)
+        self.declare_parameter('drone_missile_range', 100.0)
+        self.declare_parameter('ship_missile_range', 200.0)
         self.declare_parameter('drone_missile_damage', 10)
         self.declare_parameter('ship_missile_damage', 20)
         self.declare_parameter('drone_cooldown', 1.0)
         self.declare_parameter('ship_cooldown', 2.0)
         self.declare_parameter('drone_magazine', 5)
         self.declare_parameter('ship_magazine', 10)
-        self.declare_parameter('laser_width', 0.1)
-        self.declare_parameter('laser_length', 1.0)
+        self.declare_parameter('laser_width', 3.0)
         
         self.declare_parameter('drone_padding_x', 0.5)
         self.declare_parameter('drone_padding_y', 0.5)
@@ -85,8 +83,8 @@ class MissileServiceServer(Node):
         self.declare_parameter('ship_padding_z', 1.0)
 
         # Collect parameters into instance variables
-        self.drone_missile_range = self.get_parameter('drone_missile_range').get_parameter_value().integer_value
-        self.ship_missile_range = self.get_parameter('ship_missile_range').get_parameter_value().integer_value
+        self.drone_missile_range = self.get_parameter('drone_missile_range').get_parameter_value().double_value
+        self.ship_missile_range = self.get_parameter('ship_missile_range').get_parameter_value().double_value
         self.drone_missile_damage = self.get_parameter('drone_missile_damage').get_parameter_value().integer_value
         self.ship_missile_damage = self.get_parameter('ship_missile_damage').get_parameter_value().integer_value
         self.drone_cooldown = self.get_parameter('drone_cooldown').get_parameter_value().double_value
@@ -94,7 +92,6 @@ class MissileServiceServer(Node):
         self.drone_magazine = self.get_parameter('drone_magazine').get_parameter_value().integer_value
         self.ship_magazine = self.get_parameter('ship_magazine').get_parameter_value().integer_value
         self.laser_width = self.get_parameter('laser_width').get_parameter_value().double_value
-        self.laser_length = self.get_parameter('laser_length').get_parameter_value().double_value
 
         self.drone_padding_x = self.get_parameter('drone_padding_x').get_parameter_value().double_value
         self.drone_padding_y = self.get_parameter('drone_padding_y').get_parameter_value().double_value
@@ -105,13 +102,10 @@ class MissileServiceServer(Node):
 
     def _init_tracking_systems(self):
         """Initialize systems for tracking robots and their states"""
-        # Get list of all robot namespaces
-        self.namespaces = get_all_namespaces(self)
-        while not self.namespaces:
-            self.get_logger().warn("No valid namespaces detected. Waiting...")
-            time.sleep(1)
-            self.namespaces = get_all_namespaces(self)
-
+        # Get list of all robot namespaces using the stable detection method
+        self.get_logger().info("Detecting robot namespaces...")
+        self.namespaces = get_stable_namespaces(self, max_attempts=10, wait_time=1.0)
+        
         # Initialize tracking dictionaries
         self.magazines = {ns: self.drone_magazine if 'drone' in ns else self.ship_magazine 
                          for ns in self.namespaces}
@@ -232,6 +226,7 @@ class MissileServiceServer(Node):
             robot_pose = self.gz.get_pose(robot)
             robot_position = (robot_pose['position']['x'], robot_pose['position']['y'], robot_pose['position']['z'])
             distance = get_distance(shooter_position, robot_position)
+            self.get_logger().info(f'{robot} distance is {distance}, range is {missile_range}')
             if distance <= missile_range:
                 targets_in_range.append((robot, distance, robot_position))
         self.get_logger().info(f'Targets in range: {targets_in_range}')
@@ -255,7 +250,7 @@ class MissileServiceServer(Node):
                 target_padding,
                 missile_range, # base_length
                 self.laser_width, # base_radius
-                verbose=False
+                verbose=1
             )
             if aligned_result:
                 aligned_targets.append(target)

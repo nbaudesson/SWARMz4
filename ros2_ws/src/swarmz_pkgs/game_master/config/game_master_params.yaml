@@ -14,16 +14,15 @@ game_master_node:
 missile_server:
   ros__parameters:
     use_sim_time: True
-    drone_missile_range: 100
-    ship_missile_range: 200
+    drone_missile_range: 100.0
+    ship_missile_range: 200.0
     drone_missile_damage: 10
     ship_missile_damage: 20
     drone_cooldown: 1.0
     ship_cooldown: 2.0
     drone_magazine: 5
     ship_magazine: 10
-    laser_width: 1.0
-    laser_length: 1.0
+    laser_width: 3.0
     drone_padding_x: 0.5
     drone_padding_y: 0.5
     drone_padding_z: 0.5
@@ -34,5 +33,5 @@ missile_server:
 kamikaze_server:
   ros__parameters:
     use_sim_time: True
-    explosion_damage: 100
+    explosion_damage: 100.0
     explosion_range: 6.0

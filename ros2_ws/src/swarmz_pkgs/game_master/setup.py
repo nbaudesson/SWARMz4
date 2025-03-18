@@ -32,7 +32,8 @@ setup(
             'missile_server = game_master.missile_server:main',
             'kamikaze_server = game_master.kamikaze_server:main',
             'game_master_client_node = exemple.game_master_client:main',
-            'test_game_master_client = exemple.game_master_client_test:main',
+            'game_master_client_static_test = exemple.game_master_client_static_test:main',
+            'game_master_client_dynamic_test = exemple.game_master_client_dynamic_test:main',
         ],
     },
 )

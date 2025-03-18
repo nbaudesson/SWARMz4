@@ -8,6 +8,9 @@ import select
 
 settings = termios.tcgetattr(sys.stdin)
 
+### Warning : This node is only for testing purposes and does not work yet. ###
+### The goal is to create a node that allows to control the robots with the keyboard. ###
+
 class WeaponsController(Node):
 
     def __init__(self, robot_name):

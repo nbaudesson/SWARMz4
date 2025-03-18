@@ -18,6 +18,8 @@ check_microxrce_installed() {
 install_microxrce() {
     echo "Installing Micro-XRCE-DDS-Agent..."
     
+    sudo apt-get install build-essential -y
+
     cd $SWARMZ4_PATH
     git clone https://github.com/eProsima/Micro-XRCE-DDS-Agent.git
     cd Micro-XRCE-DDS-Agent || { echo "Failed to access Micro-XRCE-DDS-Agent directory"; exit 1; }
