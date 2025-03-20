@@ -26,7 +26,7 @@ install_microxrce() {
     mkdir build
     cd build || { echo "Failed to access build directory"; exit 1; }
     cmake ..
-    make
+    make -j 4
     sudo make install
     sudo ldconfig /usr/local/lib/
 

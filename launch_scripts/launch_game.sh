@@ -157,7 +157,7 @@ FIELD_WIDTH=250
 NUM_DRONES_PER_TEAM=5
 TOTAL_DRONES=$((NUM_DRONES_PER_TEAM * 2))
 HEADLESS_LEVEL=0 # 0=GUI, 1=Gazebo headless, 2=Full headless
-WORLD="swarmz_world"
+WORLD="swarmz_world_2"
 SPAWN_POSITION_FILE="$SWARMZ4_PATH/ros2_ws/src/px4_pkgs/px4_controllers/offboard_control_py/config/spawn_position.yaml"
 
 # Arguments
@@ -270,16 +270,53 @@ launch_px4_instance() {
     local yaw=${4:-0}  # Default yaw to 0 if not specified
     local pose="$x_pos,$y_pos,0,0,0,$yaw"
     echo "Launching PX4 instance $instance_id at position ($x_pos, $y_pos, 0) with yaw $yaw"
+    # PX4_GZ_STANDALONE=1 \
     local cmd="
         TIMEOUT=10 \
         PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART \
         PX4_GZ_MODEL_POSE=\"$pose\" \
         PX4_SIM_MODEL=$PX4_MODEL \
-        PX4_GZ_STANDALONE=1 \
+        PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART \
+        PX4_GZ_WORLD=$WORLD \
         "
 
     # Either Gazebo headless or full headless
     if [ "$HEADLESS_LEVEL" -ge 1 ]; then
+      cmd="$cmd HEADLESS=1"
+    fi
+
+    cmd="$cmd $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id"
+    launch_terminal "px4_$instance_id" "$cmd" "$HEADLESS_LEVEL"
+    
+    # Add sleep for first PX4 instance to ensure initialization
+    if [ "$instance_id" -eq 1 ]; then
+        echo "Waiting 10 seconds for PX4 instance 1 to initialize..."
+        sleep 5
+    else
+        sleep 1
+    fi
+}
+
+# Launch PX4 Instances with improved pose handling
+launch_px4_instance_bis() {
+    local instance_id=$1
+    local x_pos=$2  
+    local y_pos=$3
+    local yaw=${4:-0}  # Default yaw to 0 if not specified
+    local pose="$x_pos,$y_pos,0,0,0,$yaw" # Yaw doesn't work without the standalone
+    echo "Launching PX4 instance $instance_id at position ($x_pos, $y_pos, 0) with yaw $yaw"
+    # PX4_GZ_STANDALONE=1 \
+    local cmd="
+        cd $SWARMZ4_PATH/PX4-Autopilot && \
+        TIMEOUT=10 \
+        PX4_UXRCE_DDS_NS=px4_$instance_id \
+        PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART \
+        PX4_GZ_MODEL_POSE=\"$pose\" \
+        PX4_SIM_MODEL=$PX4_MODEL \
+        "
+
+    # Either Gazebo headless or full headless
+    if [ "$HEADLESS_LEVEL" -ge 1]; then
       cmd="$cmd HEADLESS=1"
     fi
 
@@ -346,6 +383,7 @@ cleanup() {
     fi
     echo "Cleanup complete"
 }
+
 trap cleanup INT TERM
 
 # Launch teams with random positions scaled to field dimensions
@@ -365,17 +403,18 @@ else
     ./QGroundControl.AppImage &
 fi
 
-### Launch Gazebo ###
-# Conditional Gazebo Launch based on headless level
-if [ "$HEADLESS_LEVEL" -eq 0 ]; then
-    echo "Full GUI mode. Launching Gazebo with GUI."
-    cd $SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz || { echo "Gazebo tools directory not found!"; exit 1; }
-    launch_terminal "gazebo" "python3 simulation-gazebo --world $WORLD" "$HEADLESS_LEVEL"
-else
-    echo "Headless mode enabled. Launching Gazebo in headless mode."
-    cd $SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz || { echo "Gazebo tools directory not found!"; exit 1; }
-    launch_terminal "gazebo" "python3 simulation-gazebo --world $WORLD --headless" "$HEADLESS_LEVEL"
-fi
+### Can't manage to make standalone launch work anymore ###
+# ### Launch Gazebo ###
+# # Conditional Gazebo stanalone Launch based on headless level
+# if [ "$HEADLESS_LEVEL" -eq 0 ]; then
+#     echo "Full GUI mode. Launching Gazebo with GUI."
+#     cd $SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz || { echo "Gazebo tools directory not found!"; exit 1; }
+#     launch_terminal "gazebo" "python3 simulation-gazebo --world $WORLD --model_store $SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz
+# else
+#     echo "Headless mode enabled. Launching Gazebo in headless mode."
+#     cd $SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz || { echo "Gazebo tools directory not found!"; exit 1; }
+#     launch_terminal "gazebo" "python3 simulation-gazebo --world $WORLD --headless true
+# fi
 
 # Wait a bit for Gazebo to initialize
 if [ "$HEADLESS_LEVEL" -lt 2 ]; then

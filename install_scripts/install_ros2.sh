@@ -41,7 +41,8 @@ install_ros2() {
     sudo apt install tmux -y
     sudo apt install python3-pip -y
     sudo ln -s /usr/bin/pip3 /usr/bin/pip
-    pip install --user empy==3.3.4 pyros-genmsg setuptools==58.2 psutil tf-transformations
+    pip install --user empy==3.3.4 pyros-genmsg setuptools==58.2 psutil transforms3d
+    sudo apt install ros-humble-tf-transformations -y
 
     echo "ROS 2 Humble installation completed."
 }
