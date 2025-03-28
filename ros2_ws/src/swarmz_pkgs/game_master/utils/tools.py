@@ -473,10 +473,6 @@ def main():
     node.declare_parameter('verbose', False)
     verbose = node.get_parameter('verbose').get_parameter_value().bool_value
 
-    ### distance test ###
-    model_names = ["px4_1", "px4_2"]
-    gz = GazeboPosesTracker(model_names)
-
     ### laser test ###
     # Call the function with the Node instance
     robot_name = "px4_2"

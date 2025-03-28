@@ -61,6 +61,12 @@ run_installation() {
 echo "Starting sequential installation of components..."
 echo "You may be prompted for your password during installation."
 
+# Install Requirements
+if ! run_installation "install_requirements.sh"; then
+    echo "Error: Requirements installation failed"
+    exit 1
+fi
+
 # Install ROS 2
 if ! run_installation "install_ros2.sh"; then
     echo "Error: ROS 2 installation failed"

@@ -23,7 +23,6 @@ install_ros2() {
     sudo apt install -y software-properties-common
     sudo add-apt-repository universe
     sudo apt update && sudo apt install -y curl gnupg2 lsb-release
-    sudo apt install libyaml-cpp-dev -y # Required for ROS 2 to parse yaml files in cpp
 
     sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
 
@@ -35,14 +34,9 @@ install_ros2() {
     source /opt/ros/humble/setup.bash
     echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 
-    # Additional Python dependencies
-    sudo apt install python3-colcon-common-extensions -y
-    sudo apt install python3-rosdep -y
-    sudo apt install tmux -y
-    sudo apt install python3-pip -y
-    sudo ln -s /usr/bin/pip3 /usr/bin/pip
-    pip install --user empy==3.3.4 pyros-genmsg setuptools==58.2 psutil transforms3d
     sudo apt install ros-humble-tf-transformations -y
+    sudo apt install ros-humble-gazebo-ros -y
+    sudo apt install ros-humble-ros-gz-bridge -y
 
     echo "ROS 2 Humble installation completed."
 }
@@ -56,13 +50,6 @@ build_workspace() {
     rosdep update
     rosdep install --from-paths src --ignore-src -r -y
     colcon build --symlink-install
-}
-
-# Dependencies that should be installed during PX4 installation
-gazebo_dep() {
-    sudo apt install ros-humble-gazebo-ros -y
-    sudo apt install ros-humble-ros-gz-bridge -y
-    sudo apt install libgz-transport13 -y
 }
 
 # Main function for ROS 2

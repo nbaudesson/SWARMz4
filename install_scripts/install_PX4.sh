@@ -113,11 +113,9 @@ copy_world_and_model() {
     echo "Setting up simulation directories..."
     
     # Copy custom world if needed
-    if ! check_custom_world_installed; then
-        echo "Copying custom world..."
-        cp "$SWARMZ4_PATH/launch_scripts/swarmz_world.sdf" "$SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz/worlds/swarmz_world.sdf"
-        cp "$SWARMZ4_PATH/launch_scripts/swarmz_world_2.sdf" "$SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz/worlds/swarmz_world_2.sdf"
-    fi
+    echo "Copying custom world..."
+    cp "$SWARMZ4_PATH/launch_scripts/swarmz_world.sdf" "$SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz/worlds/swarmz_world.sdf"
+    cp "$SWARMZ4_PATH/launch_scripts/swarmz_world_2.sdf" "$SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz/worlds/swarmz_world_2.sdf"
     
     echo "Simulation files setup complete."
 }

@@ -10,6 +10,7 @@ game_master_node:
     drone_points: 10
     ship_points: 50
     game_duration: 200  # 5 minutes
+    world_name: "swarmz_world_2"
 
 missile_server:
   ros__parameters:
@@ -29,9 +30,11 @@ missile_server:
     ship_padding_x: 6.0
     ship_padding_y: 1.0
     ship_padding_z: 1.0
+    world_name: "swarmz_world_2"
 
 kamikaze_server:
   ros__parameters:
     use_sim_time: True
     explosion_damage: 100.0
     explosion_range: 6.0
+    world_name: "swarmz_world_2"

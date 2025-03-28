@@ -74,6 +74,7 @@ class MissileServiceServer(Node):
         self.declare_parameter('drone_magazine', 5)
         self.declare_parameter('ship_magazine', 10)
         self.declare_parameter('laser_width', 3.0)
+        self.declare_parameter('world_name', 'swarmz_world_2')
         
         self.declare_parameter('drone_padding_x', 0.5)
         self.declare_parameter('drone_padding_y', 0.5)
@@ -85,13 +86,14 @@ class MissileServiceServer(Node):
         # Collect parameters into instance variables
         self.drone_missile_range = self.get_parameter('drone_missile_range').get_parameter_value().double_value
         self.ship_missile_range = self.get_parameter('ship_missile_range').get_parameter_value().double_value
-        self.drone_missile_damage = self.get_parameter('drone_missile_damage').get_parameter_value().integer_value
-        self.ship_missile_damage = self.get_parameter('ship_missile_damage').get_parameter_value().integer_value
+        self.drone_missile_damage = self.get_parameter('drone_missile_damage').get_parameter_value().double_value
+        self.ship_missile_damage = self.get_parameter('ship_missile_damage').get_parameter_value().double_value
         self.drone_cooldown = self.get_parameter('drone_cooldown').get_parameter_value().double_value
         self.ship_cooldown = self.get_parameter('ship_cooldown').get_parameter_value().double_value
         self.drone_magazine = self.get_parameter('drone_magazine').get_parameter_value().integer_value
         self.ship_magazine = self.get_parameter('ship_magazine').get_parameter_value().integer_value
         self.laser_width = self.get_parameter('laser_width').get_parameter_value().double_value
+        self.world_name = self.get_parameter('world_name').get_parameter_value().string_value
 
         self.drone_padding_x = self.get_parameter('drone_padding_x').get_parameter_value().double_value
         self.drone_padding_y = self.get_parameter('drone_padding_y').get_parameter_value().double_value
@@ -112,7 +114,7 @@ class MissileServiceServer(Node):
         self.last_fire_time = {ns: 0 for ns in self.namespaces}
         
         # Initialize Gazebo pose tracker
-        self.gz = GazeboPosesTracker(self.namespaces)
+        self.gz = GazeboPosesTracker(self.namespaces, world_name=self.world_name)
         self.robots_poses = self.gz.poses
 
     def _setup_communications(self):

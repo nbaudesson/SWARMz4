@@ -266,7 +266,7 @@ The demo serves as both a validation of the simulation environment and a teachin
    ```
 
 ## Documentation
-#### PX4 : [ROS 2 User Guide](https://docs.px4.io/main/en/ros2/user_guide.html), [PX4 Github documentation for ROS2](https://github.com/PX4/PX4-Autopilot/tree/d72c2cc378cb6cb7b3a839fab05e4025123c5441/docs/en/ros2), 
+#### PX4 : [ROS 2 User Guide](https://docs.px4.io/main/en/ros2/user_guide.html), [PX4 Github documentation for ROS2](https://github.com/PX4/PX4-Autopilot/tree/d72c2cc378cb6cb7b3a839fab05e4025123c5441/docs/en/ros2), [PX4 offboard user guide](https://px4.gitbook.io/px4-user-guide/flying/flight_modes/offboard)
 #### ROS2 : [Official Humble tutorial](https://docs.ros.org/en/humble/Tutorials.html), [Humble youtube tutorial](https://www.youtube.com/watch?v=0aPbWsyENA8&list=PLLSegLrePWgJudpPUof4-nVFHGkB62Izy)
 #### Gazebo : [PX4 Multi-Vehicle Simulation with Gazebo](https://docs.px4.io/main/en/sim_gazebo_gz/multi_vehicle_simulation.html), [PX4 Github documentation for gazebo](https://github.com/PX4/PX4-Autopilot/tree/d72c2cc378cb6cb7b3a839fab05e4025123c5441/docs/en/sim_gazebo_gz)
 

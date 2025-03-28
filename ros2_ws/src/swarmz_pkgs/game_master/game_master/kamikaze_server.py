@@ -85,12 +85,14 @@ class KamikazeServiceServer(Node):
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time', rclpy.Parameter.Type.BOOL, True)])
 
         # Declare parameters with default values
-        self.declare_parameter('explosion_damage', 100)
+        self.declare_parameter('explosion_damage', 100.0)
         self.declare_parameter('explosion_range', 6.0)
+        self.declare_parameter('world_name', 'swarmz_world_2')
 
         # Get parameter values
-        self.explosion_damage = self.get_parameter('explosion_damage').get_parameter_value().integer_value
+        self.explosion_damage = self.get_parameter('explosion_damage').get_parameter_value().double_value
         self.explosion_range = self.get_parameter('explosion_range').get_parameter_value().double_value
+        self.world_name = self.get_parameter('world_name').get_parameter_value().string_value
 
         # Get list of all namespaces using the stable detection method
         self.get_logger().info("Detecting robot namespaces...")
@@ -100,8 +102,7 @@ class KamikazeServiceServer(Node):
         self.get_logger().info(f"Detected robots: {self.namespaces}")
 
         # Create a GazeboPosesTracker object to track robot positions
-        self.gz = GazeboPosesTracker(self.namespaces)
-        # self.robots_poses = self.gz.poses
+        self.gz = GazeboPosesTracker(self.namespaces, world_name=self.world_name)
 
         # Create the UpdateHealth client to communicate with the GameMasterNode
         self.update_health_client = self.create_client(UpdateHealth, 'update_health')
@@ -112,7 +113,8 @@ class KamikazeServiceServer(Node):
         self.srv = self.create_service(Kamikaze, 'kamikaze', self.kamikaze_callback)
         self.get_logger().info('KamikazeServiceServer initialized with parameters: '
                         f'explosion_damage={self.explosion_damage}, '
-                        f'explosion_range={self.explosion_range}')
+                        f'explosion_range={self.explosion_range}, '
+                        f'world_name={self.world_name}')
     
 
     def update_health_request(self, robot_name, damage):

@@ -5,12 +5,12 @@ import copy
 
 class GazeboPosesTracker(Node):
 
-    def __init__(self, robot_names, px4_prefix="x500_lidar_front", flag_ship_prefix="flag_ship"):
+    def __init__(self, robot_names, px4_prefix="x500_lidar_front", flag_ship_prefix="flag_ship", world_name="default"):
         super().__init__()
 
         # Create a Gazebo transport node
-        self.topic_dynamic_pose = "/world/default/dynamic_pose/info"
-        self.topic_pose = "/world/default/pose/info"
+        self.topic_dynamic_pose = "/world/"+world_name+"/dynamic_pose/info"
+        self.topic_pose = "/world/"+world_name+"/pose/info"
         self.model_names = []
         self.px4_prefix = px4_prefix
         self.flag_ship_prefix = flag_ship_prefix

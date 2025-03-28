@@ -29,6 +29,7 @@ from swarmz_interfaces.srv import UpdateHealth
 import time
 import threading
 import os
+import json
 from datetime import datetime
 import subprocess
 from gz.msgs10.scene_pb2 import Scene
@@ -77,6 +78,7 @@ class GameMasterNode(Node):
         self.declare_parameter('drone_points', 10)
         self.declare_parameter('ship_points', 50)
         self.declare_parameter('game_duration', 300)  # 5 minutes
+        self.declare_parameter('world_name', 'swarmz_world_2')
 
         self.drone_detection_range = self.get_parameter('drone_detection_range').get_parameter_value().double_value
         self.ship_detection_range = self.get_parameter('ship_detection_range').get_parameter_value().double_value
@@ -87,6 +89,7 @@ class GameMasterNode(Node):
         self.drone_points = self.get_parameter('drone_points').get_parameter_value().integer_value
         self.ship_points = self.get_parameter('ship_points').get_parameter_value().integer_value
         self.game_duration = self.get_parameter('game_duration').get_parameter_value().integer_value
+        self.world_name = self.get_parameter('world_name').get_parameter_value().string_value
 
         # Get list of all namespaces using the stable detection method
         self.get_logger().info("Detecting robot namespaces...")
@@ -151,7 +154,7 @@ class GameMasterNode(Node):
 
         # Timer to periodically update robot positions
         self.robot_poses = {}  # Combined position and orientation
-        self.gz = GazeboPosesTracker(self.namespaces)
+        self.gz = GazeboPosesTracker(self.namespaces, world_name=self.world_name)
         self.update_positions_timer = self.create_timer(0.1, self.update_positions)
 
         # Timer to periodically publish detections
@@ -176,24 +179,79 @@ class GameMasterNode(Node):
             self.get_logger().info(f"Created publisher for {ns}/out_going_messages")
             self.get_logger().info(f"Created subscriber for {ns}/incoming_messages")
 
+        # Add debug position publisher
+        self.debug_positions_publisher = self.create_publisher(String, '/game_master/debug_positions', 10)
+
     def update_positions(self):
         """
         Update the position and orientation of all robots in the simulation.
         Gets the latest pose data from Gazebo for each robot and stores it
         in self.robot_poses in a standardized format.
         """
-        for ns in self.namespaces:
-            pose = self.gz.get_pose(ns)
-            # Store poses in a consistent format
-            self.robot_poses[ns] = {
-                'position': (pose['position']['x'], 
-                           pose['position']['y'], 
-                           pose['position']['z']),
-                'orientation': (pose['orientation']['x'],
-                              pose['orientation']['y'],
-                              pose['orientation']['z'],
-                              pose['orientation']['w'])
-            }
+        try:
+            self.get_logger().debug(f"Updating positions for {len(self.namespaces)} robots")
+            
+            if not self.namespaces:
+                self.get_logger().warn("No robot namespaces detected, can't update positions")
+                return
+            
+            # Check if we're getting valid data from Gazebo
+            if not hasattr(self.gz, 'are_poses_valid') or not self.gz.are_poses_valid():
+                self.get_logger().warn("No valid pose data received from Gazebo yet")
+                return
+                
+            valid_poses = 0
+            for ns in self.namespaces:
+                try:
+                    pose = self.gz.get_pose(ns)
+                    # Check if pose has valid values
+                    if pose['position']['x'] is None:
+                        self.get_logger().warn(f"Invalid pose data for {ns}")
+                        continue
+                        
+                    # Store poses in a consistent format
+                    self.robot_poses[ns] = {
+                        'position': (pose['position']['x'], 
+                                  pose['position']['y'], 
+                                  pose['position']['z']),
+                        'orientation': (pose['orientation']['x'],
+                                      pose['orientation']['y'],
+                                      pose['orientation']['z'],
+                                      pose['orientation']['w'])
+                    }
+                    valid_poses += 1
+                except Exception as e:
+                    self.get_logger().error(f"Error updating pose for {ns}: {e}")
+            
+            if valid_poses == 0:
+                self.get_logger().warn("No valid poses retrieved from any robot")
+                return
+                
+            # Publish debug positions
+            if self.robot_poses:
+                debug_msg = String()
+                positions_dict = {}
+                for ns, pose in self.robot_poses.items():
+                    positions_dict[ns] = {
+                        "position": {
+                            "x": pose['position'][0],
+                            "y": pose['position'][1],
+                            "z": pose['position'][2]
+                        },
+                        "orientation": {
+                            "x": pose['orientation'][0],
+                            "y": pose['orientation'][1],
+                            "z": pose['orientation'][2],
+                            "w": pose['orientation'][3]
+                        }
+                    }
+                debug_msg.data = json.dumps(positions_dict)
+                self.debug_positions_publisher.publish(debug_msg)
+                self.get_logger().info(f"Published debug positions for {len(positions_dict)} robots to /game_master/debug_positions topic")
+            else:
+                self.get_logger().warn("No robot poses available to publish")
+        except Exception as e:
+            self.get_logger().error(f"Error in update_positions: {e}")
 
     def game_timer_callback(self):
         """
@@ -504,16 +562,16 @@ class GameMasterNode(Node):
     def get_model_ids(self, robot_list):
         """
         Find the IDs of multiple models by their names using the Gazebo Transport API.
-        :param robot_list: A list of robot namespace names (e.g., ["/px4_1", "/px4_2"]).
+        :param robot_list: A list of robot namespace names (e.g., ["/px4_0", "/px4_1"]).
         :return: A dictionary mapping each robot namespace to a sub-dictionary containing model ID and name.
-                Example: {"/px4_1": {"id": 123, "name": "x500_lidar_front_1"}}
+                Example: {"/px4_0": {"id": 123, "name": "x500_lidar_front_0"}}
         """
         node = GzNode()
         scene_info = Scene()
 
         # Request scene info from Gazebo
         self.get_logger().info("Checking scene info for robots.")
-        result, response = node.request("/world/default/scene/info", Empty(), Empty, Scene, 1000)
+        result, response = node.request("/world/"+self.world_name+"/scene/info", Empty(), Empty, Scene, 1000)
         if not result:
             self.get_logger().info("Failed to retrieve scene info from Gazebo.")
             return {}
@@ -564,7 +622,7 @@ class GameMasterNode(Node):
             entity_msg.type = Entity.MODEL
             
             self.get_logger().info(f"Attempting to remove model by ID: {model.get('id')}")
-            result, response = node.request("/world/default/remove", entity_msg, Entity, Boolean, 1000)
+            result, response = node.request("/world/"+self.world_name+"/remove", entity_msg, Entity, Boolean, 1000)
             
             if result and response.data:
                 self.get_logger().info(f"Successfully removed model with ID {model.get('id')}")
@@ -579,7 +637,7 @@ class GameMasterNode(Node):
             entity_msg.type = Entity.MODEL
             
             self.get_logger().info(f"Attempting to remove model by name: {model.get('name')}")
-            result, response = node.request("/world/default/remove", entity_msg, Entity, Boolean, 1000)
+            result, response = node.request("/world/"+self.world_name+"/remove", entity_msg, Entity, Boolean, 1000)
             
             if result and response.data:
                 self.get_logger().info(f"Successfully removed model with name {model.get('name')}")

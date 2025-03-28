@@ -107,25 +107,26 @@ launch_terminal() {
     local command="$2"
     local headless_level="$3"
     
-    # For level 2 (full headless), just run in background with minimal output
+    # For level 2 (full headless), just run in background
     if [ "$headless_level" -eq 2 ]; then
-        # Run in background with reduced output
-        if [ -z "$SUPPRESS_OUTPUT" ]; then
-            echo "Starting process: $title"
-            eval "$command > /dev/null 2>&1 &"
-        else
-            eval "$command &"
-        fi
+        echo "Starting process: $title (silent background)"
+        eval "$command > /dev/null 2>&1 &"
         return
     fi
     
-    # For GUI modes, try to use gnome-terminal or fall back to background
+    # For GUI modes, try to use gnome-terminal or fall back to xterm
     if command -v gnome-terminal >/dev/null 2>&1; then
         gnome-terminal --tab --title="$title" -- bash -c "$command; echo 'Press Enter to close'; read"
     else
-        # Fallback to just running in background
-        echo "No gnome-terminal found. Running $title in background."
-        eval "$command &"
+        # Fallback to xterm if available, otherwise run in background
+        if command -v xterm >/dev/null 2>&1; then
+            echo "No gnome-terminal found. Using xterm for $title."
+            xterm -T "$title" -e "$command; echo 'Press Enter to close'; read" &
+        else
+            # If neither terminal is available, run in background
+            echo "No gnome-terminal or xterm found. Running $title in background."
+            eval "$command &"
+        fi
     fi
 }
 
@@ -150,14 +151,15 @@ kill_processes
 cd $SWARMZ4_PATH/Micro-XRCE-DDS-Agent || { echo "Micro-XRCE-DDS-Agent directory not found!"; exit 1; }
 
 # Parameters
-PX4_MODEL="gz_x500_lidar_front" # Change to "gz_x500" for classic x500
-PX4_SYS_AUTOSTART=4017 # Use 4001 for classic x500
+PX4_MODEL="gz_x500_lidar_front" # Change to "gz_x500" for classic x500 gz_x500_lidar_front for x500 with lidar
+PX4_SYS_AUTOSTART=4017 # Use 4001 for classic x500 4017 for x500 with lidar
 FIELD_LENGTH=500
 FIELD_WIDTH=250
 NUM_DRONES_PER_TEAM=5
 TOTAL_DRONES=$((NUM_DRONES_PER_TEAM * 2))
 HEADLESS_LEVEL=0 # 0=GUI, 1=Gazebo headless, 2=Full headless
 WORLD="swarmz_world_2"
+# WORLD="default"
 SPAWN_POSITION_FILE="$SWARMZ4_PATH/ros2_ws/src/px4_pkgs/px4_controllers/offboard_control_py/config/spawn_position.yaml"
 
 # Arguments
@@ -190,14 +192,19 @@ if [ -n "$6" ]; then
   WORLD=$6
 fi
 
-# For full headless mode, set up logging reduction
+# For full headless mode, set up minimized output
 if [ "$HEADLESS_LEVEL" -eq 2 ]; then
   SUPPRESS_OUTPUT=true
-  echo "Full headless mode activated. Reducing log output."
+  echo "Full headless mode activated. Output suppressed."
 fi
 
-launch_terminal "MicroXRCEAgent" "MicroXRCEAgent udp4 -p 8888" "$HEADLESS_LEVEL"
-echo "Started MicroXRCEAgent."
+# Update the MicroXRCE-DDS Agent launch
+launch_terminal "MicroXRCEAgent" "MicroXRCEAgent udp4 -p 8888 -v 4" "$HEADLESS_LEVEL"
+if [ "$HEADLESS_LEVEL" -eq 2 ]; then
+    echo "Started MicroXRCEAgent with output suppressed"
+else
+    echo "Started MicroXRCEAgent with verbose logging."
+fi
 
 ### PX4 Drone Configuration ###
 cd $SWARMZ4_PATH/PX4-Autopilot || { echo "PX4-Autopilot directory not found!"; exit 1; }
@@ -224,8 +231,8 @@ handle_spawn_position() {
 {
   "1":{
 EOL
-            # Team 1 drones
-            for ((i=1; i<=NUM_DRONES_PER_TEAM; i++)); do
+            # Team 1 drones (starting from 0)
+            for ((i=0; i<NUM_DRONES_PER_TEAM; i++)); do
                 echo "    \"$i\":{
       x: 0,
       y: 0,
@@ -233,9 +240,9 @@ EOL
             done
             echo "  }," >> "$file"
             
-            # Team 2 drones
+            # Team 2 drones (starting from NUM_DRONES_PER_TEAM)
             echo "  \"2\":{" >> "$file"
-            for ((i=1; i<=NUM_DRONES_PER_TEAM; i++)); do
+            for ((i=0; i<NUM_DRONES_PER_TEAM; i++)); do
                 local d_id=$((i + NUM_DRONES_PER_TEAM))
                 echo "    \"$d_id\":{
       x: 0,
@@ -262,66 +269,99 @@ EOL
     esac
 }
 
-# Launch PX4 Instances with improved pose handling
+# Function to check if there's a dedicated GPU that's not being used as the main one
+has_secondary_gpu() {
+    # Check if lspci is available
+    if ! command -v lspci &> /dev/null; then
+        echo "lspci not found, can't detect GPUs properly"
+        return 1
+    fi
+    
+    # Get GPU info
+    gpu_info=$(lspci | grep -E "VGA|3D")
+    
+    # Check if we have more than one GPU
+    gpu_count=$(echo "$gpu_info" | wc -l)
+    if [ "$gpu_count" -lt 2 ]; then
+        # Only one GPU found
+        return 1
+    fi
+    
+    # Check if we have a non-Intel GPU (likely dedicated)
+    if echo "$gpu_info" | grep -v "Intel" | grep -E "NVIDIA|AMD|ATI" &> /dev/null; then
+        # Check if the primary GPU is Intel (meaning dedicated GPU is secondary)
+        if echo "$gpu_info" | head -1 | grep "Intel" &> /dev/null; then
+            # We have a dedicated GPU that's not the primary one
+            echo "Detected secondary dedicated GPU"
+            return 0
+        fi
+    fi
+    
+    # No secondary dedicated GPU found
+    return 1
+}
+
+# Launch PX4 Instances
 launch_px4_instance() {
     local instance_id=$1
     local x_pos=$2  
     local y_pos=$3
     local yaw=${4:-0}  # Default yaw to 0 if not specified
     local pose="$x_pos,$y_pos,0,0,0,$yaw"
-    echo "Launching PX4 instance $instance_id at position ($x_pos, $y_pos, 0) with yaw $yaw"
-    # PX4_GZ_STANDALONE=1 \
-    local cmd="
-        TIMEOUT=10 \
-        PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART \
-        PX4_GZ_MODEL_POSE=\"$pose\" \
-        PX4_SIM_MODEL=$PX4_MODEL \
-        PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART \
-        PX4_GZ_WORLD=$WORLD \
-        "
-
-    # Either Gazebo headless or full headless
-    if [ "$HEADLESS_LEVEL" -ge 1 ]; then
-      cmd="$cmd HEADLESS=1"
-    fi
-
-    cmd="$cmd $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id"
-    launch_terminal "px4_$instance_id" "$cmd" "$HEADLESS_LEVEL"
     
-    # Add sleep for first PX4 instance to ensure initialization
-    if [ "$instance_id" -eq 1 ]; then
-        echo "Waiting 10 seconds for PX4 instance 1 to initialize..."
-        sleep 5
+    # Special case for first drone (now ID 0) - launches Gazebo simulation
+    if [ "$instance_id" -eq 0 ]; then
+        echo "Launching first PX4 instance at position ($x_pos, $y_pos, 0) with yaw $yaw (with Gazebo)"
+        cd $SWARMZ4_PATH/PX4-Autopilot || { echo "PX4-Autopilot directory not found!"; exit 1; }
+        
+        local headless_flag=""
+        if [ "$HEADLESS_LEVEL" -ge 1 ]; then
+            headless_flag="HEADLESS=1"
+        fi
+        
+        # Determine whether to use switcherooctl based on GPU availability
+        local cmd=""
+        if has_secondary_gpu; then
+            echo "Using switcherooctl to leverage dedicated GPU"
+            cmd="switcherooctl launch env PX4_UXRCE_DDS_NS=px4_$instance_id VERBOSE_SIM=1 PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART PX4_SIM_MODEL=$PX4_MODEL PX4_GZ_MODEL_POSE=\"$pose\" PX4_GZ_WORLD=\"$WORLD\" $headless_flag make px4_sitl $PX4_MODEL"
+        else
+            echo "Using standard GPU configuration"
+            cmd="PX4_UXRCE_DDS_NS=px4_$instance_id VERBOSE_SIM=1 PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART PX4_SIM_MODEL=$PX4_MODEL PX4_GZ_MODEL_POSE=\"$pose\" PX4_GZ_WORLD=\"$WORLD\" $headless_flag make px4_sitl $PX4_MODEL"
+        fi
+        
+        # cmd="PX4_UXRCE_DDS_NS=px4_$instance_id VERBOSE_SIM=1 PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART PX4_SIM_MODEL=$PX4_MODEL PX4_GZ_MODEL_POSE=\"$pose\" PX4_GZ_WORLD=\"$WORLD\" $headless_flag make px4_sitl $PX4_MODEL"
+
+        # Launch with EKF reset script
+        launch_terminal "px4_$instance_id" "$SWARMZ4_PATH/launch_scripts/px4_reset_sensors.sh \"$cmd\"" "$HEADLESS_LEVEL"
+        
+        echo "Waiting 15 seconds for first PX4 instance and Gazebo to initialize..."
+        sleep 15  # Increased wait time for better initialization
     else
-        sleep 1
+        echo "Launching PX4 instance $instance_id at position ($x_pos, $y_pos, 0) with yaw $yaw"
+        local cmd="
+            TIMEOUT=10 \
+            VERBOSE_SIM=1 \
+            PX4_UXRCE_DDS_NS=px4_$instance_id \
+            PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART \
+            PX4_GZ_MODEL_POSE=\"$pose\" \
+            PX4_SIM_MODEL=$PX4_MODEL \
+            PX4_GZ_WORLD=\"$WORLD\" \
+            "
+
+        # Either Gazebo headless or full headless
+        if [ "$HEADLESS_LEVEL" -ge 1 ]; then
+          cmd="$cmd HEADLESS=1"
+        fi
+
+        cmd="$cmd $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id"
+        
+        # Launch with EKF reset script
+        launch_terminal "px4_$instance_id" "$SWARMZ4_PATH/launch_scripts/px4_reset_sensors.sh \"$cmd\"" "$HEADLESS_LEVEL"
+        
+        # Add longer sleep between drone launches
+        echo "Waiting for PX4 instance $instance_id to initialize..."
+        sleep 2
     fi
-}
-
-# Launch PX4 Instances with improved pose handling
-launch_px4_instance_bis() {
-    local instance_id=$1
-    local x_pos=$2  
-    local y_pos=$3
-    local yaw=${4:-0}  # Default yaw to 0 if not specified
-    local pose="$x_pos,$y_pos,0,0,0,$yaw" # Yaw doesn't work without the standalone
-    echo "Launching PX4 instance $instance_id at position ($x_pos, $y_pos, 0) with yaw $yaw"
-    # PX4_GZ_STANDALONE=1 \
-    local cmd="
-        cd $SWARMZ4_PATH/PX4-Autopilot && \
-        TIMEOUT=10 \
-        PX4_UXRCE_DDS_NS=px4_$instance_id \
-        PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART \
-        PX4_GZ_MODEL_POSE=\"$pose\" \
-        PX4_SIM_MODEL=$PX4_MODEL \
-        "
-
-    # Either Gazebo headless or full headless
-    if [ "$HEADLESS_LEVEL" -ge 1]; then
-      cmd="$cmd HEADLESS=1"
-    fi
-
-    cmd="$cmd $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id"
-    launch_terminal "px4_$instance_id" "$cmd" "$HEADLESS_LEVEL"
 }
 
 # Add random position generator function
@@ -355,14 +395,16 @@ launch_team() {
     
     echo "Spawning Team $team_num at base position ($start_x, $start_y)"
     
-    # Launch drones in formation
-    for ((i=1; i<=NUM_DRONES_PER_TEAM; i++)); do
+    # Launch drones in formation (now starting from 0)
+    for ((i=0; i<NUM_DRONES_PER_TEAM; i++)); do
         local drone_id=$((team_num == 1 ? i : NUM_DRONES_PER_TEAM + i))
-        local drone_y=$((start_y + (i-1)*2))  # 2-meter spacing
+        local drone_y=$((start_y + i*2))  # 2-meter spacing
         
         echo "Launching drone $drone_id at ($start_x, $drone_y)"
         launch_px4_instance "$drone_id" "$start_x" "$drone_y" "$yaw"
         handle_spawn_position "update" "$SPAWN_POSITION_FILE" "$team_num" "$drone_id" "$start_x" "$drone_y" "$yaw"
+        
+        echo "Drone $drone_id launched and spawn position updated."
     done
 }
 
@@ -386,64 +428,35 @@ cleanup() {
 
 trap cleanup INT TERM
 
+# Ensure the clock bridge is started before continuing
+sleep 2
+echo "Clock bridge started (PID: $CLOCK_BRIDGE_PID)."
+
+# Launch QGroundControl based on headless level
+if [ "$HEADLESS_LEVEL" -eq 2 ]; then
+    # Full headless mode uses xvfb-run with minimal logging
+    xvfb-run -a $SWARMZ4_PATH/launch_scripts/QGroundControl.AppImage > /dev/null 2>&1 &
+    echo "Started QGroundControl with minimal logging"
+else
+    # GUI mode
+    $SWARMZ4_PATH/launch_scripts/QGroundControl.AppImage > /dev/null 2>&1 &
+fi
+
 # Launch teams with random positions scaled to field dimensions
 launch_team 1 0 $((FIELD_LENGTH/5)) 0 $FIELD_WIDTH 0        # Team 1: x=[0,20%], y=[0,WIDTH], facing forward
 launch_team 2 $((FIELD_LENGTH*4/5)) $FIELD_LENGTH 0 $FIELD_WIDTH 3.14159  # Team 2: x=[80%,100%], y=[0,WIDTH], facing Team 1
 
-### Launch QGroundControl ###
-echo "Launching QGroundControl..."
-cd $SWARMZ4_PATH/launch_scripts || { echo "launch_scripts directory not found!"; exit 1; }
-
-# Launch QGroundControl based on headless level
-if [ "$HEADLESS_LEVEL" -eq 2 ]; then
-    # Full headless mode uses xvfb-run
-    xvfb-run -a ./QGroundControl.AppImage &
-else
-    # GUI mode
-    ./QGroundControl.AppImage &
-fi
-
-### Can't manage to make standalone launch work anymore ###
-# ### Launch Gazebo ###
-# # Conditional Gazebo stanalone Launch based on headless level
-# if [ "$HEADLESS_LEVEL" -eq 0 ]; then
-#     echo "Full GUI mode. Launching Gazebo with GUI."
-#     cd $SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz || { echo "Gazebo tools directory not found!"; exit 1; }
-#     launch_terminal "gazebo" "python3 simulation-gazebo --world $WORLD --model_store $SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz
-# else
-#     echo "Headless mode enabled. Launching Gazebo in headless mode."
-#     cd $SWARMZ4_PATH/PX4-Autopilot/Tools/simulation/gz || { echo "Gazebo tools directory not found!"; exit 1; }
-#     launch_terminal "gazebo" "python3 simulation-gazebo --world $WORLD --headless true
-# fi
-
-# Wait a bit for Gazebo to initialize
-if [ "$HEADLESS_LEVEL" -lt 2 ]; then
-    sleep 10  # Normal wait time
-else
-    sleep 5   # Reduced wait time for headless mode
-fi
-
-### ROS 2 Setup ###
+# Start ROS 2 bridges before launching drones to ensure proper communication
+echo "Starting ROS 2 bridges for clock synchronization..."
 cd $SWARMZ4_PATH/ros2_ws || { echo "ROS 2 workspace directory not found!"; exit 1; }
 source install/setup.bash
 
-# ROS 2 Bridges and Launch Files
-echo "Starting ROS 2 bridges and launch files..."
-if [ "$HEADLESS_LEVEL" -eq 2 ]; then
-    # Minimal output for full headless mode
-    ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock > /dev/null 2>&1 &
-    CLOCK_BRIDGE_PID=$!
-    ros2 launch px4_gz_bridge px4_laser_gz_bridge.launch.py nb_of_drones:=$TOTAL_DRONES > /dev/null 2>&1 &
-    LASER_BRIDGE_PID=$!
-else
-    # Normal output for GUI modes
-    ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock &
-    CLOCK_BRIDGE_PID=$!
-    ros2 launch px4_gz_bridge px4_laser_gz_bridge.launch.py nb_of_drones:=$TOTAL_DRONES &
-    LASER_BRIDGE_PID=$!
-fi
-
 # Wait for user to exit
-echo "Press Ctrl+C to terminate all processes."
+if [ "$HEADLESS_LEVEL" -eq 2 ]; then
+    echo "All processes started in headless mode."
+    echo "Press Ctrl+C to terminate all processes."
+else
+    echo "All processes started. Press Ctrl+C to terminate all processes."
+fi
 trap "cleanup; exit 0" INT
 wait
