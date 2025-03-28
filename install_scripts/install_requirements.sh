@@ -7,6 +7,7 @@ sudo apt-get install git -y
 sudo apt install gstreamer1.0-plugins-bad gstreamer1.0-libav gstreamer1.0-gl -y
 sudo apt install libfuse2 -y
 sudo apt install libxcb-xinerama0 libxkbcommon-x11-0 libxcb-cursor-dev -y
+sudo apt-get install xvfb -y
 # ROS2
 sudo apt install libyaml-cpp-dev -y # Required for ROS 2 to parse yaml files in cpp
 sudo apt install python3-colcon-common-extensions -y
