@@ -11,15 +11,19 @@ SWARMz4 is a workspace for a drone and ship battle challenge in a Gazebo simulat
 
 ## Installation
 To install the project, follow these steps:
-1. Clone the repository:
+1. Make sur git is installed in your VM:
+    ```bash
+    sudo apt install git
+    ```
+2. Clone the repository:
     ```bash
     git clone --recursive https://github.com/nbaudesson/SWARMz4.git
     ```
-2. Navigate to the project directory:
+3. Navigate to the project directory:
     ```bash
     cd SWARMz4
     ```
-3. Run the installation script:
+4. Run the installation script:
     ```bash
     ./install_scripts/install_swarmz.sh
     ```
@@ -29,7 +33,7 @@ To install the project, follow these steps:
     echo "export SWARMZ4_PATH=\"$SWARMZ4_PATH\"" >> ~/.bashrc
     ```
 
-4. Build the ROS2 workspace
+5. Build the ROS2 workspace (make sure you open a new terminal instance to update your PATH):
     ```bash
     cd ros2_ws
     colcon build && source install/setup.bash
@@ -51,7 +55,7 @@ SWARMz4 provides two different launch scripts:
    Example:
    ```bash
    # Launch game with GUI and 2 drones per team close to each other on gazebo's default map
-   ./launch_game.sh 0 2 5 2 default
+   ./launch_simulation.sh 0 2 5 2 default
    ```
 
 2. **Game Environment** (`launch_game.sh`):
