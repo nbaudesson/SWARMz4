@@ -68,20 +68,24 @@ class GameMasterNode(Node):
         super().__init__('game_master_node')
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time', rclpy.Parameter.Type.BOOL, True)])
 
-        # Declare parameters with default values
-        self.declare_parameter('drone_detection_range', 10.0)
-        self.declare_parameter('ship_detection_range', 20.0)
-        self.declare_parameter('drone_communication_range', 15.0)
+        # Declare parameters with correct types
+        self.declare_parameter('drone_detection_range', 137.0)
+        self.declare_parameter('ship2ship_detection_range', 500.0)
+        self.declare_parameter('ship2drone_detection_range', 162.0)
+        self.declare_parameter('drone_communication_range', 144.0)
         self.declare_parameter('ship_communication_range', 30.0)
-        self.declare_parameter('drone_health', 10)
-        self.declare_parameter('ship_health', 20)
+        self.declare_parameter('drone_health', 1)
+        self.declare_parameter('ship_health', 6)
         self.declare_parameter('drone_points', 10)
         self.declare_parameter('ship_points', 50)
-        self.declare_parameter('game_duration', 300)  # 5 minutes
+        self.declare_parameter('game_duration', 200)
         self.declare_parameter('world_name', 'swarmz_world_2')
+        self.declare_parameter('drone_max_speed', 12.0)
 
+        # Get parameter values with correct accessor methods
         self.drone_detection_range = self.get_parameter('drone_detection_range').get_parameter_value().double_value
-        self.ship_detection_range = self.get_parameter('ship_detection_range').get_parameter_value().double_value
+        self.ship2ship_detection_range = self.get_parameter('ship2ship_detection_range').get_parameter_value().double_value
+        self.ship2drone_detection_range = self.get_parameter('ship2drone_detection_range').get_parameter_value().double_value
         self.drone_communication_range = self.get_parameter('drone_communication_range').get_parameter_value().double_value
         self.ship_communication_range = self.get_parameter('ship_communication_range').get_parameter_value().double_value
         self.drone_health = self.get_parameter('drone_health').get_parameter_value().integer_value

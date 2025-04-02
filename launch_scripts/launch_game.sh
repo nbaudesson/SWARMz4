@@ -220,7 +220,7 @@ handle_spawn_position() {
     local drone_id=$4
     local x=$5
     local y=$6
-    local yaw=$7
+    # Removed yaw parameter
 
     case $action in
         init)
@@ -236,7 +236,7 @@ EOL
                 echo "    \"$i\":{
       x: 0,
       y: 0,
-      yaw: 0}," >> "$file"
+      yaw: 90}," >> "$file"
             done
             echo "  }," >> "$file"
             
@@ -247,24 +247,18 @@ EOL
                 echo "    \"$d_id\":{
       x: 0,
       y: 0,
-      yaw: 180}," >> "$file"
+      yaw: 90}," >> "$file"
             done
             echo "  }," >> "$file"
             echo "}" >> "$file"
             ;;
             
         update)
-            # Transform Gazebo coordinates to NED coordinates in the YAML file:
-            # Convert yaw from radians to degrees and add 90° offset to align with North
-            # 1. $yaw * 180/3.14159   -> converts from radians to degrees
-            # 2. + 90                 -> adds 90° offset for NED frame (Gazebo 0° = East, NED 0° = North)
-            # 3. + 0.5                -> adds 0.5 for proper rounding with int()
-            # 4. int()                -> truncates to integer
-            local yaw_deg=$(awk "BEGIN {print int($yaw * 180/3.14159 + 90 + 0.5)}")
             # Swap x and y when writing to file to fit for NED coordinates in Gazebo
             sed -i "/\"$drone_id\":{/,/}/{s/x: [0-9.-]*/x: $y/}" "$file"
             sed -i "/\"$drone_id\":{/,/}/{s/y: [0-9.-]*/y: $x/}" "$file"
-            sed -i "/\"$drone_id\":{/,/}/{s/yaw: [0-9.-]*/yaw: $yaw_deg/}" "$file"
+            # Always set yaw to 90 (facing East) regardless of team
+            sed -i "/\"$drone_id\":{/,/}/{s/yaw: [0-9.-]*/yaw: 90/}" "$file"
             ;;
     esac
 }
@@ -306,12 +300,12 @@ launch_px4_instance() {
     local instance_id=$1
     local x_pos=$2  
     local y_pos=$3
-    local yaw=${4:-0}  # Default yaw to 0 if not specified
-    local pose="$x_pos,$y_pos,0,0,0,$yaw"
+    # Removed yaw parameter
+    local pose="$x_pos,$y_pos,0,0,0,0"  # Set fixed yaw to 0 in Gazebo (will be 90 in YAML)
     
     # Special case for first drone (now ID 0) - launches Gazebo simulation
     if [ "$instance_id" -eq 0 ]; then
-        echo "Launching first PX4 instance at position ($x_pos, $y_pos, 0) with yaw $yaw (with Gazebo)"
+        echo "Launching first PX4 instance at position ($x_pos, $y_pos, 0)"
         cd $SWARMZ4_PATH/PX4-Autopilot || { echo "PX4-Autopilot directory not found!"; exit 1; }
         
         local headless_flag=""
@@ -337,7 +331,7 @@ launch_px4_instance() {
         echo "Waiting 15 seconds for first PX4 instance and Gazebo to initialize..."
         sleep 15  # Increased wait time for better initialization
     else
-        echo "Launching PX4 instance $instance_id at position ($x_pos, $y_pos, 0) with yaw $yaw"
+        echo "Launching PX4 instance $instance_id at position ($x_pos, $y_pos, 0)"
         local cmd="
             TIMEOUT=10 \
             VERBOSE_SIM=1 \
@@ -387,7 +381,7 @@ launch_team() {
     local max_x=$3
     local min_y=$4
     local max_y=$5
-    local yaw=$6
+    # Removed yaw parameter
     
     # Generate random base position
     local start_x=$(awk -v min=$min_x -v max=$max_x 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
@@ -401,11 +395,44 @@ launch_team() {
         local drone_y=$((start_y + i*2))  # 2-meter spacing
         
         echo "Launching drone $drone_id at ($start_x, $drone_y)"
-        launch_px4_instance "$drone_id" "$start_x" "$drone_y" "$yaw"
-        handle_spawn_position "update" "$SPAWN_POSITION_FILE" "$team_num" "$drone_id" "$start_x" "$drone_y" "$yaw"
+        launch_px4_instance "$drone_id" "$start_x" "$drone_y"
+        handle_spawn_position "update" "$SPAWN_POSITION_FILE" "$team_num" "$drone_id" "$start_x" "$drone_y"
         
         echo "Drone $drone_id launched and spawn position updated."
     done
+}
+
+# Function to start laser bridges for each drone
+start_laser_bridges() {
+    # Only start laser bridges if using the lidar-equipped model
+    if [[ "$PX4_MODEL" != "gz_x500_lidar_front" ]]; then
+        echo "Skipping laser bridges as model $PX4_MODEL is not lidar-equipped"
+        return
+    fi
+    
+    echo "Starting laser bridges for $TOTAL_DRONES drones..."
+    
+    # Array to store laser bridge PIDs for cleanup
+    LASER_BRIDGE_PIDS=()
+    
+    for ((i=0; i<TOTAL_DRONES; i++)); do
+        # Construct the GZ laser topic path
+        local gz_topic="/world/$WORLD/model/${PX4_MODEL}_${i}/link/lidar_sensor_link/sensor/lidar/scan"
+        local ros_topic="px4_${i}/laser/scan"
+        
+        # Start the bridge
+        echo "Starting laser bridge for drone $i: $gz_topic -> $ros_topic"
+        ros2 run ros_gz_bridge parameter_bridge "$gz_topic@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan" \
+            --ros-args -r "$gz_topic:=$ros_topic" &
+        
+        # Store the PID for cleanup
+        LASER_BRIDGE_PIDS+=($!)
+        
+        # Short delay to avoid overwhelming the system
+        sleep 0.1
+    done
+    
+    echo "All laser bridges started successfully"
 }
 
 ### Main Execution ###
@@ -420,9 +447,16 @@ cleanup() {
     if [ -n "$CLOCK_BRIDGE_PID" ]; then
         kill $CLOCK_BRIDGE_PID 2>/dev/null && echo "Stopped clock bridge"
     fi
-    if [ -n "$LASER_BRIDGE_PID" ]; then
-        kill $LASER_BRIDGE_PID 2>/dev/null && echo "Stopped laser bridge"
+    
+    # Clean up laser bridges if they exist
+    if [ ${#LASER_BRIDGE_PIDS[@]} -gt 0 ]; then
+        echo "Stopping laser bridges..."
+        for pid in "${LASER_BRIDGE_PIDS[@]}"; do
+            kill $pid 2>/dev/null
+        done
+        echo "Laser bridges stopped"
     fi
+    
     echo "Cleanup complete"
 }
 
@@ -443,13 +477,18 @@ else
 fi
 
 # Launch teams with random positions scaled to field dimensions
-launch_team 1 0 $((FIELD_LENGTH/5)) 0 $FIELD_WIDTH 0        # Team 1: x=[0,20%], y=[0,WIDTH], facing forward
-launch_team 2 $((FIELD_LENGTH*4/5)) $FIELD_LENGTH 0 $FIELD_WIDTH 3.14159  # Team 2: x=[80%,100%], y=[0,WIDTH], facing Team 1
+launch_team 1 0 $((FIELD_LENGTH/5)) 0 $FIELD_WIDTH        # Team 1: x=[0,20%], y=[0,WIDTH]
+launch_team 2 $((FIELD_LENGTH*4/5)) $FIELD_LENGTH 0 $FIELD_WIDTH  # Team 2: x=[80%,100%], y=[0,WIDTH]
 
 # Start ROS 2 bridges before launching drones to ensure proper communication
 echo "Starting ROS 2 bridges for clock synchronization..."
 cd $SWARMZ4_PATH/ros2_ws || { echo "ROS 2 workspace directory not found!"; exit 1; }
 source install/setup.bash
+ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock &
+CLOCK_BRIDGE_PID=$!
+
+# Start the laser bridges
+start_laser_bridges
 
 # Wait for user to exit
 if [ "$HEADLESS_LEVEL" -eq 2 ]; then

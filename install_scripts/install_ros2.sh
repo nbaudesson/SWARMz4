@@ -37,6 +37,11 @@ install_ros2() {
     sudo apt install ros-humble-tf-transformations -y
     sudo apt install ros-humble-gazebo-ros -y
     sudo apt install ros-humble-ros-gz-bridge -y
+    sudo apt install ros-humble-ros-gzharmonic -y
+
+    sudo apt install libyaml-cpp-dev -y # Required for ROS 2 to parse yaml files in cpp
+    sudo apt install python3-colcon-common-extensions -y
+    sudo apt install python3-rosdep -y
 
     echo "ROS 2 Humble installation completed."
 }

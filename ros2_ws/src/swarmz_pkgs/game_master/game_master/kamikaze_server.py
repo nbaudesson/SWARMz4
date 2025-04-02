@@ -15,8 +15,9 @@ Key Features:
 
 Configuration Parameters:
 -----------------------
-- explosion_damage (int): Amount of damage dealt to robots (default: 100)
-- explosion_range (float): Radius in meters of explosion effect (default: 6.0)
+- explosion_damage (int): Amount of damage dealt to robots (default: 3)
+- explosion_range (float): Radius in meters of explosion effect (default: 5.0)
+- world_name (string): Gazebo world name (default: "swarmz_world_2")
 
 Usage:
 ------
@@ -84,13 +85,13 @@ class KamikazeServiceServer(Node):
         super().__init__('kamikaze_service_server')
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time', rclpy.Parameter.Type.BOOL, True)])
 
-        # Declare parameters with default values
-        self.declare_parameter('explosion_damage', 100.0)
-        self.declare_parameter('explosion_range', 6.0)
+        # Declare parameters with default values - using correct integer type for explosion_damage
+        self.declare_parameter('explosion_damage', 3)
+        self.declare_parameter('explosion_range', 5.0)
         self.declare_parameter('world_name', 'swarmz_world_2')
 
-        # Get parameter values
-        self.explosion_damage = self.get_parameter('explosion_damage').get_parameter_value().double_value
+        # Get parameter values - accessing explosion_damage as an integer
+        self.explosion_damage = self.get_parameter('explosion_damage').get_parameter_value().integer_value
         self.explosion_range = self.get_parameter('explosion_range').get_parameter_value().double_value
         self.world_name = self.get_parameter('world_name').get_parameter_value().string_value
 

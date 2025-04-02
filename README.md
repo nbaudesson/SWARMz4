@@ -29,7 +29,7 @@ To install the project, follow these steps:
     echo "export SWARMZ4_PATH=\"$SWARMZ4_PATH\"" >> ~/.bashrc
     ```
 
-4. Build the ROS2 workspace
+4. Build the ROS2 workspace. Make sure you have ```source ~/.bashrc``` or ```source /opt/ros/humble/setup.bash```.
     ```bash
     cd ros2_ws
     colcon build && source install/setup.bash
@@ -51,7 +51,7 @@ SWARMz4 provides two different launch scripts:
    Example:
    ```bash
    # Launch game with GUI and 2 drones per team close to each other on gazebo's default map
-   ./launch_game.sh 0 2 5 2 default
+   ./launch_simulation.sh
    ```
 
 2. **Game Environment** (`launch_game.sh`):

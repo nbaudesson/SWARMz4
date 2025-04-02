@@ -13,16 +13,22 @@ Requirements:
     - Valid robot namespaces configured
 
 Parameters:
-    - drone_missile_range: Maximum range for drone missiles (default: 100)
-    - ship_missile_range: Maximum range for ship missiles (default: 200)
-    - drone_missile_damage: Damage dealt by drone missiles (default: 10)
-    - ship_missile_damage: Damage dealt by ship missiles (default: 20)
-    - drone_cooldown: Cooldown time between drone shots (default: 1.0)
-    - ship_cooldown: Cooldown time between ship shots (default: 2.0)
-    - drone_magazine: Number of missiles per drone (default: 5)
-    - ship_magazine: Number of missiles per ship (default: 10)
-    - laser_width: Width of targeting laser (default: 0.1)
-    - padding parameters: Hit box dimensions for drones and ships
+    - drone_missile_range: Maximum range for drone missiles (default: 69.0, =drone_detection_range*50%)
+    - ship_missile_range: Maximum range for ship missiles (default: 81.0, =ship2drone_detection_range*50%)
+    - drone_missile_damage: Damage dealt by drone missiles (default: 1)
+    - ship_missile_damage: Damage dealt by ship missiles (default: 1)
+    - drone_cooldown: Cooldown time between drone shots (default: 8.0)
+    - ship_cooldown: Cooldown time between ship shots (default: 6.0)
+    - drone_magazine: Number of missiles per drone (default: 2)
+    - ship_magazine: Number of missiles per ship (default: 4)
+    - laser_width: Width of targeting laser (default: 3.0)
+    - drone_padding_x: Hit box X dimension for drones (default: 0.5)
+    - drone_padding_y: Hit box Y dimension for drones (default: 0.5)
+    - drone_padding_z: Hit box Z dimension for drones (default: 0.5)
+    - ship_padding_x: Hit box X dimension for ships (default: 6.0)
+    - ship_padding_y: Hit box Y dimension for ships (default: 1.0)
+    - ship_padding_z: Hit box Z dimension for ships (default: 1.0)
+    - world_name: Gazebo world name (default: "swarmz_world_2")
 
 Usage:
     1. Start the ROS2 system and Gazebo simulation
@@ -65,14 +71,14 @@ class MissileServiceServer(Node):
 
     def _init_parameters(self):
         """Initialize and load all parameters for the missile system"""
-        self.declare_parameter('drone_missile_range', 100.0)
-        self.declare_parameter('ship_missile_range', 200.0)
-        self.declare_parameter('drone_missile_damage', 10)
-        self.declare_parameter('ship_missile_damage', 20)
-        self.declare_parameter('drone_cooldown', 1.0)
-        self.declare_parameter('ship_cooldown', 2.0)
-        self.declare_parameter('drone_magazine', 5)
-        self.declare_parameter('ship_magazine', 10)
+        self.declare_parameter('drone_missile_range', 69.0)
+        self.declare_parameter('ship_missile_range', 81.0)
+        self.declare_parameter('drone_missile_damage', 1)
+        self.declare_parameter('ship_missile_damage', 1)
+        self.declare_parameter('drone_cooldown', 8.0)
+        self.declare_parameter('ship_cooldown', 6.0)
+        self.declare_parameter('drone_magazine', 2)
+        self.declare_parameter('ship_magazine', 4)
         self.declare_parameter('laser_width', 3.0)
         self.declare_parameter('world_name', 'swarmz_world_2')
         
@@ -86,8 +92,8 @@ class MissileServiceServer(Node):
         # Collect parameters into instance variables
         self.drone_missile_range = self.get_parameter('drone_missile_range').get_parameter_value().double_value
         self.ship_missile_range = self.get_parameter('ship_missile_range').get_parameter_value().double_value
-        self.drone_missile_damage = self.get_parameter('drone_missile_damage').get_parameter_value().double_value
-        self.ship_missile_damage = self.get_parameter('ship_missile_damage').get_parameter_value().double_value
+        self.drone_missile_damage = self.get_parameter('drone_missile_damage').get_parameter_value().integer_value  # Changed to integer_value
+        self.ship_missile_damage = self.get_parameter('ship_missile_damage').get_parameter_value().integer_value    # Changed to integer_value
         self.drone_cooldown = self.get_parameter('drone_cooldown').get_parameter_value().double_value
         self.ship_cooldown = self.get_parameter('ship_cooldown').get_parameter_value().double_value
         self.drone_magazine = self.get_parameter('drone_magazine').get_parameter_value().integer_value

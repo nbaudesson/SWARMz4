@@ -13,6 +13,13 @@ spawn bash -c "$cmd"
 # Wait for the shell prompt to appear
 expect "pxh>"
 
+# On the PX4 side, you are only required to stop the uXRCE-DDS time synchronization,
+# setting the parameter UXRCE_DDS_SYNCT to false.
+# By doing so, Gazebo will act as main and only time source for both ROS2 and PX4.
+send "param set UXRCE_DDS_SYNCT 0\r"
+expect "pxh>"
+sleep 1
+
 # Execute the sequence of commands with 1 second pause between each
 # send "sensor_gps_sim stop\r"
 # expect "pxh>"

@@ -9,11 +9,21 @@ sudo apt install libfuse2 -y
 sudo apt install libxcb-xinerama0 libxkbcommon-x11-0 libxcb-cursor-dev -y
 sudo apt-get install xvfb -y
 # ROS2
-sudo apt install libyaml-cpp-dev -y # Required for ROS 2 to parse yaml files in cpp
-sudo apt install python3-colcon-common-extensions -y
-sudo apt install python3-rosdep -y
+check_ros2_repo_configured() {
+    if [ -f "/etc/apt/sources.list.d/ros2-latest.list" ]; then
+    sudo apt install libyaml-cpp-dev -y # Required for ROS 2 to parse yaml files in cpp
+    sudo apt install python3-colcon-common-extensions -y
+    sudo apt install python3-rosdep -y
+    sudo apt install ros-humble-tf-transformations -y
+    sudo apt install ros-humble-gazebo-ros -y
+    sudo apt install ros-humble-ros-gz-bridge -y
+    sudo apt install ros-humble-ros-gzharmonic -y
+    else
+        echo "Skipping ROS 2 package installation. Will be handled in complete ROS 2 install."
+    fi
+}
 # terminal
-sudo apt install tmux xterm switcheroo-control -y
+sudo apt install tmux xterm expect switcheroo-control -y
 # Gazebo messages
 sudo apt install libgz-transport13 -y
 # Pip
