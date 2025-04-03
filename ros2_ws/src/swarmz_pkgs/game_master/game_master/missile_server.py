@@ -29,6 +29,7 @@ Parameters:
     - ship_padding_y: Hit box Y dimension for ships (default: 1.0)
     - ship_padding_z: Hit box Z dimension for ships (default: 1.0)
     - world_name: Gazebo world name (default: "swarmz_world_2")
+    - update_health_service_name: Name of the health update service (default: "/update_health")
 
 Usage:
     1. Start the ROS2 system and Gazebo simulation
@@ -71,6 +72,9 @@ class MissileServiceServer(Node):
 
     def _init_parameters(self):
         """Initialize and load all parameters for the missile system"""
+        # Add parameter for service name to ensure consistency
+        self.declare_parameter('update_health_service_name', '/update_health')
+        
         self.declare_parameter('drone_missile_range', 69.0)
         self.declare_parameter('ship_missile_range', 81.0)
         self.declare_parameter('drone_missile_damage', 1)
@@ -92,8 +96,8 @@ class MissileServiceServer(Node):
         # Collect parameters into instance variables
         self.drone_missile_range = self.get_parameter('drone_missile_range').get_parameter_value().double_value
         self.ship_missile_range = self.get_parameter('ship_missile_range').get_parameter_value().double_value
-        self.drone_missile_damage = self.get_parameter('drone_missile_damage').get_parameter_value().integer_value  # Changed to integer_value
-        self.ship_missile_damage = self.get_parameter('ship_missile_damage').get_parameter_value().integer_value    # Changed to integer_value
+        self.drone_missile_damage = self.get_parameter('drone_missile_damage').get_parameter_value().integer_value
+        self.ship_missile_damage = self.get_parameter('ship_missile_damage').get_parameter_value().integer_value
         self.drone_cooldown = self.get_parameter('drone_cooldown').get_parameter_value().double_value
         self.ship_cooldown = self.get_parameter('ship_cooldown').get_parameter_value().double_value
         self.drone_magazine = self.get_parameter('drone_magazine').get_parameter_value().integer_value
@@ -107,6 +111,9 @@ class MissileServiceServer(Node):
         self.ship_padding_x = self.get_parameter('ship_padding_x').get_parameter_value().double_value
         self.ship_padding_y = self.get_parameter('ship_padding_y').get_parameter_value().double_value
         self.ship_padding_z = self.get_parameter('ship_padding_z').get_parameter_value().double_value
+
+        # Extract the service name
+        self.update_health_service_name = self.get_parameter('update_health_service_name').get_parameter_value().string_value
 
     def _init_tracking_systems(self):
         """Initialize systems for tracking robots and their states"""
@@ -135,13 +142,58 @@ class MissileServiceServer(Node):
             ) for ns in self.namespaces
         }
 
-        # Create UpdateHealth client
-        self.update_health_client = self.create_client(UpdateHealth, 'update_health')
-        while not self.update_health_client.wait_for_service(timeout_sec=2.0):
-            self.get_logger().info('Waiting for update_health service...')
-
-        # Create missile service
+        # Create missile service first to ensure it's available
         self.srv = self.create_service(Missile, 'fire_missile', self.fire_missile_callback)
+        self.get_logger().info("Created fire_missile service")
+        
+        # Create UpdateHealth client with configurable path
+        self.get_logger().info(f"Creating client for '{self.update_health_service_name}' service")
+        self.update_health_client = self.create_client(UpdateHealth, self.update_health_service_name)
+        
+        # Process current services to debug
+        services = self.get_node_names_and_namespaces()
+        self.get_logger().info(f"Current nodes: {services}")
+        
+        # Add service discovery debugging
+        try:
+            from utils.gazebo_subscriber import check_ros2_services
+            services = check_ros2_services(verbose=False)
+            service_names = [s[0] for s in services]
+            self.get_logger().info(f"Available services: {service_names}")
+            
+            if self.update_health_service_name in service_names:
+                self.get_logger().info(f"'{self.update_health_service_name}' service is available")
+            else:
+                self.get_logger().warn(f"'{self.update_health_service_name}' service is NOT available yet")
+        except Exception as e:
+            self.get_logger().error(f"Error checking ROS2 services: {e}")
+        
+        # Initialize service connection status
+        self.service_ready = False
+        self.last_service_check_time = 0
+        
+        # Create a timer to periodically check for the update_health service
+        self.service_check_timer = self.create_timer(2.0, self.check_service_availability)
+        self.get_logger().info("Service check timer initialized, will retry connecting to update_health service every 2 seconds")
+
+    def check_service_availability(self):
+        """Periodically check if the update_health service is available"""
+        if self.service_ready:
+            # Already connected, no need to check
+            return
+            
+        current_time = time.time()
+        # Don't spam logs, only log every 10 seconds
+        should_log = (current_time - self.last_service_check_time) >= 10.0
+        
+        if self.update_health_client.service_is_ready():
+            self.service_ready = True
+            self.get_logger().info('Successfully connected to update_health service')
+            # We can reduce the timer frequency once connected
+            self.service_check_timer.timer_period_ns = 30 * 1000000000  # 30 seconds
+        elif should_log:
+            self.get_logger().info('Waiting for update_health service to become available...')
+            self.last_service_check_time = current_time
 
     def health_callback(self, msg, ns):
         """
@@ -154,8 +206,6 @@ class MissileServiceServer(Node):
             if ns in self.namespaces:
                 self.namespaces.remove(ns)
                 self.gz = GazeboPosesTracker(self.namespaces)
-                # Instead of destroying immediately, add to destroy_list
-                # self.destroy_list.append(ns)
 
     def update_health_request(self, robot_name, damage):
         """
@@ -164,6 +214,15 @@ class MissileServiceServer(Node):
         :param damage: The amount of damage to apply.
         :return: The request object.
         """
+        # Check if service is available now if it wasn't earlier
+        if not self.service_ready:
+            if self.update_health_client.service_is_ready():
+                self.service_ready = True
+                self.get_logger().info('Successfully connected to update_health service')
+            else:
+                self.get_logger().warn(f'Update_health service not available, health update for {robot_name} failed')
+                return None
+                
         request = UpdateHealth.Request()
         request.robot_name = robot_name
         request.damage = damage
@@ -249,7 +308,6 @@ class MissileServiceServer(Node):
             else:
                 target_padding = (self.ship_padding_x, self.ship_padding_y, self.ship_padding_z)
             self.get_logger().info(f'Target {target_id} position: {target_position}')
-            # aligned_result = is_aligned(
             aligned_result = is_aligned_HB(
                 self,
                 shooter_position,

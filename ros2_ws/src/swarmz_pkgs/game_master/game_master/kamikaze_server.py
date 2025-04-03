@@ -18,6 +18,7 @@ Configuration Parameters:
 - explosion_damage (int): Amount of damage dealt to robots (default: 3)
 - explosion_range (float): Radius in meters of explosion effect (default: 5.0)
 - world_name (string): Gazebo world name (default: "swarmz_world_2")
+- update_health_service_name (string): Name of the update_health service (default: "/update_health")
 
 Usage:
 ------
@@ -85,6 +86,9 @@ class KamikazeServiceServer(Node):
         super().__init__('kamikaze_service_server')
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time', rclpy.Parameter.Type.BOOL, True)])
 
+        # Add parameter for service name to ensure consistency
+        self.declare_parameter('update_health_service_name', '/update_health')
+
         # Declare parameters with default values - using correct integer type for explosion_damage
         self.declare_parameter('explosion_damage', 3)
         self.declare_parameter('explosion_range', 5.0)
@@ -94,29 +98,72 @@ class KamikazeServiceServer(Node):
         self.explosion_damage = self.get_parameter('explosion_damage').get_parameter_value().integer_value
         self.explosion_range = self.get_parameter('explosion_range').get_parameter_value().double_value
         self.world_name = self.get_parameter('world_name').get_parameter_value().string_value
+        self.update_health_service_name = self.get_parameter('update_health_service_name').get_parameter_value().string_value
 
         # Get list of all namespaces using the stable detection method
         self.get_logger().info("Detecting robot namespaces...")
         self.namespaces = get_stable_namespaces(self, max_attempts=10, wait_time=1.0)
 
-        # Print the list of detected robots
-        self.get_logger().info(f"Detected robots: {self.namespaces}")
-
         # Create a GazeboPosesTracker object to track robot positions
         self.gz = GazeboPosesTracker(self.namespaces, world_name=self.world_name)
 
-        # Create the UpdateHealth client to communicate with the GameMasterNode
-        self.update_health_client = self.create_client(UpdateHealth, 'update_health')
-        while not self.update_health_client.wait_for_service(timeout_sec=2.0):
-            self.get_logger().info('Waiting for update_health service...')
-
-        # Create the kamikaze service
+        # Create the kamikaze service first to ensure it's available
         self.srv = self.create_service(Kamikaze, 'kamikaze', self.kamikaze_callback)
+        self.get_logger().info("Created kamikaze service")
+        
+        # Create the UpdateHealth client to communicate with the GameMasterNode
+        self.get_logger().info(f"Creating client for '{self.update_health_service_name}' service")
+        self.update_health_client = self.create_client(UpdateHealth, self.update_health_service_name)
+        
+        # Process current services to debug
+        services = self.get_node_names_and_namespaces()
+        self.get_logger().info(f"Current nodes: {services}")
+        
+        # Add service discovery debugging
+        try:
+            from utils.gazebo_subscriber import check_ros2_services
+            services = check_ros2_services(verbose=False)
+            service_names = [s[0] for s in services]
+            self.get_logger().info(f"Available services: {service_names}")
+            
+            if self.update_health_service_name in service_names:
+                self.get_logger().info(f"'{self.update_health_service_name}' service is available")
+            else:
+                self.get_logger().warn(f"'{self.update_health_service_name}' service is NOT available yet")
+        except Exception as e:
+            self.get_logger().error(f"Error checking ROS2 services: {e}")
+        
+        # Initialize service connection status
+        self.service_ready = False
+        self.last_service_check_time = 0
+        
+        # Create a timer to periodically check for the update_health service
+        self.service_check_timer = self.create_timer(2.0, self.check_service_availability)
+        self.get_logger().info("Service check timer initialized, will retry connecting to update_health service every 2 seconds")
+
         self.get_logger().info('KamikazeServiceServer initialized with parameters: '
                         f'explosion_damage={self.explosion_damage}, '
                         f'explosion_range={self.explosion_range}, '
                         f'world_name={self.world_name}')
     
+    def check_service_availability(self):
+        """Periodically check if the update_health service is available"""
+        if self.service_ready:
+            # Already connected, no need to check
+            return
+            
+        current_time = time.time()
+        # Don't spam logs, only log every 10 seconds
+        should_log = (current_time - self.last_service_check_time) >= 10.0
+        
+        if self.update_health_client.service_is_ready():
+            self.service_ready = True
+            self.get_logger().info('Successfully connected to update_health service')
+            # We can reduce the timer frequency once connected
+            self.service_check_timer.timer_period_ns = 30 * 1000000000  # 30 seconds
+        elif should_log:
+            self.get_logger().info('Waiting for update_health service to become available...')
+            self.last_service_check_time = current_time
 
     def update_health_request(self, robot_name, damage):
         """
@@ -125,6 +172,15 @@ class KamikazeServiceServer(Node):
         :param damage: The amount of damage to apply.
         :return: The request object.
         """
+        # Check if service is available now if it wasn't earlier
+        if not self.service_ready:
+            if self.update_health_client.service_is_ready():
+                self.service_ready = True
+                self.get_logger().info('Successfully connected to update_health service')
+            else:
+                self.get_logger().warn(f'Update_health service not available, health update for {robot_name} failed')
+                return None
+                
         request = UpdateHealth.Request()
         request.robot_name = robot_name
         request.damage = damage

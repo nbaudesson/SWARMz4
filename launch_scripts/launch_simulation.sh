@@ -1,38 +1,97 @@
-#! /bin/bash
+#!/bin/bash
 
-# Check if SWARMZ4_PATH is already set and validate it
-if [ -n "$SWARMZ4_PATH" ]; then
-    # Check if the path contains spaces or newlines (indicating multiple paths)
-    if [[ "$SWARMZ4_PATH" == *" "* || "$SWARMZ4_PATH" == *$'\n'* ]]; then
-        echo "Warning: SWARMZ4_PATH contains spaces or line returns. It may be invalid."
-        echo "Resetting SWARMZ4_PATH..."
-        unset SWARMZ4_PATH
-    else
-        echo "Using pre-existing SWARMZ4_PATH: $SWARMZ4_PATH"
-    fi
+#############################################################################
+# SWARMz4 Simulation Launcher
+# ==========================
+#
+# Description:
+#   This script launches a simplified multi-drone simulation environment
+#   for testing and development. It spawns two small teams of drones at
+#   fixed positions for easier debugging.
+#
+# Features:
+#   - Automatic process cleanup before launch
+#   - Fixed team spawn positions for predictable testing
+#   - Configurable number of drones per team
+#   - Customizable field dimensions
+#   - Multiple headless mode levels support
+#   - Process monitoring and cleanup
+#
+# Requirements:
+#   - ROS2 Humble
+#   - PX4-Autopilot
+#   - Gazebo Garden
+#   - MicroXRCE-DDS Agent
+#   - QGroundControl
+#   - SWARMz4 ROS2 packages
+#
+# Usage:
+#   ./launch_simulation.sh [HEADLESS_LEVEL] [DRONES_PER_TEAM] [FIELD_LENGTH] [FIELD_WIDTH] [WORLD]
+#############################################################################
+
+#===========================================================================
+# 1. SWARMZ PATH SETUP
+#===========================================================================
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PARENT_DIR="$(dirname "$SCRIPT_DIR")"
+source "$PARENT_DIR/install_scripts/check_swarmz_path.sh"
+export SWARMZ4_PATH
+
+#===========================================================================
+# 2. DEFAULT PARAMETERS
+#===========================================================================
+# Simulation Parameters
+PX4_MODEL="gz_x500_lidar_front" # Change to "gz_x500" for classic x500
+PX4_SYS_AUTOSTART=4017          # Use 4001 for classic x500, 4017 for x500 with lidar
+FIELD_LENGTH=5
+FIELD_WIDTH=2
+NUM_DRONES_PER_TEAM=2
+TOTAL_DRONES=$((NUM_DRONES_PER_TEAM * 2))
+HEADLESS_LEVEL=0                # 0=GUI, 1=Gazebo headless, 2=Full headless
+WORLD="swarmz_world"
+
+# Bridge and Process PIDs
+CLOCK_BRIDGE_PID=""
+LASER_BRIDGE_PID=""
+
+#===========================================================================
+# 3. ARGUMENT PARSING
+#===========================================================================
+if [ -n "$1" ]; then
+  HEADLESS_LEVEL=$1
+  if ! [[ "$HEADLESS_LEVEL" =~ ^[0-2]$ ]]; then
+    echo "Error: HEADLESS_LEVEL must be 0, 1, or 2"
+    exit 1
+  fi
 fi
 
-# If SWARMZ4_PATH is not set or was reset, determine it from script location
-if [ -z "$SWARMZ4_PATH" ]; then
-    # Find the directory where this script is located and go up 1 level to reach SWARMZ4 root
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    SWARMZ4_PATH="$(dirname "$SCRIPT_DIR")"
-    
-    echo "Set SWARMZ4_PATH to: $SWARMZ4_PATH"
-    
-    # Export SWARMZ4_PATH so it persists for subsequent scripts
-    export SWARMZ4_PATH
-    
-    # Update or add SWARMZ4_PATH to ~/.bashrc for persistence
-    if grep -q "export SWARMZ4_PATH=" ~/.bashrc; then
-        sed -i "s|export SWARMZ4_PATH=.*|export SWARMZ4_PATH=\"$SWARMZ4_PATH\"|g" ~/.bashrc
-        echo "Replacing ~/.bashrc SWARMZ4_PATH with new SWARMZ4_PATH"
-    else
-        echo "export SWARMZ4_PATH=\"$SWARMZ4_PATH\"" >> ~/.bashrc
-        echo "Updated ~/.bashrc with SWARMZ4_PATH"
-    fi
+if [ -n "$2" ]; then
+  NUM_DRONES_PER_TEAM=$2
+  TOTAL_DRONES=$((NUM_DRONES_PER_TEAM * 2))
 fi
 
+if [ -n "$3" ]; then
+  FIELD_LENGTH=$3
+fi
+
+if [ -n "$4" ]; then
+  FIELD_WIDTH=$4
+fi
+
+if [ -n "$5" ]; then
+  WORLD=$5
+fi
+
+# Set output suppression for headless mode
+if [ "$HEADLESS_LEVEL" -eq 2 ]; then
+  SUPPRESS_OUTPUT=true
+  echo "Full headless mode activated. Output suppressed."
+fi
+
+#===========================================================================
+# 4. UTILITY FUNCTIONS
+#===========================================================================
+# Process cleanup function
 kill_processes() {
     echo "Killing old processes..."
     pkill -f 'px4' || echo "No PX4 processes to kill."
@@ -44,54 +103,7 @@ kill_processes() {
     pkill -f 'QGroundControl' || echo "No QGroundControl processes to kill."
 }
 
-# Call kill_processes function
-kill_processes
-
-### PX4 Drone Configuration ###
-cd $SWARMZ4_PATH/PX4-Autopilot || { echo "PX4-Autopilot directory not found!"; exit 1; }
-
-# Parameters
-PX4_MODEL="gz_x500_lidar_front" # Change to "gz_x500" for classic x500
-PX4_SYS_AUTOSTART=4017 # Use 4001 for classic x500
-FIELD_LENGTH=5
-FIELD_WIDTH=2
-# FIELD_LENGTH=500
-# FIELD_WIDTH=250
-NUM_DRONES_PER_TEAM=2
-TOTAL_DRONES=$((NUM_DRONES_PER_TEAM * 2))
-HEADLESS_LEVEL=0 # 0=GUI, 1=Gazebo headless, 2=Full headless
-# WORLD="default"
-WORLD="swarmz_world"
-
-# Arguments
-if [ -n "$1" ]; then
-  HEADLESS_LEVEL=$1
-  if ! [[ "$HEADLESS_LEVEL" =~ ^[0-2]$ ]]; then
-    echo "Error: HEADLESS_LEVEL must be 0, 1, or 2"
-    exit 1
-  fi
-fi
-if [ -n "$2" ]; then
-  NUM_DRONES_PER_TEAM=$2
-  TOTAL_DRONES=$((NUM_DRONES_PER_TEAM * 2))
-fi
-if [ -n "$3" ]; then
-  FIELD_LENGTH=$3
-fi
-if [ -n "$4" ]; then
-  FIELD_WIDTH=$4
-fi
-if [ -n "$5" ]; then
-  WORLD=$5
-fi
-
-# Remove log directory creation for headless mode
-if [ "$HEADLESS_LEVEL" -eq 2 ]; then
-  SUPPRESS_OUTPUT=true
-  echo "Full headless mode activated. Output suppressed."
-fi
-
-# Terminal handling function that supports gnome-terminal or background processes
+# Terminal handling with headless mode support
 launch_terminal() {
     local title="$1"
     local command="$2"
@@ -120,7 +132,15 @@ launch_terminal() {
     fi
 }
 
-# Function to check if there's a dedicated GPU that's not being used as the main one
+# Cleanup function for graceful exit
+cleanup() {
+    echo "Cleaning up processes..."
+    kill_processes
+    kill $CLOCK_BRIDGE_PID $LASER_BRIDGE_PID 2>/dev/null
+    echo "Cleanup complete"
+}
+
+# GPU detection function
 has_secondary_gpu() {
     # Check if lspci is available
     if ! command -v lspci &> /dev/null; then
@@ -152,6 +172,10 @@ has_secondary_gpu() {
     return 1
 }
 
+#===========================================================================
+# 5. DRONE SPAWN & MANAGEMENT FUNCTIONS
+#===========================================================================
+# Launch PX4 instance with position
 launch_px4_instance() {
     local instance_id=$1
     local x_pos=$2  
@@ -179,7 +203,7 @@ launch_px4_instance() {
             cmd="PX4_UXRCE_DDS_NS=px4_$instance_id VERBOSE_SIM=1 PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART PX4_SIM_MODEL=$PX4_MODEL PX4_GZ_MODEL_POSE=\"$pose\" PX4_GZ_WORLD=\"$WORLD\" $headless_flag make px4_sitl $PX4_MODEL"
         fi
         
-        # Use EKF reset script similar to launch_game.sh
+        # Use EKF reset script if available
         if [ -f "$SWARMZ4_PATH/launch_scripts/px4_reset_ekf.sh" ]; then
             launch_terminal "px4_$instance_id" "$SWARMZ4_PATH/launch_scripts/px4_reset_ekf.sh \"$cmd\"" "$HEADLESS_LEVEL"
         else
@@ -194,7 +218,7 @@ launch_px4_instance() {
         # Build command with environment variables
         local cmd="TIMEOUT=10 VERBOSE_SIM=1 PX4_UXRCE_DDS_NS=px4_$instance_id PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART PX4_GZ_MODEL_POSE=\"$pose\" PX4_SIM_MODEL=$PX4_MODEL PX4_GZ_WORLD=\"$WORLD\" $headless_flag $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id"
         
-        # Use EKF reset script similar to launch_game.sh
+        # Use EKF reset script if available
         if [ -f "$SWARMZ4_PATH/launch_scripts/px4_reset_ekf.sh" ]; then
             launch_terminal "px4_$instance_id" "$SWARMZ4_PATH/launch_scripts/px4_reset_ekf.sh \"$cmd\"" "$HEADLESS_LEVEL"
         else
@@ -206,7 +230,7 @@ launch_px4_instance() {
     fi
 }
 
-# Launch drones - modified for debugging with tighter spacing
+# Launch a team of drones with fixed positions for debugging
 launch_team() {
     local team_num=$1
     local min_x=$2
@@ -234,21 +258,19 @@ launch_team() {
     done
 }
 
-### Main Execution ###
-
-# Cleanup function
-cleanup() {
-    echo "Cleaning up processes..."
-    kill_processes
-    kill $CLOCK_BRIDGE_PID $LASER_BRIDGE_PID 2>/dev/null
-    # exit 0
-}
+#===========================================================================
+# 6. MAIN EXECUTION
+#===========================================================================
+# Register cleanup handler
 trap cleanup INT TERM
 
-### Start Micro-XRCE-DDS Agent ###
-cd $SWARMZ4_PATH/Micro-XRCE-DDS-Agent || { echo "Micro-XRCE-DDS-Agent directory not found!"; exit 1; }
+# Step 1: Clean up any existing processes
+echo "Step 1: Cleaning up existing processes..."
+kill_processes
 
-# Use launch_terminal function for consistency with launch_game.sh
+# Step 2: Start MicroXRCE-DDS Agent
+echo "Step 2: Starting MicroXRCE-DDS Agent..."
+cd $SWARMZ4_PATH/Micro-XRCE-DDS-Agent || { echo "Micro-XRCE-DDS-Agent directory not found!"; exit 1; }
 launch_terminal "MicroXRCEAgent" "MicroXRCEAgent udp4 -p 8888 -v 4" "$HEADLESS_LEVEL"
 if [ "$HEADLESS_LEVEL" -eq 2 ]; then
     echo "Started MicroXRCEAgent with output suppressed"
@@ -258,12 +280,16 @@ else
     echo "Started MicroXRCEAgent."
 fi
 
-# Launch teams with closer fixed positions for debugging
-launch_team 1 0 0 0 0 0                # Team 1 at x=0, y=0 with 1m spacing
-launch_team 2 5 0 0 0 3.14159          # Team 2 at x=5, y=0 with 1m spacing, facing team 1
+# Step 3: Launch drone teams (with fixed positions for debugging)
+echo "Step 3: Launching drone teams..."
+cd $SWARMZ4_PATH/PX4-Autopilot || { echo "PX4-Autopilot directory not found!"; exit 1; }
+# Team 1 at x=0, y=0 with 1m spacing
+launch_team 1 0 0 0 0 0
+# Team 2 at x=5, y=0 with 1m spacing, facing team 1
+launch_team 2 5 0 0 0 3.14159
 
-### Launch QGroundControl ###
-echo "Launching QGroundControl..."
+# Step 4: Launch QGroundControl
+echo "Step 4: Launching QGroundControl..."
 cd $SWARMZ4_PATH/launch_scripts || { echo "launch_scripts directory not found!"; exit 1; }
 if [ "$HEADLESS_LEVEL" -ge 1 ]; then
     # Full headless mode uses xvfb-run with minimal logging
@@ -274,17 +300,16 @@ else
     $SWARMZ4_PATH/launch_scripts/QGroundControl.AppImage > /dev/null 2>&1 &
 fi
 
-# Wait for user to exit
-echo "Press Ctrl+C to terminate all processes."
-trap "cleanup; exit 0" INT
-
+# Step 5: Wait for user to exit
+echo "Step 5: All processes started."
 if [ "$HEADLESS_LEVEL" -eq 2 ]; then
-    echo "All processes started in headless mode with output suppressed."
+    echo "Running in headless mode with output suppressed."
 elif [ "$HEADLESS_LEVEL" -eq 1 ]; then
-    echo "All processes started in Gazebo headless mode."
+    echo "Running in Gazebo headless mode."
 else
-    echo "All processes started in GUI mode."
-    
+    echo "Running in GUI mode."
 fi
 echo "Press Ctrl+C to terminate all processes."
+
+trap "cleanup; exit 0" INT
 wait

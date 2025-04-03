@@ -23,7 +23,6 @@ from rclpy.node import Node
 from std_msgs.msg import String, Int32
 from swarmz_interfaces.msg import Detections, Detection
 from utils.tools import get_all_namespaces, get_distance, get_relative_position, get_relative_position_with_orientation, get_stable_namespaces
-# from utils.kill_drone import kill_drone_processes, get_model_id, remove_model
 from utils.gazebo_subscriber import GazeboPosesTracker
 from swarmz_interfaces.srv import UpdateHealth
 import time
@@ -81,6 +80,7 @@ class GameMasterNode(Node):
         self.declare_parameter('game_duration', 200)
         self.declare_parameter('world_name', 'swarmz_world_2')
         self.declare_parameter('drone_max_speed', 12.0)
+        self.declare_parameter('update_health_service_name', '/update_health')
 
         # Get parameter values with correct accessor methods
         self.drone_detection_range = self.get_parameter('drone_detection_range').get_parameter_value().double_value
@@ -94,6 +94,40 @@ class GameMasterNode(Node):
         self.ship_points = self.get_parameter('ship_points').get_parameter_value().integer_value
         self.game_duration = self.get_parameter('game_duration').get_parameter_value().integer_value
         self.world_name = self.get_parameter('world_name').get_parameter_value().string_value
+        self.update_health_service_name = self.get_parameter('update_health_service_name').get_parameter_value().string_value
+        
+        # Create the service to update health FIRST - this is critical
+        # to ensure it's available for clients
+        self.get_logger().info(f"Creating health update service at '{self.update_health_service_name}'...")
+        try:
+            self.update_health_srv = self.create_service(
+                UpdateHealth, 
+                self.update_health_service_name,
+                self.update_health_callback
+            )
+            self.get_logger().info(f"Successfully created health update service at '{self.update_health_service_name}'")
+            
+            # Minimal delay to allow service registration to propagate
+            time.sleep(0.5)
+            
+            # Verify service is available and advertise it
+            try:
+                service_names_and_types = self.get_service_names_and_types()
+                service_names = [s[0] for s in service_names_and_types]
+                if self.update_health_service_name in service_names:
+                    self.get_logger().info(f"Successfully verified service is registered: {self.update_health_service_name}")
+                else:
+                    self.get_logger().warn(f"Service registration issue: {self.update_health_service_name} not found in:")
+                    for s in service_names:
+                        self.get_logger().warn(f"  {s}")
+            except Exception as e:
+                self.get_logger().error(f"Error verifying service: {e}")
+            
+        except Exception as e:
+            self.get_logger().error(f"Failed to create health update service: {e}")
+            
+        # Now proceed with the rest of initialization
+        self.get_logger().info(f"Using world name: {self.world_name}")
 
         # Get list of all namespaces using the stable detection method
         self.get_logger().info("Detecting robot namespaces...")
@@ -158,8 +192,44 @@ class GameMasterNode(Node):
 
         # Timer to periodically update robot positions
         self.robot_poses = {}  # Combined position and orientation
-        self.gz = GazeboPosesTracker(self.namespaces, world_name=self.world_name)
-        self.update_positions_timer = self.create_timer(0.1, self.update_positions)
+        self.get_logger().info(f"Initializing GazeboPosesTracker for {len(self.namespaces)} namespaces with world {self.world_name}")
+        
+        # Log all namespaces to help debugging
+        for i, ns in enumerate(self.namespaces):
+            self.get_logger().info(f"  Robot {i+1}: {ns}")
+            
+        # Create the GazeboPosesTracker with more explicit initialization
+        try:
+            time.sleep(0.5)
+            self.get_logger().info(f"Initializing GazeboPosesTracker for {len(self.namespaces)} namespaces with world {self.world_name}")
+            
+            for i, ns in enumerate(self.namespaces):
+                self.get_logger().info(f"  Robot {i+1}: {ns}")
+                
+            # Create GazeboPosesTracker with auto-detection of topic format
+            self.gz = GazeboPosesTracker(self.namespaces, world_name=self.world_name)
+            
+            # Check connection status
+            if hasattr(self.gz, 'connection_verified') and self.gz.connection_verified:
+                self.get_logger().info("✓ Successfully connected to Gazebo")
+            else:
+                self.get_logger().warn("⚠️ Could not verify Gazebo connection - some features may not work")
+                self._diagnose_gazebo_connection()
+                
+            if hasattr(self.gz, 'message_count') and self.gz.message_count > 0:
+                self.get_logger().info(f"GazeboPosesTracker already received {self.gz.message_count} messages")
+            else:
+                self.get_logger().warn("GazeboPosesTracker hasn't received any messages yet")
+                
+        except Exception as e:
+            self.get_logger().error(f"Error initializing GazeboPosesTracker: {e}")
+            self._diagnose_gazebo_connection()
+            self.get_logger().error("Continuing with limited functionality. Some features may not work correctly.")
+        
+        self.get_clock().sleep_for(rclpy.duration.Duration(seconds=2.0))
+        
+        self.update_positions_timer = self.create_timer(0.5, self.update_positions)
+        self.get_logger().info("Position update timer created")
 
         # Timer to periodically publish detections
         self.timer = self.create_timer(1.0, self.detections_callback)
@@ -174,17 +244,88 @@ class GameMasterNode(Node):
         # Timer to periodically publish health status (changed from 2.0 to 20.0 seconds)
         self.health_timer = self.create_timer(20.0, self.publish_health_status)
 
-        # Create the service to update health
-        self.update_health_srv = self.create_service(UpdateHealth, 'update_health', self.update_health_callback)
-
         # Add debug information about subscribers and publishers
         self.get_logger().info("Setting up communication channels...")
         for ns in self.namespaces:
             self.get_logger().info(f"Created publisher for {ns}/out_going_messages")
             self.get_logger().info(f"Created subscriber for {ns}/incoming_messages")
 
+        # List available services again after full initialization
+        try:
+            from utils.gazebo_subscriber import check_ros2_services
+            available_services = check_ros2_services(verbose=False)
+            self.get_logger().info(f"Available services after full initialization: {len(available_services)}")
+            
+            update_services = [s for s in available_services if 'update_health' in s[0]]
+            self.get_logger().info(f"Health update services: {update_services}")
+        except Exception as e:
+            self.get_logger().error(f"Error listing available services: {e}")
+
         # Add debug position publisher
         self.debug_positions_publisher = self.create_publisher(String, '/game_master/debug_positions', 10)
+
+    def _diagnose_gazebo_connection(self):
+        """Diagnose Gazebo connection issues and print helpful information"""
+        self.get_logger().error("\n" + "!" * 80)
+        self.get_logger().error("GAZEBO CONNECTION DIAGNOSTIC")
+        self.get_logger().error("!" * 80)
+        
+        # Check if Gazebo is running
+        try:
+            import subprocess
+            ps_result = subprocess.run(['ps', '-ef'], capture_output=True, text=True)
+            if 'gz sim' in ps_result.stdout or 'gzserver' in ps_result.stdout:
+                self.get_logger().info("✓ Gazebo server is running")
+                
+                # Check available topics
+                try:
+                    result = subprocess.run(['gz', 'topic', '-l'], capture_output=True, text=True, timeout=2)
+                    if result.returncode == 0:
+                        topics = result.stdout.strip().split('\n')
+                        self.get_logger().info(f"Found {len(topics)} Gazebo topics")
+                        
+                        # Check for alternative topic format
+                        model_topics = [t for t in topics if '/model/' in t]
+                        if model_topics and len(model_topics) > 0:
+                            self.get_logger().info("Detected model-based topic format")
+                            # Extract model names
+                            model_names = set()
+                            for topic in model_topics:
+                                parts = topic.split('/')
+                                if len(parts) > 2:
+                                    model_names.add(parts[2])
+                                    
+                            if model_names:
+                                self.get_logger().info(f"Detected models: {list(model_names)[:5]}...")
+                            
+                            # Explain what this means
+                            self.get_logger().info("The topic format is different but should work automatically")
+                        
+                        # Also check for world-based topics
+                        world_topics = [t for t in topics if '/world/' in t]
+                        if world_topics:
+                            worlds = set([t.split('/')[2] for t in world_topics if len(t.split('/')) > 3])
+                            if worlds:
+                                self.get_logger().info(f"Detected worlds: {worlds}")
+                                if self.world_name not in worlds:
+                                    self.get_logger().warn(f"Configured world '{self.world_name}' not found!")
+                                    self.get_logger().warn(f"Available worlds: {worlds}")
+                                    self.get_logger().warn("Set world_name parameter to match an available world")
+                    else:
+                        self.get_logger().error(f"Failed to list Gazebo topics: {result.stderr}")
+                except Exception as e:
+                    self.get_logger().error(f"Error checking Gazebo topics: {e}")
+            else:
+                self.get_logger().error("✗ NO Gazebo server found running!")
+                self.get_logger().error("  Please start Gazebo with: gz sim -v4 your_world.sdf")
+        except Exception as e:
+            self.get_logger().error(f"Error checking Gazebo process: {e}")
+        
+        self.get_logger().error("\nPossible solutions:")
+        self.get_logger().error("1. Make sure Gazebo is running with the correct world")
+        self.get_logger().error("2. Check if the world_name parameter matches the running simulation")
+        self.get_logger().error("3. Restart Gazebo and then restart this node")
+        self.get_logger().error("!" * 80 + "\n")
 
     def update_positions(self):
         """
@@ -193,27 +334,48 @@ class GameMasterNode(Node):
         in self.robot_poses in a standardized format.
         """
         try:
-            self.get_logger().debug(f"Updating positions for {len(self.namespaces)} robots")
+            should_log_detail = (hasattr(self, '_position_update_count') == False) or (self._position_update_count % 20 == 0)
+            if not hasattr(self, '_position_update_count'):
+                self._position_update_count = 0
+                self.get_logger().info("First position update attempt")
+            self._position_update_count += 1
+            
+            if should_log_detail:
+                self.get_logger().info(f"Updating positions (attempt #{self._position_update_count})")
             
             if not self.namespaces:
-                self.get_logger().warn("No robot namespaces detected, can't update positions")
+                if should_log_detail:
+                    self.get_logger().warn("No robot namespaces detected, can't update positions")
                 return
             
-            # Check if we're getting valid data from Gazebo
-            if not hasattr(self.gz, 'are_poses_valid') or not self.gz.are_poses_valid():
-                self.get_logger().warn("No valid pose data received from Gazebo yet")
+            if not hasattr(self.gz, 'are_poses_valid'):
+                if should_log_detail:
+                    self.get_logger().warn("GazeboPosesTracker missing 'are_poses_valid' method")
                 return
                 
+            if not self.gz.are_poses_valid():
+                if should_log_detail:
+                    self.get_logger().warn("No valid pose data received from Gazebo yet")
+                    if hasattr(self.gz, 'message_count'):
+                        self.get_logger().warn(f"GazeboPosesTracker message count: {self.gz.message_count}")
+                    if hasattr(self.gz, 'model_names'):
+                        self.get_logger().warn(f"GazeboPosesTracker looking for models: {self.gz.model_names[:3]}...")
+                return
+                
+            if self._position_update_count == 1 or (self._position_update_count % 100 == 0):
+                self.get_logger().info("GazeboPosesTracker has valid pose data")
+                sample_model = list(self.gz.poses.keys())[0] if self.gz.poses else "None"
+                self.get_logger().info(f"Sample model: {sample_model}")
+            
             valid_poses = 0
             for ns in self.namespaces:
                 try:
                     pose = self.gz.get_pose(ns)
-                    # Check if pose has valid values
                     if pose['position']['x'] is None:
-                        self.get_logger().warn(f"Invalid pose data for {ns}")
+                        if should_log_detail:
+                            self.get_logger().warn(f"Invalid pose data for {ns}")
                         continue
                         
-                    # Store poses in a consistent format
                     self.robot_poses[ns] = {
                         'position': (pose['position']['x'], 
                                   pose['position']['y'], 
@@ -225,13 +387,14 @@ class GameMasterNode(Node):
                     }
                     valid_poses += 1
                 except Exception as e:
-                    self.get_logger().error(f"Error updating pose for {ns}: {e}")
+                    if should_log_detail:
+                        self.get_logger().error(f"Error updating pose for {ns}: {e}")
             
             if valid_poses == 0:
-                self.get_logger().warn("No valid poses retrieved from any robot")
+                if should_log_detail:
+                    self.get_logger().warn("No valid poses retrieved from any robot")
                 return
                 
-            # Publish debug positions
             if self.robot_poses:
                 debug_msg = String()
                 positions_dict = {}
@@ -251,9 +414,28 @@ class GameMasterNode(Node):
                     }
                 debug_msg.data = json.dumps(positions_dict)
                 self.debug_positions_publisher.publish(debug_msg)
-                self.get_logger().info(f"Published debug positions for {len(positions_dict)} robots to /game_master/debug_positions topic")
+                
+                if should_log_detail:
+                    self.get_logger().info(f"Published debug positions for {len(positions_dict)} robots")
+                
+                if valid_poses > 0 and self.update_positions_timer.timer_period_ns > 100000000:
+                    self.update_positions_timer.timer_period_ns = 100000000
+                    self.get_logger().info("Increased position update frequency to 10Hz")
             else:
-                self.get_logger().warn("No robot poses available to publish")
+                if should_log_detail:
+                    self.get_logger().warn("No robot poses available to publish")
+            
+            # Check if we're having persistent Gazebo connection issues
+            if hasattr(self, '_position_update_count') and self._position_update_count > 20:
+                if not hasattr(self.gz, 'message_count') or self.gz.message_count == 0:
+                    # We've been trying for a while with no messages
+                    if not hasattr(self, '_gazebo_warning_shown'):
+                        self._gazebo_warning_shown = True
+                        self.get_logger().error("\n" + "!" * 80)
+                        self.get_logger().error("CRITICAL: No position data received from Gazebo after multiple attempts")
+                        self._diagnose_gazebo_connection()
+                        self.get_logger().error("Game will continue with limited functionality")
+                        self.get_logger().error("!" * 80 + "\n")
         except Exception as e:
             self.get_logger().error(f"Error in update_positions: {e}")
 
@@ -271,7 +453,6 @@ class GameMasterNode(Node):
         elapsed_time = time.time() - self.start_time
         remaining_time = max(0, int(self.game_duration - elapsed_time))
         
-        # Publish remaining time
         time_msg = Int32()
         time_msg.data = remaining_time
         self.time_publisher.publish(time_msg)
@@ -307,7 +488,6 @@ class GameMasterNode(Node):
         result += f"Team 2 points: {self.team_points['team_2']}\n"
         result += "Team 2 alive robots: " + ", ".join([ns for ns in self.team_2 if self.health_points.get(ns, 0) > 0]) + "\n"
 
-        # Locate the SWARMz4 directory
         home_dir = os.path.expanduser("~")
         swarmz4_path = None
         for root, dirs, files in os.walk(home_dir):
@@ -321,21 +501,14 @@ class GameMasterNode(Node):
             rclpy.shutdown()
             return
 
-        # Write to game_results.txt
         result_dir = os.path.join(swarmz4_path, 'game_results')
         result_file = os.path.join(result_dir, 'game_results.txt')
-        # self.get_logger().info(f"Results directory: {result_dir}")
-        # self.get_logger().info(f"Results file: {result_file}")
         
-        # Ensure the directory exists
         if not os.path.exists(result_dir):
-            # self.get_logger().info(f"Creating results directory at: {result_dir}")
             os.makedirs(result_dir)
         else:
-            # self.get_logger().info(f"Results directory already exists at: {result_dir}")
             pass
-        # self.get_logger().info(f"Writing results to file: {result_file}")
-
+        
         game_number = 1
         if os.path.exists(result_file):
             self.get_logger().info(f"Result file exists. Reading current content.")
@@ -352,18 +525,13 @@ class GameMasterNode(Node):
                 file.write(f"--- Game {game_number} ---\n")
                 file.write(result)
 
-        # Write to individual_games
         individual_games_dir = os.path.join(result_dir, 'individual_games')
         
-        # Ensure the directory exists
         if not os.path.exists(individual_games_dir):
-            # self.get_logger().info(f"Creating individual games directory at: {individual_games_dir}")
             os.makedirs(individual_games_dir)
         else:
-            # self.get_logger().info(f"Individual games directory already exists at: {individual_games_dir}")
             pass
 
-        # Create a unique filename with a timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         individual_result_file = os.path.join(individual_games_dir, f'game_results_{timestamp}.txt')
 
@@ -379,7 +547,6 @@ class GameMasterNode(Node):
         Uses multi-threading to efficiently process and publish
         detection data for all robots simultaneously.
         """
-        # Check if we have valid pose data
         if not self.robot_poses or None in self.robot_poses[next(iter(self.robot_poses))]['position']:
             return
             
@@ -429,19 +596,27 @@ class GameMasterNode(Node):
             return detections
             
         transmitter_pose = self.robot_poses[namespace]
-        # Validate transmitter pose
         if None in transmitter_pose['position'] or None in transmitter_pose['orientation']:
             return detections
             
-        detection_range = self.drone_detection_range if '/px4_' in namespace else self.ship_detection_range
+        is_transmitter_drone = '/px4_' in namespace
         
         for robot, receiver_pose in self.robot_poses.items():
             if robot == namespace:
                 continue
                 
-            # Validate receiver pose
             if None in receiver_pose['position'] or None in receiver_pose['orientation']:
                 continue
+                
+            is_receiver_drone = '/px4_' in robot
+            
+            if is_transmitter_drone:
+                detection_range = self.drone_detection_range
+            else:
+                if is_receiver_drone:
+                    detection_range = self.ship2drone_detection_range
+                else:
+                    detection_range = self.ship2ship_detection_range
                 
             try:
                 distance = get_distance(transmitter_pose['position'], receiver_pose['position'])
@@ -450,16 +625,15 @@ class GameMasterNode(Node):
                     detection.vehicle_type = Detection.DRONE if '/px4_' in robot else Detection.SHIP
                     detection.is_friend = self.is_friend(namespace, robot)
                     
-                    # Get relative position in NED frame
                     relative_position = get_relative_position_with_orientation(
                         transmitter_pose['position'], 
                         transmitter_pose['orientation'],
                         receiver_pose['position']
                     )
                     
-                    detection.relative_position.x = relative_position[0]   # Forward
-                    detection.relative_position.y = -relative_position[1]   # Right
-                    detection.relative_position.z = -relative_position[2]   # Down
+                    detection.relative_position.x = relative_position[0]
+                    detection.relative_position.y = -relative_position[1]
+                    detection.relative_position.z = -relative_position[2]
                     
                     detections.append(detection)
             except (TypeError, ValueError) as e:
@@ -474,7 +648,6 @@ class GameMasterNode(Node):
         :param msg: The communication message.
         :param sender_ns: The namespace of the sender robot.
         """
-        # Check if sender position exists
         if sender_ns not in self.robot_poses:
             self.get_logger().warn(f'No pose data for sender {sender_ns}')
             return
@@ -550,12 +723,9 @@ class GameMasterNode(Node):
                 self.update_team_points(ns)
                 if 'px4_' in ns:
                     self.get_logger().info(f'{ns} is destroyed, awarding {self.drone_points} points')
-                    # instance_number = int(ns.split('_')[1])
                     self.kill_drone(ns)
                     if ns in self.namespaces:
-                        # Remove the destroyed drone from the list of namespaces
                         self.namespaces.remove(ns)
-                        # Update the GazeboPosesTracker with the new list of namespaces
                         self.gz = GazeboPosesTracker(self.namespaces)             
                 elif 'flag_ship_' in ns:
                     self.get_logger().info(f'{ns} is destroyed, awarding {self.ship_points} points')
@@ -573,7 +743,6 @@ class GameMasterNode(Node):
         node = GzNode()
         scene_info = Scene()
 
-        # Request scene info from Gazebo
         self.get_logger().info("Checking scene info for robots.")
         result, response = node.request("/world/"+self.world_name+"/scene/info", Empty(), Empty, Scene, 1000)
         if not result:
@@ -581,19 +750,15 @@ class GameMasterNode(Node):
             return {}
         scene_info = response
 
-        # Create a mapping of robot namespaces to expected model names
         namespace_to_model = {
             robot_name: f"x500_lidar_front_{robot_name.split('_')[-1]}" for robot_name in robot_list
         }
         model_ids = {}
 
-        # Search for matching models in the scene
         for model in scene_info.model:
             if model.name in namespace_to_model.values():
-                # Extract instance number from model name
                 instance_number = model.name.split("_")[-1]
 
-                # Find the corresponding namespace key
                 robot_name = f"/px4_{instance_number}"
                 model_ids[robot_name] = {
                     "id": model.id,
@@ -601,7 +766,6 @@ class GameMasterNode(Node):
                 }
                 self.get_logger().info(f"Found model '{model.name}' (Namespace: '{robot_name}') with ID: {model.id}")
 
-        # Log missing robots
         for robot_name, model_name in namespace_to_model.items():
             if robot_name not in model_ids:
                 self.get_logger().info(f"Model '{model_name}' (Namespace: '{robot_name}') not found.")
@@ -619,7 +783,6 @@ class GameMasterNode(Node):
         node = GzNode()
         success = False
         
-        # First attempt: Remove by model ID
         if "id" in model:
             entity_msg = Entity()
             entity_msg.id = model.get("id")
@@ -634,7 +797,6 @@ class GameMasterNode(Node):
             else:
                 self.get_logger().info(f"Failed to remove model by ID {model.get('id')}, will try by name")
         
-        # Second attempt: Remove by model name (if ID attempt failed or no ID provided)
         if not success and "name" in model:
             entity_msg = Entity()
             entity_msg.name = model.get("name")
@@ -656,7 +818,6 @@ class GameMasterNode(Node):
         Kill the drone processes and remove the model from Gazebo.
         :param robotnamespace_name: The namespace of the drone.
         """
-        # Remove the drone model from Gazebo
         model = self.drone_models.get(namespace)
         self.get_logger().info(f'model_id: {model}') 
         if (model):
@@ -665,7 +826,6 @@ class GameMasterNode(Node):
         else:
             self.get_logger().warn(f'failed to find model ID of {namespace}')
         
-        # Kill the drone processes
         self.kill_drone_processes(namespace)
         self.get_logger().info(f'killed drone processes for {namespace}')
         return
@@ -677,32 +837,29 @@ class GameMasterNode(Node):
         """
         self.get_logger().info(f'Killing processes of all ROS 2 nodes in namespace {namespace}')
         try:
-            # Kill ros2 processes in the namespace
             try:
                 subprocess.run(
                     f'pgrep -f "\-r __ns:={namespace}" | xargs kill -9',
                     shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except subprocess.CalledProcessError:
-                pass  # Suppressing errors
+                pass
 
-            # Kill the px4 processes
             try:
                 subprocess.run(
                     f'pkill -f "px4 -i {namespace.split("_")[-1]}"',
                     shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except subprocess.CalledProcessError:
-                pass  # Suppressing errors
+                pass
 
-            # Kill any other px4 related processes
             try:
                 subprocess.run(
                     f'pkill -f "px4_{namespace.split("_")[-1]}"',
                     shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except subprocess.CalledProcessError:
-                pass  # Suppressing errors
+                pass
 
         except subprocess.CalledProcessError:
-            pass  # Suppressing any remaining errors
+            pass
 
     def update_team_points(self, ns):
         """

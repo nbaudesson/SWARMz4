@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# Locate the folder named 'swarmz4' starting from the current user's home directory.
-SWARMZ4_PATH=$(find "$HOME" -type d -name "SWARMz4" 2>/dev/null)
+# Source check_swarmz_path.sh to ensure SWARMZ4_PATH is set correctly
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/check_swarmz_path.sh"
+export SWARMZ4_PATH
 
 # Function to check if QGroundControl is already installed
 check_qgroundcontrol_installed() {
