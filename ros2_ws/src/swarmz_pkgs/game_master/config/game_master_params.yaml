@@ -3,22 +3,19 @@ game_master_node:
     use_sim_time: True
     drone_detection_range: 137.0 # =height*55% for 2 horizontal corridors
     ship2ship_detection_range: 500.0 # Can see the other ship across the map
-    ship2drone_detection_range: 162.0 # Can smaller objects only closer
+    ship2drone_detection_range: 162.0 #  =height*65% Can smaller objects only closer, but has an edge on the drones
     drone_communication_range: 144.0 # =drone_detection_range*105%
     ship_communication_range: 30.0 # =ship2ship_detection_range*105%
-    drone_health: 1
-    ship_health: 6
-    drone_points: 10
-    ship_points: 50
-    game_duration: 200  # 5 minutes
-    world_name: "swarmz_world_2"
-    drone_max_speed: 12.0
+    drone_health: 1       # Instant kill for drones 
+    ship_health: 6        # Increased ship health to make fleet battles more interesting
+    game_duration: 20  # 5 minutes
+    gazebo_world_name: "swarmz_world_2"  # Previously named 'world_name'
+    drone_model_base_name: "x500_lidar_front"  # Base name for drone models in Gazebo
 
 warship_node:
   ros__parameters:
     use_sim_time: True
     canon_py_rotation_speed: 0.261 # pitch and yaw rotation 360°/24s -> 15°/s in rad/s
-
 
 missile_server:
   ros__parameters:

@@ -30,6 +30,8 @@ Parameters:
     - ship_padding_z: Hit box Z dimension for ships (default: 1.0)
     - world_name: Gazebo world name (default: "swarmz_world_2")
     - update_health_service_name: Name of the health update service (default: "/update_health")
+    - enable_gazebo_debug: Enable debug mode for Gazebo pose tracker (default: False)
+    - gazebo_debug_interval: Interval for Gazebo debug logs (default: 60.0)
 
 Usage:
     1. Start the ROS2 system and Gazebo simulation
@@ -49,7 +51,7 @@ import rclpy
 from rclpy.node import Node
 from utils.tools import get_all_namespaces, get_distance, is_aligned, is_aligned_HB, get_stable_namespaces
 from utils.gazebo_subscriber import GazeboPosesTracker
-import time
+import time  # Import still needed for sleep operations
 from std_msgs.msg import Int32
 
 class MissileServiceServer(Node):
@@ -60,7 +62,7 @@ class MissileServiceServer(Node):
         
         # Enable simulation time
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time', rclpy.Parameter.Type.BOOL, True)])
-
+        
         # Initialize all parameters with default values
         self._init_parameters()
         
@@ -121,13 +123,18 @@ class MissileServiceServer(Node):
         self.get_logger().info("Detecting robot namespaces...")
         self.namespaces = get_stable_namespaces(self, max_attempts=10, wait_time=1.0)
         
-        # Initialize tracking dictionaries
-        self.magazines = {ns: self.drone_magazine if 'drone' in ns else self.ship_magazine 
+        # Initialize tracking dictionaries - use ROS time
+        self.magazines = {ns: self.drone_magazine if 'px4' in ns else self.ship_magazine 
                          for ns in self.namespaces}
-        self.last_fire_time = {ns: 0 for ns in self.namespaces}
         
-        # Initialize Gazebo pose tracker
-        self.gz = GazeboPosesTracker(self.namespaces, world_name=self.world_name)
+        # Store timestamps as ROS Time objects
+        self.last_fire_time = {ns: self.get_clock().now() for ns in self.namespaces}
+        
+        # Get debug configuration and initialize Gazebo tracker in one step
+        self.gz = GazeboPosesTracker(
+            self.namespaces, 
+            world_name=self.world_name,
+        )
         self.robots_poses = self.gz.poses
 
     def _setup_communications(self):
@@ -150,31 +157,27 @@ class MissileServiceServer(Node):
         self.get_logger().info(f"Creating client for '{self.update_health_service_name}' service")
         self.update_health_client = self.create_client(UpdateHealth, self.update_health_service_name)
         
-        # Process current services to debug
-        services = self.get_node_names_and_namespaces()
-        self.get_logger().info(f"Current nodes: {services}")
+        # Remove verbose node listing - it floods the terminal
         
-        # Add service discovery debugging
+        # Add service discovery checking but without flooding output
         try:
             from utils.gazebo_subscriber import check_ros2_services
             services = check_ros2_services(verbose=False)
             service_names = [s[0] for s in services]
-            self.get_logger().info(f"Available services: {service_names}")
             
-            if self.update_health_service_name in service_names:
-                self.get_logger().info(f"'{self.update_health_service_name}' service is available")
-            else:
-                self.get_logger().warn(f"'{self.update_health_service_name}' service is NOT available yet")
+            # Only log important service status, not the full list
+            has_update_health = self.update_health_service_name in service_names
+            self.get_logger().info(f"UpdateHealth service available: {has_update_health}")
         except Exception as e:
             self.get_logger().error(f"Error checking ROS2 services: {e}")
         
         # Initialize service connection status
         self.service_ready = False
-        self.last_service_check_time = 0
+        self.last_service_check_time = self.get_clock().now()
         
         # Create a timer to periodically check for the update_health service
         self.service_check_timer = self.create_timer(2.0, self.check_service_availability)
-        self.get_logger().info("Service check timer initialized, will retry connecting to update_health service every 2 seconds")
+        self.get_logger().info("Service check timer initialized")
 
     def check_service_availability(self):
         """Periodically check if the update_health service is available"""
@@ -182,9 +185,9 @@ class MissileServiceServer(Node):
             # Already connected, no need to check
             return
             
-        current_time = time.time()
+        current_time = self.get_clock().now()
         # Don't spam logs, only log every 10 seconds
-        should_log = (current_time - self.last_service_check_time) >= 10.0
+        should_log = ((current_time - self.last_service_check_time).nanoseconds / 1e9) >= 10.0
         
         if self.update_health_client.service_is_ready():
             self.service_ready = True
@@ -263,9 +266,13 @@ class MissileServiceServer(Node):
             return response
 
         # 2. Check if corresponding namespace in the magazine dictionary has a value > 0
-        current_time = time.time()
+        current_time = self.get_clock().now()
         cooldown = self.drone_cooldown if 'drone' in shooter_ns else self.ship_cooldown
-        if self.magazines[shooter_ns] > 0 and (current_time - self.last_fire_time[shooter_ns]) >= cooldown:
+        
+        # Calculate time difference in seconds
+        time_since_last_fire = (current_time - self.last_fire_time[shooter_ns]).nanoseconds / 1e9
+        
+        if self.magazines[shooter_ns] > 0 and time_since_last_fire >= cooldown:
             self.get_logger().info(f'{shooter_ns} fired a missile. Remaining ammo: {self.magazines[shooter_ns] - 1}')
             # Decrease magazine count
             self.magazines[shooter_ns] -= 1
@@ -282,7 +289,7 @@ class MissileServiceServer(Node):
         # 3. Get shooter position and orientation
         shooter_position = (shooter_pose['position']['x'], shooter_pose['position']['y'], shooter_pose['position']['z'])
         shooter_orientation = (shooter_pose['orientation']['x'], shooter_pose['orientation']['y'], shooter_pose['orientation']['z'], shooter_pose['orientation']['w'])
-        self.get_logger().info(f'{shooter_ns} position: {shooter_position}, orientation: {shooter_orientation}')
+        self.get_logger().debug(f'{shooter_ns} position: {shooter_position}, orientation: {shooter_orientation}')
 
         # 4. Out of all robots in gazebo get list of ID's, distance and positions of those that are within radius of missile range
         missile_range = self.drone_missile_range if '/px4_' in shooter_ns else self.ship_missile_range
@@ -293,10 +300,10 @@ class MissileServiceServer(Node):
             robot_pose = self.gz.get_pose(robot)
             robot_position = (robot_pose['position']['x'], robot_pose['position']['y'], robot_pose['position']['z'])
             distance = get_distance(shooter_position, robot_position)
-            self.get_logger().info(f'{robot} distance is {distance}, range is {missile_range}')
+            self.get_logger().debug(f'{robot} distance is {distance}, range is {missile_range}')
             if distance <= missile_range:
                 targets_in_range.append((robot, distance, robot_position))
-        self.get_logger().info(f'Targets in range: {targets_in_range}')
+        self.get_logger().info(f'Found {len(targets_in_range)} targets in missile range')
 
         # 5. Out of those robots remove those that are not aligned with shooter's orientation, using laser_width as threshold
         aligned_targets = []
@@ -327,13 +334,15 @@ class MissileServiceServer(Node):
             target = min(aligned_targets, key=lambda x: x[1])
             target_id = target[0]
             damage = self.drone_missile_damage if '/px4_' in shooter_ns else self.ship_missile_damage
-            self.get_logger().info(f'Target {target_id} selected for attack with damage {damage}')
+            self.get_logger().info(f'MISSILE HIT: {shooter_ns} → {target_id} (damage: {damage})')
             
             try:
                 self.update_health_request(target_id, damage)
             except Exception as e:
                 self.get_logger().error(f'Exception occurred while calling update_health service: {e}')
                 return response
+        else:
+            self.get_logger().info(f'MISSILE MISSED: No aligned targets for {shooter_ns}')
 
         # 8. return response has_fired = true and ammo = namespace.magazine
         self.get_logger().info(f'Missile service response: has_fired={response.has_fired}, ammo={response.ammo}')

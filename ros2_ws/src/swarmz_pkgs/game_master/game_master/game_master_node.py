@@ -22,19 +22,20 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Int32
 from swarmz_interfaces.msg import Detections, Detection
-from utils.tools import get_all_namespaces, get_distance, get_relative_position, get_relative_position_with_orientation, get_stable_namespaces
+from utils.tools import get_distance, get_relative_position_with_orientation, get_stable_namespaces
+# from utils.kill_drone import kill_drone_processes, get_model_id, remove_model
 from utils.gazebo_subscriber import GazeboPosesTracker
-from swarmz_interfaces.srv import UpdateHealth
-import time
+from swarmz_interfaces.srv import UpdateHealth, Kamikaze
+import time  # Still imported for sleep function only
 import threading
 import os
-import json
 from datetime import datetime
 import subprocess
 from gz.msgs10.scene_pb2 import Scene
 from gz.msgs10.empty_pb2 import Empty
 from gz.msgs10.entity_pb2 import Entity
 from gz.msgs10.boolean_pb2 import Boolean
+from gz.msgs10.uint32_v_pb2 import UInt32_V
 from gz.transport13 import Node as GzNode
 
 
@@ -60,6 +61,8 @@ class GameMasterNode(Node):
         drone_points (int): Points awarded for destroying a drone
         ship_points (int): Points awarded for destroying a ship
         game_duration (int): Game duration in seconds
+        gazebo_world_name (str): Name of the Gazebo world
+        drone_model_base_name (str): Base name pattern for drone models
     """
 
     def __init__(self):
@@ -67,67 +70,32 @@ class GameMasterNode(Node):
         super().__init__('game_master_node')
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time', rclpy.Parameter.Type.BOOL, True)])
 
-        # Declare parameters with correct types
-        self.declare_parameter('drone_detection_range', 137.0)
-        self.declare_parameter('ship2ship_detection_range', 500.0)
-        self.declare_parameter('ship2drone_detection_range', 162.0)
-        self.declare_parameter('drone_communication_range', 144.0)
+        # Create a single GzNode instance to be reused across methods
+        self.gz_node = GzNode()
+
+        # Declare parameters with default values
+        self.declare_parameter('drone_detection_range', 10.0)
+        self.declare_parameter('ship_detection_range', 20.0)
+        self.declare_parameter('drone_communication_range', 15.0)
         self.declare_parameter('ship_communication_range', 30.0)
-        self.declare_parameter('drone_health', 1)
-        self.declare_parameter('ship_health', 6)
+        self.declare_parameter('drone_health', 10)
+        self.declare_parameter('ship_health', 20)
         self.declare_parameter('drone_points', 10)
         self.declare_parameter('ship_points', 50)
-        self.declare_parameter('game_duration', 200)
-        self.declare_parameter('world_name', 'swarmz_world_2')
-        self.declare_parameter('drone_max_speed', 12.0)
-        self.declare_parameter('update_health_service_name', '/update_health')
+        self.declare_parameter('game_duration', 300)  # 5 minutes
+        self.declare_parameter('gazebo_world_name', 'swarmz_world_2')
+        self.declare_parameter('drone_model_base_name', 'x500_lidar_front')
 
-        # Get parameter values with correct accessor methods
         self.drone_detection_range = self.get_parameter('drone_detection_range').get_parameter_value().double_value
-        self.ship2ship_detection_range = self.get_parameter('ship2ship_detection_range').get_parameter_value().double_value
-        self.ship2drone_detection_range = self.get_parameter('ship2drone_detection_range').get_parameter_value().double_value
+        self.ship_detection_range = self.get_parameter('ship_detection_range').get_parameter_value().double_value
         self.drone_communication_range = self.get_parameter('drone_communication_range').get_parameter_value().double_value
         self.ship_communication_range = self.get_parameter('ship_communication_range').get_parameter_value().double_value
         self.drone_health = self.get_parameter('drone_health').get_parameter_value().integer_value
         self.ship_health = self.get_parameter('ship_health').get_parameter_value().integer_value
-        self.drone_points = self.get_parameter('drone_points').get_parameter_value().integer_value
-        self.ship_points = self.get_parameter('ship_points').get_parameter_value().integer_value
         self.game_duration = self.get_parameter('game_duration').get_parameter_value().integer_value
-        self.world_name = self.get_parameter('world_name').get_parameter_value().string_value
-        self.update_health_service_name = self.get_parameter('update_health_service_name').get_parameter_value().string_value
-        
-        # Create the service to update health FIRST - this is critical
-        # to ensure it's available for clients
-        self.get_logger().info(f"Creating health update service at '{self.update_health_service_name}'...")
-        try:
-            self.update_health_srv = self.create_service(
-                UpdateHealth, 
-                self.update_health_service_name,
-                self.update_health_callback
-            )
-            self.get_logger().info(f"Successfully created health update service at '{self.update_health_service_name}'")
-            
-            # Minimal delay to allow service registration to propagate
-            time.sleep(0.5)
-            
-            # Verify service is available and advertise it
-            try:
-                service_names_and_types = self.get_service_names_and_types()
-                service_names = [s[0] for s in service_names_and_types]
-                if self.update_health_service_name in service_names:
-                    self.get_logger().info(f"Successfully verified service is registered: {self.update_health_service_name}")
-                else:
-                    self.get_logger().warn(f"Service registration issue: {self.update_health_service_name} not found in:")
-                    for s in service_names:
-                        self.get_logger().warn(f"  {s}")
-            except Exception as e:
-                self.get_logger().error(f"Error verifying service: {e}")
-            
-        except Exception as e:
-            self.get_logger().error(f"Failed to create health update service: {e}")
-            
-        # Now proceed with the rest of initialization
-        self.get_logger().info(f"Using world name: {self.world_name}")
+        self.gazebo_world_name = self.get_parameter('gazebo_world_name').get_parameter_value().string_value
+        self.drone_model_base_name = self.get_parameter('drone_model_base_name').get_parameter_value().string_value
+        self.get_logger().info(f"Using drone model base name: {self.drone_model_base_name}")
 
         # Get list of all namespaces using the stable detection method
         self.get_logger().info("Detecting robot namespaces...")
@@ -179,153 +147,67 @@ class GameMasterNode(Node):
         for ns in self.team_1 + self.team_2:
             self.health_points.setdefault(ns, self.drone_health if 'px4_' in ns else self.ship_health)
 
-        # Initialize team points
+        # Initialize team points (renamed to preserve compatibility, but used differently now)
         self.team_points = {'team_1': 0, 'team_2': 0}
-
-        # Publishers fohealth_publishersr health points, detections, and communications
+        
+        # Track flagship health for win conditions
+        self.flagship_health = {
+            'team_1': sum(self.ship_health for ns in self.team_1 if '/flag_ship_' in ns),
+            'team_2': sum(self.ship_health for ns in self.team_2 if '/flag_ship_' in ns)
+        }
+        
+        # Track destroyed drones per team
+        self.destroyed_drones = {'team_1': 0, 'team_2': 0}
+        self.flagship_destroyed = {'team_1': False, 'team_2': False}
+        
+        # Store initial ship health values for comparison
+        self.initial_ship_health = {ns: self.ship_health for ns in self.namespaces if '/flag_ship_' in ns}
+        
+        # Publishers for health points, detections, and communications
         self.health_publishers = {ns: self.create_publisher(Int32, f'{ns}/health', 10) for ns in self.namespaces}
         self.detection_publishers = {ns: self.create_publisher(Detections, f'{ns}/detections', 10) for ns in self.namespaces}
         self.communication_publishers = {ns: self.create_publisher(String, f'{ns}/out_going_messages', 10) for ns in self.namespaces}
-
-        # Subscribers for communications
-        self.communication_subscribers = {ns: self.create_subscription(String, f'{ns}/incoming_messages', lambda msg, ns=ns: self.communication_callback(msg, ns), 10) for ns in self.namespaces}
-
+        
         # Timer to periodically update robot positions
         self.robot_poses = {}  # Combined position and orientation
-        self.get_logger().info(f"Initializing GazeboPosesTracker for {len(self.namespaces)} namespaces with world {self.world_name}")
+        self.gz = GazeboPosesTracker(self.namespaces, world_name=self.gazebo_world_name)
+        self.get_logger().info("Gazebo poses tracker initialized")
+        self.get_logger().info(f"Gazebo poses tracker for {self.namespaces}")
+        time.sleep(1) # Allow some time for Gazebo to initialize
+        self.update_positions()  # Initial call to populate robot_poses
+        self.update_positions_timer = self.create_timer(0.1, self.update_positions)
         
-        # Log all namespaces to help debugging
-        for i, ns in enumerate(self.namespaces):
-            self.get_logger().info(f"  Robot {i+1}: {ns}")
-            
-        # Create the GazeboPosesTracker with more explicit initialization
-        try:
-            time.sleep(0.5)
-            self.get_logger().info(f"Initializing GazeboPosesTracker for {len(self.namespaces)} namespaces with world {self.world_name}")
-            
-            for i, ns in enumerate(self.namespaces):
-                self.get_logger().info(f"  Robot {i+1}: {ns}")
-                
-            # Create GazeboPosesTracker with auto-detection of topic format
-            self.gz = GazeboPosesTracker(self.namespaces, world_name=self.world_name)
-            
-            # Check connection status
-            if hasattr(self.gz, 'connection_verified') and self.gz.connection_verified:
-                self.get_logger().info("✓ Successfully connected to Gazebo")
-            else:
-                self.get_logger().warn("⚠️ Could not verify Gazebo connection - some features may not work")
-                self._diagnose_gazebo_connection()
-                
-            if hasattr(self.gz, 'message_count') and self.gz.message_count > 0:
-                self.get_logger().info(f"GazeboPosesTracker already received {self.gz.message_count} messages")
-            else:
-                self.get_logger().warn("GazeboPosesTracker hasn't received any messages yet")
-                
-        except Exception as e:
-            self.get_logger().error(f"Error initializing GazeboPosesTracker: {e}")
-            self._diagnose_gazebo_connection()
-            self.get_logger().error("Continuing with limited functionality. Some features may not work correctly.")
-        
-        self.get_clock().sleep_for(rclpy.duration.Duration(seconds=2.0))
-        
-        self.update_positions_timer = self.create_timer(0.5, self.update_positions)
-        self.get_logger().info("Position update timer created")
-
         # Timer to periodically publish detections
-        self.timer = self.create_timer(1.0, self.detections_callback)
-
-        # Timer to track game duration
-        self.start_time = time.time()
-        self.game_timer = self.create_timer(1.0, self.game_timer_callback)
+        self.timer = self.create_timer(0.5 , self.detections_callback)
         
-        # Add time publisher
+        # Subscribers for communications
+        self.communication_subscribers = {ns: self.create_subscription(String, f'{ns}/incoming_messages', lambda msg, ns=ns: self.communication_callback(msg, ns), 10) for ns in self.namespaces}
+        
+        # Add time publisher (do this before initializing the game timer)
         self.time_publisher = self.create_publisher(Int32, '/game_master/time', 10)
-
-        # Timer to periodically publish health status (changed from 2.0 to 20.0 seconds)
+        
+        # Timer to periodically publish health status
         self.health_timer = self.create_timer(20.0, self.publish_health_status)
+        
+        # Create the service to update health
+        self.update_health_srv = self.create_service(UpdateHealth, 'update_health', self.update_health_callback)
+        
+        # Add kamikaze service client for drone destruction
+        self.kamikaze_client = self.create_client(Kamikaze, 'kamikaze')
+        self.get_logger().info("Created kamikaze service client for drone destruction")
 
         # Add debug information about subscribers and publishers
         self.get_logger().info("Setting up communication channels...")
         for ns in self.namespaces:
             self.get_logger().info(f"Created publisher for {ns}/out_going_messages")
             self.get_logger().info(f"Created subscriber for {ns}/incoming_messages")
-
-        # List available services again after full initialization
-        try:
-            from utils.gazebo_subscriber import check_ros2_services
-            available_services = check_ros2_services(verbose=False)
-            self.get_logger().info(f"Available services after full initialization: {len(available_services)}")
-            
-            update_services = [s for s in available_services if 'update_health' in s[0]]
-            self.get_logger().info(f"Health update services: {update_services}")
-        except Exception as e:
-            self.get_logger().error(f"Error listing available services: {e}")
-
-        # Add debug position publisher
-        self.debug_positions_publisher = self.create_publisher(String, '/game_master/debug_positions', 10)
-
-    def _diagnose_gazebo_connection(self):
-        """Diagnose Gazebo connection issues and print helpful information"""
-        self.get_logger().error("\n" + "!" * 80)
-        self.get_logger().error("GAZEBO CONNECTION DIAGNOSTIC")
-        self.get_logger().error("!" * 80)
         
-        # Check if Gazebo is running
-        try:
-            import subprocess
-            ps_result = subprocess.run(['ps', '-ef'], capture_output=True, text=True)
-            if 'gz sim' in ps_result.stdout or 'gzserver' in ps_result.stdout:
-                self.get_logger().info("✓ Gazebo server is running")
-                
-                # Check available topics
-                try:
-                    result = subprocess.run(['gz', 'topic', '-l'], capture_output=True, text=True, timeout=2)
-                    if result.returncode == 0:
-                        topics = result.stdout.strip().split('\n')
-                        self.get_logger().info(f"Found {len(topics)} Gazebo topics")
-                        
-                        # Check for alternative topic format
-                        model_topics = [t for t in topics if '/model/' in t]
-                        if model_topics and len(model_topics) > 0:
-                            self.get_logger().info("Detected model-based topic format")
-                            # Extract model names
-                            model_names = set()
-                            for topic in model_topics:
-                                parts = topic.split('/')
-                                if len(parts) > 2:
-                                    model_names.add(parts[2])
-                                    
-                            if model_names:
-                                self.get_logger().info(f"Detected models: {list(model_names)[:5]}...")
-                            
-                            # Explain what this means
-                            self.get_logger().info("The topic format is different but should work automatically")
-                        
-                        # Also check for world-based topics
-                        world_topics = [t for t in topics if '/world/' in t]
-                        if world_topics:
-                            worlds = set([t.split('/')[2] for t in world_topics if len(t.split('/')) > 3])
-                            if worlds:
-                                self.get_logger().info(f"Detected worlds: {worlds}")
-                                if self.world_name not in worlds:
-                                    self.get_logger().warn(f"Configured world '{self.world_name}' not found!")
-                                    self.get_logger().warn(f"Available worlds: {worlds}")
-                                    self.get_logger().warn("Set world_name parameter to match an available world")
-                    else:
-                        self.get_logger().error(f"Failed to list Gazebo topics: {result.stderr}")
-                except Exception as e:
-                    self.get_logger().error(f"Error checking Gazebo topics: {e}")
-            else:
-                self.get_logger().error("✗ NO Gazebo server found running!")
-                self.get_logger().error("  Please start Gazebo with: gz sim -v4 your_world.sdf")
-        except Exception as e:
-            self.get_logger().error(f"Error checking Gazebo process: {e}")
-        
-        self.get_logger().error("\nPossible solutions:")
-        self.get_logger().error("1. Make sure Gazebo is running with the correct world")
-        self.get_logger().error("2. Check if the world_name parameter matches the running simulation")
-        self.get_logger().error("3. Restart Gazebo and then restart this node")
-        self.get_logger().error("!" * 80 + "\n")
+        # Initialize the game timer at the end of initialization
+        # Store the start time - ensure clock is synchronized first
+        current_time = self.get_clock().now()
+        self.start_time = current_time
+        # Create the timer for game duration tracking
+        self.game_timer = self.create_timer(1.0, self.game_timer_callback)
 
     def update_positions(self):
         """
@@ -334,48 +216,20 @@ class GameMasterNode(Node):
         in self.robot_poses in a standardized format.
         """
         try:
-            should_log_detail = (hasattr(self, '_position_update_count') == False) or (self._position_update_count % 20 == 0)
-            if not hasattr(self, '_position_update_count'):
-                self._position_update_count = 0
-                self.get_logger().info("First position update attempt")
-            self._position_update_count += 1
-            
-            if should_log_detail:
-                self.get_logger().info(f"Updating positions (attempt #{self._position_update_count})")
-            
             if not self.namespaces:
-                if should_log_detail:
-                    self.get_logger().warn("No robot namespaces detected, can't update positions")
+                self.get_logger().warn("No robot namespaces detected, can't update positions")
                 return
-            
-            if not hasattr(self.gz, 'are_poses_valid'):
-                if should_log_detail:
-                    self.get_logger().warn("GazeboPosesTracker missing 'are_poses_valid' method")
-                return
-                
-            if not self.gz.are_poses_valid():
-                if should_log_detail:
-                    self.get_logger().warn("No valid pose data received from Gazebo yet")
-                    if hasattr(self.gz, 'message_count'):
-                        self.get_logger().warn(f"GazeboPosesTracker message count: {self.gz.message_count}")
-                    if hasattr(self.gz, 'model_names'):
-                        self.get_logger().warn(f"GazeboPosesTracker looking for models: {self.gz.model_names[:3]}...")
-                return
-                
-            if self._position_update_count == 1 or (self._position_update_count % 100 == 0):
-                self.get_logger().info("GazeboPosesTracker has valid pose data")
-                sample_model = list(self.gz.poses.keys())[0] if self.gz.poses else "None"
-                self.get_logger().info(f"Sample model: {sample_model}")
-            
+
             valid_poses = 0
             for ns in self.namespaces:
                 try:
                     pose = self.gz.get_pose(ns)
+                    # Check if pose has valid values
                     if pose['position']['x'] is None:
-                        if should_log_detail:
-                            self.get_logger().warn(f"Invalid pose data for {ns}")
+                        self.get_logger().warn(f"Invalid pose data for {ns}")
                         continue
-                        
+
+                    # Store poses in a consistent format
                     self.robot_poses[ns] = {
                         'position': (pose['position']['x'], 
                                   pose['position']['y'], 
@@ -385,109 +239,118 @@ class GameMasterNode(Node):
                                       pose['orientation']['z'],
                                       pose['orientation']['w'])
                     }
+                    # self.get_logger().info(f"Updated pose for {ns}: {self.robot_poses[ns]}")
                     valid_poses += 1
                 except Exception as e:
-                    if should_log_detail:
-                        self.get_logger().error(f"Error updating pose for {ns}: {e}")
-            
+                    self.get_logger().error(f"Error updating pose for {ns}: {e}")
+
             if valid_poses == 0:
-                if should_log_detail:
-                    self.get_logger().warn("No valid poses retrieved from any robot")
+                self.get_logger().warn("No valid poses retrieved from any robot")
                 return
-                
-            if self.robot_poses:
-                debug_msg = String()
-                positions_dict = {}
-                for ns, pose in self.robot_poses.items():
-                    positions_dict[ns] = {
-                        "position": {
-                            "x": pose['position'][0],
-                            "y": pose['position'][1],
-                            "z": pose['position'][2]
-                        },
-                        "orientation": {
-                            "x": pose['orientation'][0],
-                            "y": pose['orientation'][1],
-                            "z": pose['orientation'][2],
-                            "w": pose['orientation'][3]
-                        }
-                    }
-                debug_msg.data = json.dumps(positions_dict)
-                self.debug_positions_publisher.publish(debug_msg)
-                
-                if should_log_detail:
-                    self.get_logger().info(f"Published debug positions for {len(positions_dict)} robots")
-                
-                if valid_poses > 0 and self.update_positions_timer.timer_period_ns > 100000000:
-                    self.update_positions_timer.timer_period_ns = 100000000
-                    self.get_logger().info("Increased position update frequency to 10Hz")
-            else:
-                if should_log_detail:
-                    self.get_logger().warn("No robot poses available to publish")
-            
-            # Check if we're having persistent Gazebo connection issues
-            if hasattr(self, '_position_update_count') and self._position_update_count > 20:
-                if not hasattr(self.gz, 'message_count') or self.gz.message_count == 0:
-                    # We've been trying for a while with no messages
-                    if not hasattr(self, '_gazebo_warning_shown'):
-                        self._gazebo_warning_shown = True
-                        self.get_logger().error("\n" + "!" * 80)
-                        self.get_logger().error("CRITICAL: No position data received from Gazebo after multiple attempts")
-                        self._diagnose_gazebo_connection()
-                        self.get_logger().error("Game will continue with limited functionality")
-                        self.get_logger().error("!" * 80 + "\n")
         except Exception as e:
             self.get_logger().error(f"Error in update_positions: {e}")
 
     def game_timer_callback(self):
         """
         Monitor game progress and check for end conditions.
-        
         Tracks:
         - Remaining game time
-        - Flagship destruction
-        - Game termination conditions
-        
-        Publishes the remaining time to /game_master/time topic.
+        - Publishes the remaining time to /game_master/time topic.
         """
-        elapsed_time = time.time() - self.start_time
-        remaining_time = max(0, int(self.game_duration - elapsed_time))
+        if self.start_time.seconds_nanoseconds()[0] == 0:
+            self.start_time = self.get_clock().now()
+            self.get_logger().info("Waiting for clock synchronization...")
+            time.sleep(1)
+            return
+
+        current_time = self.get_clock().now()
+        # Calculate elapsed time using proper ROS2 time methods
+        elapsed_duration = current_time - self.start_time
+        elapsed_seconds = elapsed_duration.nanoseconds / 1e9      
+        remaining_time = max(0, int(self.game_duration - elapsed_seconds))
         
+        # Publish remaining time
         time_msg = Int32()
         time_msg.data = remaining_time
         self.time_publisher.publish(time_msg)
         
-        if elapsed_time >= self.game_duration:
+        # Safety check - ensure we only end if elapsed time is reasonable (prevent false end on startup)
+        if elapsed_seconds > 1.0 and elapsed_seconds >= self.game_duration:
+            self.get_logger().info(f"Game duration reached: {elapsed_seconds:.2f} >= {self.game_duration}")
             self.end_game()
-        else:
-            for ship in ['flag_ship_1', 'flag_ship_2']:
-                if self.health_points.get(ship, 0) <= 0:
-                    self.end_game()
+        
+        # Add periodic progress updates with flagship health
+        if int(elapsed_seconds) % 60 == 0 and int(elapsed_seconds) > 0:
+            self.get_logger().info(f"GAME STATUS: {elapsed_seconds:.0f}/{self.game_duration} seconds elapsed, {remaining_time} seconds remaining")
+            
+            # Calculate current flagship health
+            team1_ship_health = sum(self.health_points.get(ns, 0) for ns in self.team_1 if '/flag_ship_' in ns)
+            team2_ship_health = sum(self.health_points.get(ns, 0) for ns in self.team_2 if '/flag_ship_' in ns)
+            
+            # Count surviving drones
+            team1_surviving_drones = len([ns for ns in self.team_1 if '/px4_' in ns and self.health_points.get(ns, 0) > 0])
+            team2_surviving_drones = len([ns for ns in self.team_2 if '/px4_' in ns and self.health_points.get(ns, 0) > 0])
+            
+            self.get_logger().info(f"STATUS: Team 1 ship health: {team1_ship_health}, drones: {team1_surviving_drones}")
+            self.get_logger().info(f"STATUS: Team 2 ship health: {team2_ship_health}, drones: {team2_surviving_drones}")
 
     def end_game(self):
         """
-        Handle game termination and results logging.
-        
-        - Determines the winning team
-        - Generates detailed game results
-        - Saves results to:
-            - game_results.txt (cumulative results)
-            - individual_games/game_results_TIMESTAMP.txt (individual game results)
+        Handle game termination and results logging based on new win conditions:
+        1. Team that destroyed enemy flagship wins
+        2. Otherwise, team with healthiest flagship wins
+        3. If flagship health is tied, team with most surviving drones wins
+        4. If everything is tied, it's a draw
         """
         self.get_logger().info('Game Over')
+        
+        # Check victory conditions:
+        team1_flagship_destroyed = any(ns in self.team_1 and '/flag_ship_' in ns and self.health_points.get(ns, 0) == 0 
+                                        for ns in self.namespaces)
+        team2_flagship_destroyed = any(ns in self.team_2 and '/flag_ship_' in ns and self.health_points.get(ns, 0) == 0 
+                                        for ns in self.namespaces)
+        
+        # Calculate current flagship health
+        team1_ship_health = sum(self.health_points.get(ns, 0) for ns in self.team_1 if '/flag_ship_' in ns)
+        team2_ship_health = sum(self.health_points.get(ns, 0) for ns in self.team_2 if '/flag_ship_' in ns)
+        
+        # Count surviving drones
+        team1_surviving_drones = len([ns for ns in self.team_1 if '/px4_' in ns and self.health_points.get(ns, 0) > 0])
+        team2_surviving_drones = len([ns for ns in self.team_2 if '/px4_' in ns and self.health_points.get(ns, 0) > 0])
+        
+        # Determine the winner based on new rules
         result = "Game Over\n"
-        if self.team_points['team_1'] > self.team_points['team_2']:
-            result += 'Team 1 wins!\n'
-        elif self.team_points['team_1'] < self.team_points['team_2']:
-            result += 'Team 2 wins!\n'
+        
+        if team2_flagship_destroyed:
+            result += 'Team 1 wins! (Destroyed enemy flagship)\n'
+            winner = "team_1"
+        elif team1_flagship_destroyed:
+            result += 'Team 2 wins! (Destroyed enemy flagship)\n'
+            winner = "team_2"
+        elif team1_ship_health > team2_ship_health:
+            result += 'Team 1 wins! (Flagship has more health)\n'
+            winner = "team_1"
+        elif team2_ship_health > team1_ship_health:
+            result += 'Team 2 wins! (Flagship has more health)\n'
+            winner = "team_2"
+        elif team1_surviving_drones > team2_surviving_drones:
+            result += 'Team 1 wins! (Has more surviving drones)\n'
+            winner = "team_1"
+        elif team2_surviving_drones > team1_surviving_drones:
+            result += 'Team 2 wins! (Has more surviving drones)\n'
+            winner = "team_2"
         else:
-            result += 'It\'s a draw!\n'
+            result += 'The game is a draw! (Equal flagship health and surviving drones)\n'
+            winner = "draw"
+        
+        # Add detailed statistics
+        result += f"Team 1 flagship health: {team1_ship_health}/{sum(self.initial_ship_health.get(ns, 0) for ns in self.team_1 if '/flag_ship_' in ns)}\n"
+        result += f"Team 1 drones: {team1_surviving_drones} surviving, {self.destroyed_drones['team_1']} destroyed\n"
+        result += f"Team 2 flagship health: {team2_ship_health}/{sum(self.initial_ship_health.get(ns, 0) for ns in self.team_2 if '/flag_ship_' in ns)}\n"
+        result += f"Team 2 drones: {team2_surviving_drones} surviving, {self.destroyed_drones['team_2']} destroyed\n"
+        result += f"Winner: {winner}\n"
 
-        result += f"Team 1 points: {self.team_points['team_1']}\n"
-        result += "Team 1 alive robots: " + ", ".join([ns for ns in self.team_1 if self.health_points.get(ns, 0) > 0]) + "\n"
-        result += f"Team 2 points: {self.team_points['team_2']}\n"
-        result += "Team 2 alive robots: " + ", ".join([ns for ns in self.team_2 if self.health_points.get(ns, 0) > 0]) + "\n"
-
+        # Locate the SWARMz4 directory
         home_dir = os.path.expanduser("~")
         swarmz4_path = None
         for root, dirs, files in os.walk(home_dir):
@@ -496,27 +359,30 @@ class GameMasterNode(Node):
                 break
 
         if not swarmz4_path:
-            self.get_logger().error("SWARMz4 directory not found! Logging results instead.")
-            self.get_logger().info(result)
-            rclpy.shutdown()
+            self.get_logger().info("SWARMz4 directory not found. Logging results instead.")
             return
 
-        result_dir = os.path.join(swarmz4_path, 'game_results')
-        result_file = os.path.join(result_dir, 'game_results.txt')
-        
+        # Create results directory if it doesn't exist
+        result_dir = os.path.join(swarmz4_path, 'results')
         if not os.path.exists(result_dir):
+            self.get_logger().info(f"Creating results directory at: {result_dir}")
             os.makedirs(result_dir)
         else:
-            pass
+            self.get_logger().info(f"Results directory already exists at: {result_dir}")
+
+        # Write to game_results.txt
+        result_file = os.path.join(result_dir, 'game_results.txt')
         
+        # Initialize game_number to 1 (for first game) before checking if file exists
         game_number = 1
+        
         if os.path.exists(result_file):
             self.get_logger().info(f"Result file exists. Reading current content.")
             with open(result_file, 'r') as file:
                 content = file.read()
                 game_number = content.count("--- Game") + 1
+            self.get_logger().info(f"Appending results for Game {game_number}.")
             with open(result_file, 'a') as file:
-                self.get_logger().info(f"Appending results for Game {game_number}.")
                 file.write(f"\n--- Game {game_number} ---\n")
                 file.write(result)
         else:
@@ -525,16 +391,18 @@ class GameMasterNode(Node):
                 file.write(f"--- Game {game_number} ---\n")
                 file.write(result)
 
+        # Write to individual_games
         individual_games_dir = os.path.join(result_dir, 'individual_games')
-        
+        # Ensure the directory exists
         if not os.path.exists(individual_games_dir):
+            self.get_logger().info(f"Creating individual games directory at: {individual_games_dir}")
             os.makedirs(individual_games_dir)
         else:
-            pass
+            self.get_logger().info(f"Individual games directory already exists at: {individual_games_dir}")
 
+        # Create a unique filename with a timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         individual_result_file = os.path.join(individual_games_dir, f'game_results_{timestamp}.txt')
-
         with open(individual_result_file, 'w') as file:
             file.write(result)
 
@@ -544,12 +412,12 @@ class GameMasterNode(Node):
     def detections_callback(self):
         """
         Manage the periodic publication of detection information.
-        Uses multi-threading to efficiently process and publish
-        detection data for all robots simultaneously.
+        Uses multi-threading to efficiently process and publish detection data for all robots simultaneously.
         """
+        # Check if we have valid pose data
         if not self.robot_poses or None in self.robot_poses[next(iter(self.robot_poses))]['position']:
             return
-            
+
         threads = []
         for ns in self.namespaces:
             thread = threading.Thread(target=self.publish_detections, args=(ns,))
@@ -577,7 +445,7 @@ class GameMasterNode(Node):
         :return: True if they are friends, False otherwise.
         """
         return (ns1 in self.team_1 and ns2 in self.team_1) or (ns1 in self.team_2 and ns2 in self.team_2)
-    
+
     def get_detections(self, namespace):
         """
         Calculate which robots are within detection range of the specified robot.
@@ -596,27 +464,19 @@ class GameMasterNode(Node):
             return detections
             
         transmitter_pose = self.robot_poses[namespace]
+        # Validate transmitter pose
         if None in transmitter_pose['position'] or None in transmitter_pose['orientation']:
             return detections
-            
-        is_transmitter_drone = '/px4_' in namespace
+        
+        detection_range = self.drone_detection_range if '/px4_' in namespace else self.ship_detection_range
         
         for robot, receiver_pose in self.robot_poses.items():
             if robot == namespace:
                 continue
-                
+
+            # Validate receiver pose
             if None in receiver_pose['position'] or None in receiver_pose['orientation']:
                 continue
-                
-            is_receiver_drone = '/px4_' in robot
-            
-            if is_transmitter_drone:
-                detection_range = self.drone_detection_range
-            else:
-                if is_receiver_drone:
-                    detection_range = self.ship2drone_detection_range
-                else:
-                    detection_range = self.ship2ship_detection_range
                 
             try:
                 distance = get_distance(transmitter_pose['position'], receiver_pose['position'])
@@ -625,15 +485,15 @@ class GameMasterNode(Node):
                     detection.vehicle_type = Detection.DRONE if '/px4_' in robot else Detection.SHIP
                     detection.is_friend = self.is_friend(namespace, robot)
                     
+                    # Get relative position in NED frame
                     relative_position = get_relative_position_with_orientation(
                         transmitter_pose['position'], 
-                        transmitter_pose['orientation'],
+                        transmitter_pose['orientation'], 
                         receiver_pose['position']
                     )
-                    
-                    detection.relative_position.x = relative_position[0]
-                    detection.relative_position.y = -relative_position[1]
-                    detection.relative_position.z = -relative_position[2]
+                    detection.relative_position.x = relative_position[0]   # Forward
+                    detection.relative_position.y = -relative_position[1]   # Right
+                    detection.relative_position.z = -relative_position[2]   # Down
                     
                     detections.append(detection)
             except (TypeError, ValueError) as e:
@@ -648,6 +508,7 @@ class GameMasterNode(Node):
         :param msg: The communication message.
         :param sender_ns: The namespace of the sender robot.
         """
+        # Check if sender position exists
         if sender_ns not in self.robot_poses:
             self.get_logger().warn(f'No pose data for sender {sender_ns}')
             return
@@ -669,7 +530,7 @@ class GameMasterNode(Node):
             receiver_pose = self.robot_poses[ns]
             if None in receiver_pose['position']:
                 continue
-                
+
             distance = get_distance(sender_pose['position'], receiver_pose['position'])
             
             if distance <= communication_range:
@@ -706,30 +567,62 @@ class GameMasterNode(Node):
         :param damage: The amount of damage to apply (optional).
         """
         if ns not in self.namespaces:
-
             self.get_logger().warn(f'{ns} not found in robot list : {self.namespaces}. Cannot update health.')
             return
         if damage > 0:
             current_health = self.get_health(ns)
             health = max(0, current_health - damage)
-        
         if health is not None:
             self.health_points[ns] = health
-            self.get_logger().info(f'{ns} health is now {health}')
+            # Only log significant health changes
+            if health <= 3 or damage >= 3:
+                self.get_logger().info(f'⚠️ {ns} health is now {health} (took {damage} damage)')
+            else:
+                self.get_logger().debug(f'{ns} health is now {health}')
+            
             health_msg = Int32()
             health_msg.data = health
             self.health_publishers[ns].publish(health_msg)
             if health == 0:
-                self.update_team_points(ns)
                 if 'px4_' in ns:
-                    self.get_logger().info(f'{ns} is destroyed, awarding {self.drone_points} points')
+                    self.get_logger().info(f'💥 DESTROYED: {ns} is eliminated')
+                    
+                    # Track destroyed drones per team
+                    if ns in self.team_1:
+                        self.destroyed_drones['team_1'] += 1
+                    elif ns in self.team_2:
+                        self.destroyed_drones['team_2'] += 1
+                    
+                    # Call kamikaze service to make the drone explode before removing it
+                    if self.kamikaze_client.service_is_ready():
+                        self.get_logger().info(f'Triggering kamikaze explosion for {ns}')
+                        request = Kamikaze.Request()
+                        request.robot_name = ns
+                        # Call kamikaze synchronously - we want to wait for explosion before removing
+                        future = self.kamikaze_client.call_async(request)
+                        # Add a small delay for visual effect but don't wait for response
+                        # The drone might be destroyed during kamikaze
+                        self.get_clock().sleep_for(rclpy.duration.Duration(seconds=0.5))
+                    else:
+                        self.get_logger().warn(f'Kamikaze service not available for {ns} destruction')
+                    
                     self.kill_drone(ns)
                     if ns in self.namespaces:
+                        # Remove the destroyed drone from the list of namespaces
                         self.namespaces.remove(ns)
-                        self.gz = GazeboPosesTracker(self.namespaces)             
+                        # Update the GazeboPosesTracker with the new list of namespaces
+                        self.gz = GazeboPosesTracker(self.namespaces, world_name=self.gazebo_world_name)
                 elif 'flag_ship_' in ns:
-                    self.get_logger().info(f'{ns} is destroyed, awarding {self.ship_points} points')
-                    self.get_logger().info(f'{ns} is destroyed, ending game')
+                    self.get_logger().info(f'💥 FLAGSHIP DESTROYED: {ns}')
+                    
+                    # Mark which team's flagship was destroyed
+                    if ns in self.team_1:
+                        self.flagship_destroyed['team_1'] = True
+                        self.get_logger().info(f"Team 1's flagship has been destroyed! Team 2 wins!")
+                    else:
+                        self.flagship_destroyed['team_2'] = True
+                        self.get_logger().info(f"Team 2's flagship has been destroyed! Team 1 wins!")
+                            
                     self.end_game()
         return
 
@@ -740,25 +633,30 @@ class GameMasterNode(Node):
         :return: A dictionary mapping each robot namespace to a sub-dictionary containing model ID and name.
                 Example: {"/px4_0": {"id": 123, "name": "x500_lidar_front_0"}}
         """
-        node = GzNode()
         scene_info = Scene()
 
+        # Request scene info from Gazebo using the existing node
         self.get_logger().info("Checking scene info for robots.")
-        result, response = node.request("/world/"+self.world_name+"/scene/info", Empty(), Empty, Scene, 1000)
+        scene_info_topic = f"/world/{self.gazebo_world_name}/scene/info"
+        result, response = self.gz_node.request(scene_info_topic, Empty(), Empty, Scene, 1000)
         if not result:
-            self.get_logger().info("Failed to retrieve scene info from Gazebo.")
+            self.get_logger().info(f"Failed to retrieve scene info from Gazebo world '{self.gazebo_world_name}'.")
             return {}
         scene_info = response
 
+        # Create a mapping of robot namespaces to expected model names
         namespace_to_model = {
-            robot_name: f"x500_lidar_front_{robot_name.split('_')[-1]}" for robot_name in robot_list
+            robot_name: f"{self.drone_model_base_name}_{robot_name.split('_')[-1]}" for robot_name in robot_list
         }
         model_ids = {}
 
+        # Search for matching models in the scene
         for model in scene_info.model:
             if model.name in namespace_to_model.values():
+                # Extract instance number from model name
                 instance_number = model.name.split("_")[-1]
 
+                # Find the corresponding namespace key
                 robot_name = f"/px4_{instance_number}"
                 model_ids[robot_name] = {
                     "id": model.id,
@@ -766,6 +664,7 @@ class GameMasterNode(Node):
                 }
                 self.get_logger().info(f"Found model '{model.name}' (Namespace: '{robot_name}') with ID: {model.id}")
 
+        # Log missing robots
         for robot_name, model_name in namespace_to_model.items():
             if robot_name not in model_ids:
                 self.get_logger().info(f"Model '{model_name}' (Namespace: '{robot_name}') not found.")
@@ -776,40 +675,62 @@ class GameMasterNode(Node):
         """
         Remove the model from Gazebo using its ID and name via Gazebo Transport API.
         If removal by ID fails, attempts removal by model name as a fallback.
+        If both service attempts fail, tries using the scene deletion topic.
         
         :param model: A dictionary containing the model ID and name of the drone to be removed
         :return: True if removal was successful, False otherwise
         """
-        node = GzNode()
         success = False
         
+        # First attempt: Remove by model ID
         if "id" in model:
             entity_msg = Entity()
             entity_msg.id = model.get("id")
             entity_msg.type = Entity.MODEL
             
-            self.get_logger().info(f"Attempting to remove model by ID: {model.get('id')}")
-            result, response = node.request("/world/"+self.world_name+"/remove", entity_msg, Entity, Boolean, 1000)
-            
+            removal_service = f"/world/{self.gazebo_world_name}/remove"
+            self.get_logger().info(f"Attempting to remove model by ID: {model.get('id')} via {removal_service}")
+            result, response = self.gz_node.request(removal_service, entity_msg, Entity, Boolean, 1000)
             if result and response.data:
                 self.get_logger().info(f"Successfully removed model with ID {model.get('id')}")
                 success = True
             else:
                 self.get_logger().info(f"Failed to remove model by ID {model.get('id')}, will try by name")
         
+        # Second attempt: Remove by model name (if ID attempt failed or no ID provided)
         if not success and "name" in model:
             entity_msg = Entity()
             entity_msg.name = model.get("name")
             entity_msg.type = Entity.MODEL
             
-            self.get_logger().info(f"Attempting to remove model by name: {model.get('name')}")
-            result, response = node.request("/world/"+self.world_name+"/remove", entity_msg, Entity, Boolean, 1000)
+            removal_service = f"/world/{self.gazebo_world_name}/remove"
+            self.get_logger().info(f"Attempting to remove model by name: {model.get('name')} via {removal_service}")
+            result, response = self.gz_node.request(removal_service, entity_msg, Entity, Boolean, 1000)
             
             if result and response.data:
                 self.get_logger().info(f"Successfully removed model with name {model.get('name')}")
                 success = True
             else:
                 self.get_logger().info(f"Failed to remove model by name {model.get('name')}")
+        
+        # Third attempt: Use the scene deletion topic (if both service attempts failed)
+        if not success and "id" in model:
+            try:
+                self.get_logger().info(f"Attempting to remove model by topic publication: {model.get('id')}")
+                # Create a UInt32_V message with the model ID
+                uint32_v_msg = UInt32_V()
+                uint32_v_msg.data.append(model.get("id"))
+                
+                # Use the configured world name
+                deletion_topic = f"/world/{self.gazebo_world_name}/scene/deletion"
+                published = self.gz_node.publish(deletion_topic, uint32_v_msg)
+                if published:
+                    self.get_logger().info(f"Published deletion command to {deletion_topic}")
+                    success = True
+                else:
+                    self.get_logger().info(f"Failed to publish to scene deletion topic {deletion_topic}")
+            except Exception as e:
+                self.get_logger().error(f"Error during topic-based model removal: {e}")
         
         return success
 
@@ -818,6 +739,7 @@ class GameMasterNode(Node):
         Kill the drone processes and remove the model from Gazebo.
         :param robotnamespace_name: The namespace of the drone.
         """
+        # Remove the drone model from Gazebo
         model = self.drone_models.get(namespace)
         self.get_logger().info(f'model_id: {model}') 
         if (model):
@@ -826,6 +748,7 @@ class GameMasterNode(Node):
         else:
             self.get_logger().warn(f'failed to find model ID of {namespace}')
         
+        # Kill the drone processes
         self.kill_drone_processes(namespace)
         self.get_logger().info(f'killed drone processes for {namespace}')
         return
@@ -833,43 +756,43 @@ class GameMasterNode(Node):
     def kill_drone_processes(self, namespace):
         """
         Kill the processes of all ROS 2 nodes running on the concerned px4_ instance.
+        Does not kill px4_0 processes as they run the simulation.
         :param namespace: The namespace of the drone.
         """
         self.get_logger().info(f'Killing processes of all ROS 2 nodes in namespace {namespace}')
         try:
+            # Extract drone index
+            drone_index = namespace.split("_")[-1]
+            # Kill ros2 processes in the namespace (always do this part)
             try:
                 subprocess.run(
                     f'pgrep -f "\-r __ns:={namespace}" | xargs kill -9',
                     shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except subprocess.CalledProcessError:
-                pass
+                pass  # Suppressing errors
 
-            try:
-                subprocess.run(
-                    f'pkill -f "px4 -i {namespace.split("_")[-1]}"',
-                    shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except subprocess.CalledProcessError:
-                pass
-
-            try:
-                subprocess.run(
-                    f'pkill -f "px4_{namespace.split("_")[-1]}"',
-                    shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except subprocess.CalledProcessError:
-                pass
+            # Only kill px4 processes if it's not px4_0
+            if drone_index != "0":
+                self.get_logger().info(f'Killing PX4 processes for {namespace}')
+                # Kill the px4 processes
+                try:
+                    subprocess.run(
+                        f'pkill -f "px4 -i {drone_index}"',
+                        shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                except subprocess.CalledProcessError:
+                    pass  # Suppressing errors
+                # Kill any other px4 related processes
+                try:
+                    subprocess.run(
+                        f'pkill -f "px4_{drone_index}"',
+                        shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                except subprocess.CalledProcessError:
+                    pass  # Suppressing errors
+            else:
+                self.get_logger().info(f'Skipping PX4 process termination for {namespace} as it runs the simulation')
 
         except subprocess.CalledProcessError:
-            pass
-
-    def update_team_points(self, ns):
-        """
-        Update the team points based on the destruction of a robot.
-        :param ns: The namespace of the destroyed robot.
-        """
-        if ns in self.team_1:
-            self.team_points['team_2'] += self.drone_points if 'px4_' in ns else self.ship_points
-        elif ns in self.team_2:
-            self.team_points['team_1'] += self.drone_points if 'px4_' in ns else self.ship_points
+            pass  # Suppressing any remaining errors
 
     def publish_health_status(self):
         """

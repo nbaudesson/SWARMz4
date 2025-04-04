@@ -73,23 +73,29 @@ def check_gazebo(world_name):
         print_result("Gazebo world available", False, "Gazebo is not running")
         return False
     
-    # Check Gazebo topics with increased timeout
+    # Get topics once and reuse instead of multiple calls
     print("Checking Gazebo topics (may take up to 10 seconds)...")
     return_code, stdout, stderr = run_command(["gz", "topic", "-l"], timeout=10)
+    
+    # Parse topics once and reuse
+    topics = stdout.strip().split('\n') if return_code == 0 and stdout else []
+    
+    topic_available = len(topics) > 0
     if return_code != 0:
         if "timed out" in stderr:
             print_result("Gazebo topics accessible", True, 
-                         f"Command timed out but Gazebo is running. Continuing with direct model access.")
+                        f"Command timed out but Gazebo is running. Continuing with direct model access.")
+            topic_available = True
         else:
             print_result("Gazebo topics accessible", False, f"Error: {stderr}")
             return False
+    else:
+        print_result("Gazebo topics accessible", topic_available, f"Found {len(topics)} topics")
     
-    topics = stdout.strip().split('\n') if stdout else []
-    print_result("Gazebo topics accessible", len(topics) > 0, f"Found {len(topics)} topics")
-    
-    # Check for world topics
+    # Process topic data once instead of duplicating logic
     world_topics = [t for t in topics if f'/world/{world_name}/' in t]
     model_topics = [t for t in topics if '/model/' in t]
+    pose_topics = [t for t in topics if 'pose' in t]
     
     # If we have model topics but no world topics, we're in a different topic format scenario
     if len(model_topics) > 0 and len(world_topics) == 0:
@@ -97,7 +103,6 @@ def check_gazebo(world_name):
                     f"Using model-based topics instead of world-based topics")
         
         # Check if we have pose-related topics
-        pose_topics = [t for t in topics if 'pose' in t]
         print_result("Pose information available", len(pose_topics) > 0,
                     f"Found {len(pose_topics)} pose-related topics")
                     
@@ -177,8 +182,8 @@ def check_ros2():
     print_result("ROS2 system running", return_code == 0, 
                 f"Found {len(nodes)} nodes" if nodes else "No nodes found")
     
-    if nodes:
-        print_result("Node list", True, nodes[:5] + (["..."] if len(nodes) > 5 else []))
+    # Don't print the full node list - it floods the terminal
+    # Only show critical nodes status
     
     # Check if critical nodes are running
     game_master = any('game_master_node' in node for node in nodes)

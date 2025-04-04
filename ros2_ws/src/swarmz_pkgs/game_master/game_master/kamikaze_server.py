@@ -19,6 +19,8 @@ Configuration Parameters:
 - explosion_range (float): Radius in meters of explosion effect (default: 5.0)
 - world_name (string): Gazebo world name (default: "swarmz_world_2")
 - update_health_service_name (string): Name of the update_health service (default: "/update_health")
+- enable_gazebo_debug (bool): Enable Gazebo debug mode (default: False)
+- gazebo_debug_interval (float): Interval in seconds for Gazebo debug logging (default: 60.0)
 
 Usage:
 ------
@@ -75,7 +77,7 @@ import rclpy
 from rclpy.node import Node
 from utils.tools import get_all_namespaces, get_distance, get_stable_namespaces
 from utils.gazebo_subscriber import GazeboPosesTracker
-import time
+import time  # Still needed for sleep
 
 # ----------------------
 # Main Service Class
@@ -100,12 +102,15 @@ class KamikazeServiceServer(Node):
         self.world_name = self.get_parameter('world_name').get_parameter_value().string_value
         self.update_health_service_name = self.get_parameter('update_health_service_name').get_parameter_value().string_value
 
-        # Get list of all namespaces using the stable detection method
+        # Get list of all namespaces and initialize GazeboPosesTracker in one step  
         self.get_logger().info("Detecting robot namespaces...")
         self.namespaces = get_stable_namespaces(self, max_attempts=10, wait_time=1.0)
-
-        # Create a GazeboPosesTracker object to track robot positions
-        self.gz = GazeboPosesTracker(self.namespaces, world_name=self.world_name)
+        
+        # Create GazeboPosesTracker directly without redundant variable declarations
+        self.gz = GazeboPosesTracker(
+            self.namespaces, 
+            world_name=self.world_name,
+        )
 
         # Create the kamikaze service first to ensure it's available
         self.srv = self.create_service(Kamikaze, 'kamikaze', self.kamikaze_callback)
@@ -115,31 +120,25 @@ class KamikazeServiceServer(Node):
         self.get_logger().info(f"Creating client for '{self.update_health_service_name}' service")
         self.update_health_client = self.create_client(UpdateHealth, self.update_health_service_name)
         
-        # Process current services to debug
-        services = self.get_node_names_and_namespaces()
-        self.get_logger().info(f"Current nodes: {services}")
-        
-        # Add service discovery debugging
+        # Add service discovery checking but without flooding output
         try:
             from utils.gazebo_subscriber import check_ros2_services
             services = check_ros2_services(verbose=False)
             service_names = [s[0] for s in services]
-            self.get_logger().info(f"Available services: {service_names}")
             
-            if self.update_health_service_name in service_names:
-                self.get_logger().info(f"'{self.update_health_service_name}' service is available")
-            else:
-                self.get_logger().warn(f"'{self.update_health_service_name}' service is NOT available yet")
+            # Only log important service status, not the full list
+            has_update_health = self.update_health_service_name in service_names
+            self.get_logger().info(f"UpdateHealth service available: {has_update_health}")
         except Exception as e:
             self.get_logger().error(f"Error checking ROS2 services: {e}")
         
         # Initialize service connection status
         self.service_ready = False
-        self.last_service_check_time = 0
+        self.last_service_check_time = self.get_clock().now()
         
         # Create a timer to periodically check for the update_health service
         self.service_check_timer = self.create_timer(2.0, self.check_service_availability)
-        self.get_logger().info("Service check timer initialized, will retry connecting to update_health service every 2 seconds")
+        self.get_logger().info("Service check timer initialized")
 
         self.get_logger().info('KamikazeServiceServer initialized with parameters: '
                         f'explosion_damage={self.explosion_damage}, '
@@ -152,9 +151,10 @@ class KamikazeServiceServer(Node):
             # Already connected, no need to check
             return
             
-        current_time = time.time()
+        current_time = self.get_clock().now()
         # Don't spam logs, only log every 10 seconds
-        should_log = (current_time - self.last_service_check_time) >= 10.0
+        time_diff_seconds = (current_time - self.last_service_check_time).nanoseconds / 1e9
+        should_log = time_diff_seconds >= 10.0
         
         if self.update_health_client.service_is_ready():
             self.service_ready = True
@@ -188,7 +188,9 @@ class KamikazeServiceServer(Node):
         return future
 
     def kamikaze_callback(self, request, response):
+        # Move the logging line here (was out of order in the original)
         self.get_logger().info(f'Received kamikaze request from {request.robot_name}')
+        
         """
         Handle the kamikaze service request.
         :param request: The service request containing the robot name.
@@ -210,7 +212,7 @@ class KamikazeServiceServer(Node):
         # Get the position of the kamikaze robot
         kamikaze_pose = self.gz.get_pose(kamikaze_ns)
         kamikaze_position = (kamikaze_pose['position']['x'], kamikaze_pose['position']['y'], kamikaze_pose['position']['z'])
-        self.get_logger().info(f'Kamikaze robot {kamikaze_ns} at position {kamikaze_position}')
+        self.get_logger().info(f'💥 KAMIKAZE: {kamikaze_ns} detonating at position {kamikaze_position}')
 
         # Call the update_health service of the GameMasterNode to apply damage to the kamikaze robot
         try:
@@ -219,27 +221,37 @@ class KamikazeServiceServer(Node):
             self.get_logger().error(f'Exception occurred while calling update_health service: {e}')
             return response
 
+        # Track affected robots to log a summary instead of individual messages
+        affected_robots = []
+        
         # Check all other robots within the explosion range and apply damage
         for target_ns in self.namespaces:
             if target_ns != kamikaze_ns:
-                self.get_logger().info(f'Looping over {target_ns}')
+                # Reduce logging - avoid logging for every robot checked
+                self.get_logger().debug(f'Checking {target_ns}')
                 try:
                     robot_position = self.gz.get_robot_position(target_ns)
                 except Exception as e:
                     self.get_logger().error(f'Exception occurred while getting pose of {target_ns}: {e}')
                     continue
+                    
                 distance = get_distance(kamikaze_position, robot_position)
-                self.get_logger().info(f'Checking robot {target_ns} at distance {distance}')
+                # Use debug level for distance calculations to avoid flooding
+                self.get_logger().debug(f'{target_ns} at distance {distance}')
+                
                 if distance <= self.explosion_range:
-                    self.get_logger().info(f'Robot {target_ns} is within explosion range')
-                    # Call the update_health service of the GameMasterNode to apply damage to the kamikaze robot
+                    affected_robots.append(target_ns)
+                    # Still log affected robots, but more concisely
+                    self.get_logger().info(f'DAMAGE: {target_ns} caught in explosion')
                     try:
                         self.update_health_request(target_ns, self.explosion_damage)
                     except Exception as e:
                         self.get_logger().error(f'Exception occurred while calling update_health service: {e}')
                         return response
-                else:
-                    self.get_logger().info(f'Robot {target_ns} is out of explosion range')
+        
+        # Add a summary log at the end
+        self.get_logger().info(f'Kamikaze explosion from {kamikaze_ns} affected {len(affected_robots)} robots')
+        
         return response
 
 def main(args=None):
