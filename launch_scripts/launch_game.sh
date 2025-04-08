@@ -20,7 +20,7 @@
 #   - Process monitoring and cleanup
 #
 # Requirements:
-#   - ROS2 Humble
+#   - ROS2 Jazzy
 #   - PX4-Autopilot
 #   - Gazebo Garden
 #   - MicroXRCE-DDS Agent

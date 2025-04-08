@@ -16,7 +16,7 @@ jobs:
         platform: [{runner: buildjet-2vcpu-ubuntu-2204-arm, platform: linux/arm64}, {runner: buildjet-2vcpu-ubuntu-2204, platform: linux/amd64}]
         distro:
           - ubuntu: jammy
-            ros2: humble
+            ros2: jazzy
           - ubuntu: noble
             ros2: rolling
           - ubuntu: focal

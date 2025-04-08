@@ -17,7 +17,7 @@ Features:
 - Multi-vehicle support
 
 Requirements:
-- ROS2 Humble or newer
+- ROS2 Jazzy or newer
 - PX4 Autopilot
 - px4_msgs package
 - px4_controllers_interfaces package with PointYaw.msg and GotoPosition.action

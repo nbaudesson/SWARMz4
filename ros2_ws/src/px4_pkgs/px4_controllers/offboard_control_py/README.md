@@ -18,7 +18,7 @@ A ROS 2 package providing high-level control interfaces for multiple PX4-powered
 
 ## Prerequisites
 
-- ROS 2 (Tested on Humble)
+- ROS 2 (Tested on Jazzy)
 - PX4 Autopilot (SITL or hardware)
 - px4_msgs package
 - px4_controllers_interfaces package with:

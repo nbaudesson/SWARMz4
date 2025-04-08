@@ -17,7 +17,7 @@ Features:
 
 Requirements:
 ------------
-- ROS 2 (Foxy/Humble)
+- ROS 2 (Foxy/Jazzy)
 - PX4 Autopilot
 - offboard_control_py package
 - px4_controllers_interfaces package
