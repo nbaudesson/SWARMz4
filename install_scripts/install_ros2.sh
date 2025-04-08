@@ -1,19 +1,19 @@
 #!/bin/bash
 
-# Function to check if ROS 2 Humble is already installed
+# Function to check if ROS 2 Jazzy is already installed
 check_ros2_installed() {
-    if [ -d "/opt/ros/humble" ]; then
-        echo "ROS 2 Humble is already installed."
+    if [ -d "/opt/ros/jazzy" ]; then
+        echo "ROS 2 Jazzy is already installed."
         return 0
     else
-        echo "ROS 2 Humble is not installed."
+        echo "ROS 2 Jazzy is not installed."
         return 1
     fi
 }
 
-# Function to install ROS 2 Humble
+# Function to install ROS 2 Jazzy
 install_ros2() {
-    echo "Installing ROS 2 Humble..."
+    echo "Installing ROS 2 Jazzy..."
 
     sudo apt update && sudo apt install -y locales
     sudo locale-gen en_US en_US.UTF-8
@@ -29,26 +29,26 @@ install_ros2() {
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
 
     sudo apt update && sudo apt upgrade -y
-    sudo apt install -y ros-humble-desktop ros-dev-tools
+    sudo apt install -y ros-jazzy-desktop ros-dev-tools
 
-    source /opt/ros/humble/setup.bash
-    echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
+    source /opt/ros/jazzy/setup.bash
+    echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
 
-    sudo apt install ros-humble-tf-transformations -y
-    sudo apt install ros-humble-gazebo-ros -y
-    sudo apt install ros-humble-ros-gz-bridge -y
-    sudo apt install ros-humble-ros-gzharmonic -y
+    sudo apt install ros-jazzy-tf-transformations -y
+    sudo apt install ros-jazzy-gazebo-ros -y
+    sudo apt install ros-jazzy-ros-gz-bridge -y
+    sudo apt install ros-jazzy-ros-gzharmonic -y
 
     sudo apt install libyaml-cpp-dev -y # Required for ROS 2 to parse yaml files in cpp
     sudo apt install python3-colcon-common-extensions -y
     sudo apt install python3-rosdep -y
 
-    echo "ROS 2 Humble installation completed."
+    echo "ROS 2 Jazzy installation completed."
 }
 
 # Build workspace
 build_workspace() {
-    source /opt/ros/humble/setup.bash
+    source /opt/ros/jazzy/setup.bash
     cd $SWARMZ4_PATH/ros2_ws || { echo "Failed to access ros2_ws directory"; exit 1; }
     sudo apt update
     sudo rosdep init
@@ -62,5 +62,5 @@ if ! check_ros2_installed; then
     install_ros2
     build_workspace
 else
-    echo "ROS 2 Humble is already installed, skipping."
+    echo "ROS 2 Jazzy is already installed, skipping."
 fi
