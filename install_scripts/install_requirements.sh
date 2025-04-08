@@ -1,4 +1,4 @@
-sudo apt install python3-venv
+sudo apt install python3-venv -y
 python3 -m venv SWARMz4
 source SWARMz4/bin/activate
 
@@ -19,7 +19,7 @@ check_ros2_repo_configured() {
     sudo apt install python3-colcon-common-extensions -y
     sudo apt install python3-rosdep -y
     sudo apt install ros-jazzy-tf-transformations -y
-    sudo apt install ros-jazzy-gazebo-ros -y
+    sudo apt install ros-jazzy-ros-gz -y
     sudo apt install ros-jazzy-ros-gz-bridge -y
     sudo apt install ros-jazzy-ros-gzharmonic -y
     else
