@@ -14,7 +14,7 @@ Key Features:
 - Multi-vehicle support through namespaces
 
 Requirements:
-- ROS2 Humble or newer
+- ROS2 Jazzy or newer
 - PX4 Autopilot running on drone/simulator
 - px4_msgs package
 - px4_controllers_interfaces package with:

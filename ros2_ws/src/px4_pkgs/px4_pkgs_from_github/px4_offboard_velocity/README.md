@@ -15,7 +15,7 @@ We published a walkthrough tutorial on YouTube to demonstrate the example and to
 You can watch the video [here](https://www.youtube.com/watch?v=8gKIP0OqHdQ).
 
 ### Prerequisites
-* ROS2 Humble
+* ROS2 Jazzy
 * PX4 Autopilot
 * Micro XRCE-DDS Agent
 * px4_msgs
@@ -40,8 +40,8 @@ bash ./PX4-Autopilot/Tools/setup/ubuntu.sh
 You will now need to restart your computer before continuing.
 
 
-### Install ROS2 Humble
-To install ROS2 Humble follow the steps [here](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html)
+### Install ROS2 Jazzy
+To install ROS2 Jazzy follow the steps [here](https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html)
 
 ### Install Dependencies
 
@@ -78,7 +78,7 @@ This git repo is intended to be a ROS2 package that is cloned into a ROS2 worksp
 
 We're going to create a workspace in our home directory, and then clone in this repo and also the px4_msgs repo. 
 
-For more information on creating workspaces, see [here](https://docs.ros.org/en/humble/Tutorials/Workspace/Creating-A-Workspace.html)
+For more information on creating workspaces, see [here](https://docs.ros.org/en/jazzy/Tutorials/Workspace/Creating-A-Workspace.html)
 
 Run this code to create a workspace in your home directory
 
@@ -116,7 +116,7 @@ The two packages in this workspace are px4_msgs and px4_offboard. px4_offboard i
 Before we build these two packages, we need to source our ROS2 installation. Run this code to do that
 
 ```
-source /opt/ros/humble/setup.bash
+source /opt/ros/jazzy/setup.bash
 ```
 
 This will need to be run in every terminal that wants to run ROS2 commands. An easy way to get around this, is to add this command to your .bashrc file. This will run this command every time you open a new terminal window.

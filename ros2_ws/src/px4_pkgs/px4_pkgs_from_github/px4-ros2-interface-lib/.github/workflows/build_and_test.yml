@@ -19,7 +19,7 @@ jobs:
       - name: Setup ROS 2
         uses: ros-tooling/setup-ros@v0.7
         with:
-          required-ros-distributions: humble
+          required-ros-distributions: jazzy
       - name: Checkout repository
         uses: actions/checkout@v3
       - name: Build and test
@@ -30,7 +30,7 @@ jobs:
           import-token: ${{ secrets.GITHUB_TOKEN }}
           vcs-repo-file-url: |
             $GITHUB_WORKSPACE/dependencies.repos
-          target-ros2-distro: humble
+          target-ros2-distro: jazzy
           colcon-defaults: |
             {
               "build": {

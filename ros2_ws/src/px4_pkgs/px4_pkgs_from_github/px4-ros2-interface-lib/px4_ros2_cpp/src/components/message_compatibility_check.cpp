@@ -32,7 +32,7 @@ std::string messageFieldsStrForMessageHash(
   std::string fields_str;
 
   // Match field types from .msg definitions ("foo_msgs/Bar[] bar")
-  // See https://docs.ros.org/en/humble/Concepts/About-ROS-Interfaces.html
+  // See https://docs.ros.org/en/jazzy/Concepts/About-ROS-Interfaces.html
   static const std::regex kMsgFieldTypeRegex{
     R"((?:^|\n)\s*([a-zA-Z0-9_/]+)(\[[^\]]*\])?\s+(\w+)[ \t]*(=)?)"};
 

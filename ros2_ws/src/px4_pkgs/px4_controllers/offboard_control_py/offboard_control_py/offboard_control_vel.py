@@ -10,7 +10,7 @@ This node provides velocity-based control for PX4-powered drones using ROS 2. It
 
 Requirements:
 ------------
-- ROS 2 (tested with Foxy/Humble)
+- ROS 2 (tested with Foxy/Jazzy)
 - PX4 Autopilot
 - px4_msgs package
 - Valid PX4 RTPS/ROS2 bridge configuration

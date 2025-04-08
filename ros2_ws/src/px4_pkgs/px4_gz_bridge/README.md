@@ -59,4 +59,4 @@ def generate_launch_description():
 ```
 
 ## Supported Message Types
-For a complete list of supported message type mappings between ROS2 and Gazebo, refer to the [ros_gz_bridge documentation](https://github.com/gazebosim/ros_gz/tree/humble/ros_gz_bridge).
+For a complete list of supported message type mappings between ROS2 and Gazebo, refer to the [ros_gz_bridge documentation](https://github.com/gazebosim/ros_gz/tree/jazzy/ros_gz_bridge).
