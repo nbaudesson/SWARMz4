@@ -1,12 +1,13 @@
 # PX4 Multi-Drone Control System
 
-A ROS 2 package providing high-level control interfaces for multiple PX4-powered drones, supporting both North-East-Down (NED) and Forward-Right-Down (FRD) coordinate frames.
+A ROS 2 package providing high-level control interfaces for multiple PX4-powered drones, supporting different coordinate frames (NED, FRD, FLU).
 
 ## Features
 
 - Multiple coordinate frame support:
   - NED (North-East-Down) for global navigation
   - FRD (Forward-Right-Down) for relative movement
+  - FLU (Forward-Left-Up) for relative movement
 - Multi-drone mission execution
 - YAML-based mission configuration
 - Automatic takeoff and landing
@@ -45,23 +46,17 @@ source install/setup.bash
 
 ## Controller Types
 
-1. **NED Controller** (`offboard_control_ned`):
-   - Global position control
-   - Uses North-East-Down coordinates
-   - Best for absolute positioning
+**PX4 Unified Controller** (`offboard_control_px4`):
+   - Supports multiple coordinate systems
+   - Configure with `coordinate_system` parameter
+   - Available coordinate systems:
+     - `NED`: Global position control (North-East-Down)
+     - `FRD`: Relative position control (Forward-Right-Down)
+     - `FLU`: Relative position control (Forward-Left-Up)
+   - Position and velocity control modes
 
-2. **FRD Controller** (`offboard_control_frd`):
-   - Relative position control
-   - Uses Forward-Right-Down coordinates
-   - Best for relative positioning
-
-2. **cmd_vel Controller** (`offboard_control_vel`):
-   - Relative velocity control
-   - Uses FLU, FRD or NED coordinates
-   - Best for relative movements
-
-3. **Mission Control** (`offboard_control_client`):-
-   - Call several controllers throught ROS2 action clients
+**Mission Control** (`offboard_control_client`):
+   - Call several controllers through ROS2 action clients
    - Multi-drone mission execution
    - YAML mission configuration
    - Progress monitoring
@@ -92,7 +87,7 @@ source install/setup.bash
 
 Launch a single drone controller:
 ```bash
-ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 controller_type:=NED
+ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 coordinate_system:=NED
 ```
 
 Send position commands:
@@ -106,9 +101,9 @@ ros2 topic pub /px4_1/target_pose px4_controllers_interfaces/msg/PointYaw "{posi
 
 ### 2. Relative Position Control with FRD Frame
 
-Launch with FRD controller:
+Launch with FRD coordinate system:
 ```bash
-ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 controller_type:=FRD
+ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 coordinate_system:=FRD
 ```
 
 Send relative movement commands:
@@ -119,46 +114,51 @@ ros2 action send_goal /px4_1/goto_position px4_controllers_interfaces/action/Got
 # Move 3 meters right and up 1 meter with 90° rotation
 ros2 action send_goal /px4_1/goto_position px4_controllers_interfaces/action/GotoPosition "{target: {position: {x: 0.0, y: 3.0, z: -1.0}, yaw: 90.0}}"
 ```
-### 3. Velocity Control
 
-The `offboard_control_vel` node provides direct velocity control for PX4 drones. Classical ROS2 movement control using *cmd_vel* as input. It supports:
+### 3. Forward-Left-Up (FLU) Control
 
-1. Control Modes:
-   - Position holding when zero velocity commanded
-   - Pure velocity control using cmd_vel
-   - Automatic takeoff and landing sequences
+Launch with FLU coordinate system:
+```bash
+ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 coordinate_system:=FLU
+```
 
-2. Parameters:
-   ```yaml
-   max_horizontal_speed: 12.0     # Maximum horizontal velocity (m/s)
-   max_vertical_speed: 12.0       # Maximum vertical velocity (m/s)
-   max_yaw_rate: 10.0            # Maximum yaw rate (rad/s)
-   velocity_timeout: 2.0          # Time before zeroing velocity (s)
-   frame_type: 'FLU'             # Reference frame (FLU/FRD/NED)
-   takeoff_height: 2.0           # Target takeoff height (m)
-   hover_timeout: 10.0           # Hover time before auto-land (s)
-   land_height_threshold: 1.0    # Height to trigger landing (m)
-   ```
+Send commands in FLU frame:
+```bash
+# Move 5 meters forward
+ros2 action send_goal /px4_1/goto_position px4_controllers_interfaces/action/GotoPosition "{target: {position: {x: 5.0, y: 0.0, z: 2.0}, yaw: 0.0}}"
 
-4. Safety Features:
-   - Automatic position holding when no commands received
-   - Velocity command timeout
-   - Maximum speed limits
-   - Auto-landing when near ground
-   - Auto-disarm after landing
+# Move 3 meters left and up 1 meter with 90° rotation
+ros2 action send_goal /px4_1/goto_position px4_controllers_interfaces/action/GotoPosition "{target: {position: {x: 0.0, y: 3.0, z: 1.0}, yaw: 90.0}}"
+```
 
-5. Usage Example:
-   ```bash
-   # Launch velocity controller
-   ros2 launch offboard_control_py offboard_control.launch.py \
-     team_id:=1 controller_type:=VEL frame_type:=FLU
+### 4. Velocity Control
 
-   # Send velocity commands
-   ros2 topic pub /px4_1/cmd_vel geometry_msgs/msg/Twist \
-     "{linear: {x: 1.0, y: 0.0, z: 0.0}, angular: {z: 0.0}}"
+The `offboard_control_px4` node also provides velocity control. Set the `offboard_mode` parameter to `velocity`:
 
+```bash
+# Launch with velocity control mode
+ros2 run offboard_control_py offboard_control_px4 --ros-args -r __ns:=/px4_1 -p coordinate_system:=FLU -p offboard_mode:=velocity
+```
 
-### 4. Multi-Drone Missions
+Parameters for velocity control:
+```yaml
+max_horizontal_speed: 12.0     # Maximum horizontal velocity (m/s)
+max_vertical_speed: 12.0       # Maximum vertical velocity (m/s)
+max_yaw_rate: 10.0            # Maximum yaw rate (rad/s)
+velocity_timeout: 2.0          # Time before zeroing velocity (s)
+coordinate_system: 'FLU'      # Reference frame (FLU/FRD/NED)
+takeoff_height: 2.0           # Target takeoff height (m)
+hover_timeout: 10.0           # Hover time before auto-land (s)
+land_height_threshold: 1.0    # Height to trigger landing (m)
+```
+
+Send velocity commands:
+```bash
+ros2 topic pub /px4_1/cmd_vel geometry_msgs/msg/Twist \
+  "{linear: {x: 1.0, y: 0.0, z: 0.0}, angular: {z: 0.0}}"
+```
+
+### 5. Multi-Drone Missions
 
 1. Create a mission file (e.g., `missions/my_mission.yaml`):
 ```yaml
@@ -212,7 +212,7 @@ Manual editing of this file is not recommended as it will be overwritten on the 
    ```bash
    ros2 launch offboard_control_py offboard_control.launch.py \
      team_id:=1 \
-     controller_type:=NED \
+     coordinate_system:=NED \
      config_file:=my_config.yaml \
      spawn_file:=my_spawn.yaml
    ```

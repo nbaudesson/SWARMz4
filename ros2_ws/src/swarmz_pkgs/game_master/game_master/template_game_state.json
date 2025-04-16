@@ -1,0 +1,339 @@
+{
+    "timestamp": 0.0,
+    "robots":
+        {
+            "px4_0":
+                {
+                    "position": 
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "orientation":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                    "velocity":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "type": "drone",
+                    "health": 1,
+                    "ammo": 2
+                },
+            "px4_1":
+                {
+                    "position": 
+                        {
+                            "x": 2.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "orientation":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                    "velocity":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "type": "drone",
+                    "health": 1,
+                    "ammo": 2
+                },
+            "px4_2":
+                {
+                    "position": 
+                        {
+                            "x": 4.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "orientation":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                    "velocity":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "type": "drone",
+                    "health": 1,
+                    "ammo": 2
+                },
+            "px4_3":
+                {
+                    "position": 
+                        {
+                            "x": 6.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "orientation":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                    "velocity":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "type": "drone",
+                    "health": 1,
+                    "ammo": 2
+                },
+            "px4_4":
+                {
+                    "position": 
+                        {
+                            "x": 8.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "orientation":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                    "velocity":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "type": "drone",
+                    "health": 1,
+                    "ammo": 2
+                },
+            "px4_5":
+                {
+                    "position": 
+                        {
+                            "x": 250.0,
+                            "y": 500.0,
+                            "z": 0.0
+                        },
+                    "orientation":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                    "velocity":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "type": "drone",
+                    "health": 1,
+                    "ammo": 2
+                },
+            "px4_6":
+                {
+                    "position": 
+                        {
+                            "x": 248.0,
+                            "y": 500.0,
+                            "z": 0.0
+                        },
+                    "orientation":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                    "velocity":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "type": "drone",
+                    "health": 1,
+                    "ammo": 2
+                },
+            "px4_7":
+                {
+                    "position": 
+                        {
+                            "x": 246.0,
+                            "y": 500.0,
+                            "z": 0.0
+                        },
+                    "orientation":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                    "velocity":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "type": "drone",
+                    "health": 1,
+                    "ammo": 2
+                },
+            "px4_8":
+                {
+                    "position": 
+                        {
+                            "x": 244.0,
+                            "y": 500.0,
+                            "z": 0.0
+                        },
+                    "orientation":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                    "velocity":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "type": "drone",
+                    "health": 1,
+                    "ammo": 2
+                },
+            "px4_9":
+                {
+                    "position": 
+                        {
+                            "x": 242.0,
+                            "y": 500.0,
+                            "z": 0.0
+                        },
+                    "orientation":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                    "velocity":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "type": "drone",
+                    "health": 1,
+                    "ammo": 2
+                },
+            "flag_ship_0":
+                {
+                    "position": 
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "orientation":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                    "velocity":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "type": "ship",
+                    "health": 6,
+                    "ammo": 4
+                },
+            "flag_ship_1":
+                {
+                    "position": 
+                        {
+                            "x": 240.0,
+                            "y": 500.0,
+                            "z": 0.0
+                        },
+                    "orientation":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                    "velocity":
+                        {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                    "type": "ship",
+                    "health": 6,
+                    "ammo": 4
+                } 
+        },
+    "events":
+        {
+            "firing_events":
+                [{"shooter": "px4_0", "target": "px4_5"},
+                {"shooter": "px4_6", "target": "px4_2"}],
+            "kamikaze_events":
+                [{"shooter": "px4_3", "target": ["px4_4", "px4_7"]}]
+        },
+    "game_data":
+        {
+            "teams":
+                {
+                    "1":
+                        [
+                            "px4_0",
+                            "px4_1",
+                            "px4_2",
+                            "px4_3",
+                            "px4_4",
+                            "flag_ship_0"
+                        ],
+                    "2":
+                        [
+                            "px4_5",
+                            "px4_6",
+                            "px4_7",
+                            "px4_8",
+                            "px4_9",
+                            "flag_ship_1"
+                        ]
+                },
+            "remaining_time": 300.0
+        }
+}

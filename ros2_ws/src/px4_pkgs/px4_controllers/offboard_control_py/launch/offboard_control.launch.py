@@ -2,28 +2,24 @@
 Multi-Drone Offboard Control Launch File
 
 This launch file enables running multiple PX4 drone controllers with different configurations.
-It supports two control frame types (NED and FRD) and can be configured through command line
+It supports different control frame types (NED, FRD, FLU) and can be configured through command line
 arguments or YAML configuration files.
 
 Features:
 - Supports multiple drones per team
-- Configurable controller types (NED/FRD) # Add new controllers by updating controller_map
+- Configurable coordinate system (NED/FRD/FLU)
 - Spawn position configuration via YAML
-- Controller type configuration via YAML or launch arguments
 - Automatic node namespace management
 - Default parameter handling
 
 Usage Examples:
     1. Basic launch with default NED controller for all drones in team 1:
-       ros2 launch offboard_control_py offboard_control.launch.py team_id:=1
+       ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 coordinate_system:=NED
 
-    2. Launch with specific controller type for all drones:
-       ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 controller_type:=FRD
+    2. Launch with specific coordinate system for all drones:
+       ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 coordinate_system:=FRD
 
-    3. Launch with custom controller configuration:
-       ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 config_file:=path/to/controller_config.yaml
-
-    4. Launch with custom spawn positions:
+    3. Launch with custom spawn positions:
        ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 spawn_file:=path/to/spawn_config.yaml
 
 Adding a New Controller Type:
@@ -103,7 +99,7 @@ def generate_drone_nodes(context, *args, **kwargs):
     """Generate ROS2 nodes for each drone based on configuration."""
     # Get launch configurations
     team_id = LaunchConfiguration('team_id').perform(context)
-    controller_type = LaunchConfiguration('controller_type').perform(context)
+    coordinate_system = LaunchConfiguration('coordinate_system').perform(context)
     config_file = LaunchConfiguration('config_file').perform(context)
     spawn_file = LaunchConfiguration('spawn_file').perform(context)
     package_dir = get_package_share_directory('offboard_control_py')
@@ -132,10 +128,9 @@ def generate_drone_nodes(context, *args, **kwargs):
     # Map of supported controller types to their executables
     # Add new controllers here when implementing them
     controller_map = {
-        'NED': 'offboard_control_ned',  # North-East-Down frame controller
-        'FRD': 'offboard_control_frd'   # Forward-Right-Down frame controller
-        # 'CUSTOM': 'offboard_control_custom'  # Example of adding a new controller. 
-                                               # Don't forget to add it to the setup.py to make an executable.
+        'NED': 'offboard_control_px4',  # North-East-Down frame controller
+        'FRD': 'offboard_control_px4',   # Forward-Right-Down frame controller
+	    'FLU': 'offboard_control_px4'   # Forward-Left-Up frame controller
     }
     
     # Add detailed logging for configuration loading
@@ -158,7 +153,7 @@ def generate_drone_nodes(context, *args, **kwargs):
     print(f"\nSpawn positions for team {team_id}: {spawn_drones}")
     
     # Log launch argument controller type
-    print(f"Launch argument controller_type: {controller_type or 'Not provided'}")
+    print(f"Launch argument coordinate_system: {coordinate_system or 'Not provided'}")
     
     print(f"\nController Selection for Team {team_id}:")
     print("----------------------------------------")
@@ -172,9 +167,9 @@ def generate_drone_nodes(context, *args, **kwargs):
         drone_controller = None
         
         # 1. Try launch argument
-        if controller_type:
-            drone_controller = controller_type
-            print(f"  → Using controller from launch argument: {controller_type}")
+        if coordinate_system:
+            drone_controller = coordinate_system
+            print(f"  → Using controller from launch argument: {coordinate_system}")
         
         # 2. Try controller config file
         if not drone_controller and controller_config and str(team_id) in controller_config:
@@ -206,7 +201,8 @@ def generate_drone_nodes(context, *args, **kwargs):
                 'spawn_yaw': spawn_info.get('yaw', 0.0),
                 'takeoff_height': 1.0,
                 'hover_timeout': 10.0,
-                'land_height_threshold': 0.4
+                'land_height_threshold': 0.4,
+		        'coordinate_system': drone_controller
             }],
             output='screen',
             emulate_tty=True
@@ -222,7 +218,7 @@ def generate_launch_description():
     
     Launch Arguments:
     - team_id: Team identifier (1 or 2)
-    - controller_type: Default controller for all drones if not specified in config
+    - coordinate_system: Default coordinate_system for all drones if not specified in config
     - config_file: Path to controller configuration YAML
     - spawn_file: Path to spawn positions YAML
     
@@ -237,9 +233,9 @@ def generate_launch_description():
             description='Team ID (1 or 2)'
         ),
         DeclareLaunchArgument(
-            'controller_type',
+            'coordinate_system',
             default_value='NED',
-            description='Default controller type (NED or FRD) if not specified in config'
+            description='Default coordinate system (NED, FRD or FLU) if not specified in config'
         ),
         DeclareLaunchArgument(
             'config_file',

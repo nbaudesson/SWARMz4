@@ -9,7 +9,11 @@ class OffboardControl(Node):
     """Node for controlling a vehicle in offboard mode."""
 
     def __init__(self) -> None:
-        super().__init__('offboard_control_takeoff_and_land')
+        super().__init__('offboard_control_takeoff_and_land', parameter_overrides=[
+            ("use_sim_time", rclpy.parameter.Parameter(
+                'use_sim_time', rclpy.parameter.Parameter.Type.BOOL, True
+            ))
+        ])
 
         # Get the namespace of the node
         self.node_namespace = self.get_namespace()

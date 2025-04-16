@@ -45,14 +45,14 @@ PX4_MODEL="gz_x500_lidar_front" # Change to "gz_x500" for classic x500
 PX4_SYS_AUTOSTART=4017          # Use 4001 for classic x500, 4017 for x500 with lidar
 FIELD_LENGTH=5
 FIELD_WIDTH=2
-NUM_DRONES_PER_TEAM=2
+NUM_DRONES_PER_TEAM=1
 TOTAL_DRONES=$((NUM_DRONES_PER_TEAM * 2))
-HEADLESS_LEVEL=0                # 0=GUI, 1=Gazebo headless, 2=Full headless
+HEADLESS_LEVEL=1                # 0=GUI, 1=Gazebo headless, 2=Full headless
 WORLD="swarmz_world"
 
 # Bridge and Process PIDs
 CLOCK_BRIDGE_PID=""
-LASER_BRIDGE_PID=""
+LASER_BRIDGE_PIDS=()
 
 #===========================================================================
 # 3. ARGUMENT PARSING
@@ -91,26 +91,14 @@ fi
 #===========================================================================
 # 4. UTILITY FUNCTIONS
 #===========================================================================
-# Process cleanup function
-kill_processes() {
-    echo "Killing old processes..."
-    pkill -f 'px4' || echo "No PX4 processes to kill."
-    pkill -f 'MicroXRCEAgent' || echo "No MicroXRCEAgent processes to kill."
-    pkill -f 'gz sim' || echo "No Gazebo simulations to kill."
-    pkill -f 'parameter_bridge' || echo "No parameter_bridge processes to kill."
-    pkill -f 'QGroundControl' || echo "No QGroundControl processes to kill."
-    # Second time's a charm
-    pkill -f 'QGroundControl' || echo "No QGroundControl processes to kill."
-}
-
 # Terminal handling with headless mode support
 launch_terminal() {
     local title="$1"
     local command="$2"
     local headless_level="$3"
     
-    # For level 2 (full headless), just run in background with output suppressed
-    if [ -n "$headless_level" ] && [ "$headless_level" -eq 2 ]; then
+    # For level 2 (full headless), just run in background
+    if [ "$headless_level" -eq 2 ]; then
         echo "Starting process: $title (silent background)"
         eval "$command > /dev/null 2>&1 &"
         return
@@ -132,11 +120,38 @@ launch_terminal() {
     fi
 }
 
+# Process cleanup function
+kill_processes() {
+    echo "Cleaning up running processes..."
+    local processes=("px4" "MicroXRCEAgent" "gz sim" "parameter_bridge" "QGroundControl")
+    
+    for proc in "${processes[@]}"; do
+        echo "Stopping $proc processes..."
+        pkill -f "$proc" || echo "No $proc processes found."
+        # Second attempt for stubborn processes
+        sleep 1
+        pkill -9 -f "$proc" 2>/dev/null
+    done
+}
+
 # Cleanup function for graceful exit
 cleanup() {
-    echo "Cleaning up processes..."
+    echo "Initiating cleanup..."
     kill_processes
-    kill $CLOCK_BRIDGE_PID $LASER_BRIDGE_PID 2>/dev/null
+    
+    if [ -n "$CLOCK_BRIDGE_PID" ]; then
+        kill $CLOCK_BRIDGE_PID 2>/dev/null && echo "Stopped clock bridge"
+    fi
+    
+    # Clean up laser bridges if they exist
+    if [ ${#LASER_BRIDGE_PIDS[@]} -gt 0 ]; then
+        echo "Stopping laser bridges..."
+        for pid in "${LASER_BRIDGE_PIDS[@]}"; do
+            kill $pid 2>/dev/null
+        done
+        echo "Laser bridges stopped"
+    fi
+    
     echo "Cleanup complete"
 }
 
@@ -154,7 +169,6 @@ has_secondary_gpu() {
     # Check if we have more than one GPU
     gpu_count=$(echo "$gpu_info" | wc -l)
     if [ "$gpu_count" -lt 2 ]; then
-        # Only one GPU found
         return 1
     fi
     
@@ -162,18 +176,64 @@ has_secondary_gpu() {
     if echo "$gpu_info" | grep -v "Intel" | grep -E "NVIDIA|AMD|ATI" &> /dev/null; then
         # Check if the primary GPU is Intel (meaning dedicated GPU is secondary)
         if echo "$gpu_info" | head -1 | grep "Intel" &> /dev/null; then
-            # We have a dedicated GPU that's not the primary one
             echo "Detected secondary dedicated GPU"
             return 0
         fi
     fi
     
-    # No secondary dedicated GPU found
     return 1
 }
 
 #===========================================================================
-# 5. DRONE SPAWN & MANAGEMENT FUNCTIONS
+# 5. BRIDGE FUNCTIONS
+#===========================================================================
+# Start laser bridges for all drones
+start_laser_bridges() {
+    # Only start laser bridges if using the lidar-equipped model
+    if [[ "$PX4_MODEL" != "gz_x500_lidar_front" ]]; then
+        echo "Skipping laser bridges as model $PX4_MODEL is not lidar-equipped"
+        return
+    fi
+    echo "Starting laser bridges for $TOTAL_DRONES drones..."
+
+    # Set log level to ERROR to suppress INFO and WARN messages
+    local log_level="ERROR"
+    
+    for ((i=0; i<TOTAL_DRONES; i++)); do
+        # Construct the GZ laser topic path
+        local gz_topic="/world/$WORLD/model/${PX4_MODEL}_${i}/link/lidar_sensor_link/sensor/lidar/scan"
+        local ros_topic="px4_${i}/laser/scan"
+        
+        # Start the bridge with log level control and unique node name
+        echo "Starting laser bridge for drone $i: $gz_topic -> $ros_topic"
+        ros2 run ros_gz_bridge parameter_bridge "$gz_topic@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan" \
+            --ros-args -r "$gz_topic:=$ros_topic" --log-level ros_gz_bridge:=$log_level -r __node:=laser_bridge_drone_${i} > /dev/null 2>&1 &
+        
+        # Store the PID for cleanup
+        LASER_BRIDGE_PIDS+=($!)        
+        # Short delay to avoid overwhelming the system
+        sleep 0.1
+    done
+    echo "All laser bridges started successfully"
+}
+
+# Start the clock bridge
+start_clock_bridge() {
+    echo "Starting ROS 2 bridge for clock synchronization..."
+    
+    # Set log level to ERROR to suppress INFO and WARN messages
+    local log_level="ERROR"
+
+    # Launch clock bridge with log level control and unique node name
+    ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock \
+        --ros-args --log-level ros_gz_bridge:=$log_level -r __node:=clock_bridge > /dev/null 2>&1 &
+    
+    CLOCK_BRIDGE_PID=$!
+    echo "Clock bridge started (PID: $CLOCK_BRIDGE_PID)."
+}
+
+#===========================================================================
+# 6. DRONE SPAWN & MANAGEMENT FUNCTIONS
 #===========================================================================
 # Launch PX4 instance with position
 launch_px4_instance() {
@@ -183,15 +243,15 @@ launch_px4_instance() {
     local yaw=${4:-0}  # Default yaw to 0 if not specified
     local pose="$x_pos,$y_pos,0,0,0,$yaw"
     
-    local headless_flag=""
-    if [ -n "$HEADLESS_LEVEL" ] && [ "$HEADLESS_LEVEL" -ge 1 ]; then
-        headless_flag="HEADLESS=1"
-    fi
-
-    # Special case for first drone (now ID 0) - launches Gazebo simulation
+    # Special case for first drone (ID 0) - launches Gazebo simulation
     if [ "$instance_id" -eq 0 ]; then
-        echo "Launching first PX4 instance at position ($x_pos, $y_pos, 0) with yaw $yaw (with Gazebo)"
+        echo "Launching first PX4 instance at position ($x_pos, $y_pos, 0) with yaw $yaw"
         cd $SWARMZ4_PATH/PX4-Autopilot || { echo "PX4-Autopilot directory not found!"; exit 1; }
+        
+        local headless_flag=""
+        if [ "$HEADLESS_LEVEL" -ge 1 ]; then
+            headless_flag="HEADLESS=1"
+        fi
         
         # Determine whether to use switcherooctl based on GPU availability
         local cmd=""
@@ -202,29 +262,35 @@ launch_px4_instance() {
             echo "Using standard GPU configuration"
             cmd="PX4_UXRCE_DDS_NS=px4_$instance_id VERBOSE_SIM=1 PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART PX4_SIM_MODEL=$PX4_MODEL PX4_GZ_MODEL_POSE=\"$pose\" PX4_GZ_WORLD=\"$WORLD\" $headless_flag make px4_sitl $PX4_MODEL"
         fi
+
+        # Launch with EKF reset script
+        launch_terminal "px4_$instance_id" "$SWARMZ4_PATH/launch_scripts/px4_reset_sensors.sh \"$cmd\"" "$HEADLESS_LEVEL"
         
-        # Use EKF reset script if available
-        if [ -f "$SWARMZ4_PATH/launch_scripts/px4_reset_ekf.sh" ]; then
-            launch_terminal "px4_$instance_id" "$SWARMZ4_PATH/launch_scripts/px4_reset_ekf.sh \"$cmd\"" "$HEADLESS_LEVEL"
-        else
-            launch_terminal "px4_$instance_id" "$cmd" "$HEADLESS_LEVEL"
-        fi
-        
-        echo "Waiting 15 seconds for first PX4 instance and Gazebo to initialize..."
-        sleep 15
+        echo "Waiting 12 seconds for first PX4 instance and Gazebo to initialize..."
+        sleep 12  # Increased wait time for better initialization
     else
         echo "Launching PX4 instance $instance_id at position ($x_pos, $y_pos, 0) with yaw $yaw"
-        
-        # Build command with environment variables
-        local cmd="TIMEOUT=10 VERBOSE_SIM=1 PX4_UXRCE_DDS_NS=px4_$instance_id PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART PX4_GZ_MODEL_POSE=\"$pose\" PX4_SIM_MODEL=$PX4_MODEL PX4_GZ_WORLD=\"$WORLD\" $headless_flag $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id"
-        
-        # Use EKF reset script if available
-        if [ -f "$SWARMZ4_PATH/launch_scripts/px4_reset_ekf.sh" ]; then
-            launch_terminal "px4_$instance_id" "$SWARMZ4_PATH/launch_scripts/px4_reset_ekf.sh \"$cmd\"" "$HEADLESS_LEVEL"
-        else
-            launch_terminal "px4_$instance_id" "$cmd" "$HEADLESS_LEVEL"
+        local cmd="
+            TIMEOUT=10 \
+            VERBOSE_SIM=1 \
+            PX4_UXRCE_DDS_NS=px4_$instance_id \
+            PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART \
+            PX4_GZ_MODEL_POSE=\"$pose\" \
+            PX4_SIM_MODEL=$PX4_MODEL \
+            PX4_GZ_WORLD=\"$WORLD\" \
+            "
+
+        # Either Gazebo headless or full headless
+        if [ "$HEADLESS_LEVEL" -ge 1 ]; then
+          cmd="$cmd HEADLESS=1"
         fi
+
+        cmd="$cmd $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id"
         
+        # Launch with EKF reset script
+        launch_terminal "px4_$instance_id" "$SWARMZ4_PATH/launch_scripts/px4_reset_sensors.sh \"$cmd\"" "$HEADLESS_LEVEL"
+        
+        # Add longer sleep between drone launches
         echo "Waiting for PX4 instance $instance_id to initialize..."
         sleep 1
     fi
@@ -259,7 +325,7 @@ launch_team() {
 }
 
 #===========================================================================
-# 6. MAIN EXECUTION
+# 7. MAIN EXECUTION
 #===========================================================================
 # Register cleanup handler
 trap cleanup INT TERM
@@ -274,24 +340,13 @@ cd $SWARMZ4_PATH/Micro-XRCE-DDS-Agent || { echo "Micro-XRCE-DDS-Agent directory 
 launch_terminal "MicroXRCEAgent" "MicroXRCEAgent udp4 -p 8888 -v 4" "$HEADLESS_LEVEL"
 if [ "$HEADLESS_LEVEL" -eq 2 ]; then
     echo "Started MicroXRCEAgent with output suppressed"
-elif [ "$HEADLESS_LEVEL" -eq 1 ]; then
-    echo "Started MicroXRCEAgent in background."
 else
-    echo "Started MicroXRCEAgent."
+    echo "Started MicroXRCEAgent with verbose logging."
 fi
 
-# Step 3: Launch drone teams (with fixed positions for debugging)
-echo "Step 3: Launching drone teams..."
-cd $SWARMZ4_PATH/PX4-Autopilot || { echo "PX4-Autopilot directory not found!"; exit 1; }
-# Team 1 at x=0, y=0 with 1m spacing
-launch_team 1 0 0 0 0 0
-# Team 2 at x=5, y=0 with 1m spacing, facing team 1
-launch_team 2 5 0 0 0 3.14159
-
-# Step 4: Launch QGroundControl
-echo "Step 4: Launching QGroundControl..."
-cd $SWARMZ4_PATH/launch_scripts || { echo "launch_scripts directory not found!"; exit 1; }
-if [ "$HEADLESS_LEVEL" -ge 1 ]; then
+# Step 3: Launch QGroundControl
+echo "Step 3: Launching QGroundControl..."
+if [ "$HEADLESS_LEVEL" -eq 2 ]; then
     # Full headless mode uses xvfb-run with minimal logging
     xvfb-run -a $SWARMZ4_PATH/launch_scripts/QGroundControl.AppImage > /dev/null 2>&1 &
     echo "Started QGroundControl with minimal logging"
@@ -300,16 +355,32 @@ else
     $SWARMZ4_PATH/launch_scripts/QGroundControl.AppImage > /dev/null 2>&1 &
 fi
 
-# Step 5: Wait for user to exit
-echo "Step 5: All processes started."
+# Step 4: Launch drone teams (with fixed positions for debugging)
+echo "Step 4: Launching drone teams..."
+cd $SWARMZ4_PATH/PX4-Autopilot || { echo "PX4-Autopilot directory not found!"; exit 1; }
+# Team 1 at x=0, y=0 with 1m spacing
+launch_team 1 0 0 0 0 0
+# Team 2 at x=5, y=0 with 1m spacing, facing team 1
+launch_team 2 5 0 0 0 3.14159
+
+# Step 5: Start ROS 2 bridges
+echo "Step 5: Starting ROS 2 bridges..."
+cd $SWARMZ4_PATH/ros2_ws || { echo "ROS 2 workspace directory not found!"; exit 1; }
+source install/setup.bash
+ 
+# Start the clock bridge
+start_clock_bridge
+
+# Start the laser bridges
+start_laser_bridges
+
+# Step 6: Wait for user to exit
+echo "Step 6: All processes started."
 if [ "$HEADLESS_LEVEL" -eq 2 ]; then
-    echo "Running in headless mode with output suppressed."
-elif [ "$HEADLESS_LEVEL" -eq 1 ]; then
-    echo "Running in Gazebo headless mode."
+    echo "Running in headless mode. Press Ctrl+C to terminate all processes."
 else
-    echo "Running in GUI mode."
+    echo "Press Ctrl+C to terminate all processes."
 fi
-echo "Press Ctrl+C to terminate all processes."
 
 trap "cleanup; exit 0" INT
 wait

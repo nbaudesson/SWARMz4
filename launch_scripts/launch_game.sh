@@ -458,7 +458,7 @@ launch_team 2 $((FIELD_LENGTH*4/5)) $FIELD_LENGTH 0 $FIELD_WIDTH
 echo "Step 6: Starting ROS 2 bridges..."
 cd $SWARMZ4_PATH/ros2_ws || { echo "ROS 2 workspace directory not found!"; exit 1; }
 source install/setup.bash
-
+ 
 # Start the clock bridge
 start_clock_bridge
 

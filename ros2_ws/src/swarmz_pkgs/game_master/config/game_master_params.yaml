@@ -5,7 +5,7 @@ game_master_node:
     ship2ship_detection_range: 500.0 # Can see the other ship across the map
     ship2drone_detection_range: 162.0 #  =height*65% Can smaller objects only closer, but has an edge on the drones
     drone_communication_range: 144.0 # =drone_detection_range*105%
-    ship_communication_range: 30.0 # =ship2ship_detection_range*105%
+    ship_communication_range: 525.0 # =ship2ship_detection_range*105%
     drone_health: 1       # Instant kill for drones 
     ship_health: 6        # Increased ship health to make fleet battles more interesting
     game_duration: 20  # 5 minutes

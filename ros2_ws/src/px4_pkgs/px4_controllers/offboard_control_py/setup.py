@@ -33,7 +33,7 @@ setup(
         'console_scripts': [
             'offboard_control = '+package_name+'.offboard_control:main',
             'offboard_control_frd = '+package_name+'.offboard_control_frd:main',
-            'offboard_control_ned = '+package_name+'.offboard_control_ned:main',
+            'offboard_control_px4 = '+package_name+'.offboard_control_px4:main',
             'offboard_control_client = '+package_name+'.offboard_control_client:main',
             'offboard_control_vel = '+package_name+'.offboard_control_vel:main',
         ],
