@@ -1,0 +1,35 @@
+# docker-compose-nvidia.yml
+
+services:
+  ros_dev_env:
+    container_name: swarmz4sim
+    image: crybakowski/swarmz4sim:latest
+    runtime: nvidia
+    devices:
+      - /dev/dri
+    cap_add:
+      - SYS_ADMIN
+    build: ./
+    volumes: 
+      - ${HOME}:/ros2_ws/src/
+    environment:
+      - DISPLAY=novnc:0.0
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    networks:
+      - x11
+    
+    stdin_open: true
+    tty: true
+  novnc:
+    image: theasp/novnc:latest
+    environment:
+      - DISPLAY_WIDTH=1920
+      - DISPLAY_HEIGHT=1080
+    ports:
+      - "8080:8080"
+    networks:
+      - x11
+    restart: on-failure
+networks:
+  x11: 
