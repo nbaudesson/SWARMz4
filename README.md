@@ -100,7 +100,8 @@ SWARMz4 provides two different launch scripts:
    You are free to program the PX4 drones using any of the [PX4 API](https://docs.px4.io/main/en/robotics/).
    - [QGroundControl](https://docs.px4.io/main/en/getting_started/px4_basic_concepts.html#qgc)
    - [MAVlink SDK](https://docs.px4.io/main/en/robotics/mavsdk.html)
-   - [ROS2](https://docs.px4.io/main/en/ros2/) 
+   - [ROS2](https://docs.px4.io/main/en/ros2/)
+   - [Mavros](https://masoudir.github.io/mavros_tutorial/)
 
    I have have added exemple offboard controllers in [offboard_control_py](https://github.com/nbaudesson/SWARMz4/tree/main/ros2_ws/src/px4_pkgs/px4_controllers/offboard_control_py/offboard_control_py) using the ROS2 API to control a drone using position command and velocity command. Or you can make your own offboard_control program for your drones. To do that you can use the [offboard_control.py] (https://github.com/nbaudesson/SWARMz4/blob/main/ros2_ws/src/px4_pkgs/px4_controllers/offboard_control_py/offboard_control_py/offboard_control.py) (or [.cpp](https://github.com/nbaudesson/SWARMz4/blob/main/ros2_ws/src/px4_pkgs/px4_controllers/offboard_control_cpp/src/offboard_control.cpp)) as a template and set your inputs using [PX4's control modes](https://docs.px4.io/main/en/flight_modes/offboard.html)
 

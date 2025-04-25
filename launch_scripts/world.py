@@ -1,12 +1,12 @@
 import sys
 import os
 import string
-# Kiểm tra xem người dùng đã nhập đủ tham số
+# Check if the user has entered enough parameters
 if len(sys.argv) < 8:
     print("Not enough arguments")
     sys.exit(1)
 
-# Lấy tọa độ của tàu đầu tiên (x, y) và tọa độ của tàu thứ hai
+# Get the coordinates of the first boat (x, y) and the coordinates of the second boat
 x_first = float(sys.argv[1])
 y_first = float(sys.argv[2])
 z_first = float(sys.argv[3])
@@ -17,15 +17,15 @@ z_second = float(sys.argv[6])
 
 world_name = sys.argv[7]
 boat_model_name = sys.argv[8]
-# Đặt tọa độ z = 0 cho tất cả tàu
+# Set z coordinate to 0 for all boats
 yaw_default = 0.0
 
-# Tạo chuỗi XML cho các tàu
+# Create XML string for the boats
 xml_content = """<?xml version="1.0" ?>
 <sdf version="1.9">
   <world name='"""
 xml_content += f"""{world_name}'>"""
-# Tạo tàu đầu tiên tại vị trí (x_first, y_first, z_first)
+# Create the first boat at position (x_first, y_first, z_first)
 xml_content += f"""    
     <include>
       <name>flag_ship_1</name>
@@ -41,7 +41,7 @@ xml_content += f"""
 
 """
 
-# Thêm các thông tin khác vào trong XML
+# Add other information to the XML
 xml_content += """
     <physics type="ode">
       <max_step_size>0.004</max_step_size>
@@ -216,12 +216,12 @@ xml_content += """
 </sdf>
 """
 
-# Lưu kết quả vào file
+# Save the result to file
 swarmz4_path = os.getenv("SWARMZ4_PATH", "")
 file_path = os.path.join(swarmz4_path, "PX4-Autopilot/Tools/simulation/gz/worlds/")
 #file_path = os.path.expanduser("$HOME/SWARMz4/PX4-Autopilot/Tools/simulation/gz/worlds/")
 full_path = os.path.join(file_path, f"{world_name}.sdf")
-# Lưu kết quả vào file
+# Save the result to file
 with open(full_path, "w") as file:
     file.write(xml_content)
 
