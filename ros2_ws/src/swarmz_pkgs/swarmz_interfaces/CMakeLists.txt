@@ -18,6 +18,8 @@ set(msg_files
   # communication.msg => std_msgs/String
   "msg/Detection.msg"
   "msg/Detections.msg"
+  "msg/RobotState.msg"
+  "msg/GameState.msg"
 )
 
 # Service files
