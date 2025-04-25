@@ -1,20 +1,20 @@
 #!/bin/bash
 
+# Source check_swarmz_path.sh to ensure SWARMZ4_PATH is set
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/check_swarmz_path.sh"
+
 # Function to detect Ubuntu version
 detect_ubuntu_version() {
-    ubuntu_version=$(lsb_release -rs | cut -d. -f1)
-    echo "Detected Ubuntu $ubuntu_version"
-    echo "$ubuntu_version"
+    lsb_release -rs | cut -d. -f1
 }
 
 # Function to check if the appropriate ROS 2 is already installed
 check_ros2_installed() {
     local ros_version=$1
     if [ -d "/opt/ros/$ros_version" ]; then
-        echo "ROS 2 $ros_version is already installed."
         return 0
     else
-        echo "ROS 2 $ros_version is not installed."
         return 1
     fi
 }
@@ -93,9 +93,15 @@ install_ros2_jazzy() {
 build_workspace() {
     local ros_version=$1
     source /opt/ros/$ros_version/setup.bash
+    
     cd $SWARMZ4_PATH/ros2_ws || { echo "Failed to access ros2_ws directory"; exit 1; }
+    
+    # Only run rosdep init if it hasn't been initialized yet
+    if ! rosdep version &>/dev/null; then
+        sudo rosdep init
+    fi
+    
     sudo apt update
-    sudo rosdep init
     rosdep update
     rosdep install --from-paths src --ignore-src -r -y
     colcon build --symlink-install
@@ -124,3 +130,10 @@ else
     echo "Unsupported Ubuntu version $ubuntu_version. This script supports Ubuntu 22 for ROS 2 Humble and Ubuntu 24 for ROS 2 Jazzy."
     exit 1
 fi
+
+# Make sure ROS setup is sourced even if already installed
+if [ -f "/opt/ros/$ROS_DISTRO/setup.bash" ]; then
+    source /opt/ros/$ROS_DISTRO/setup.bash
+fi
+
+echo "ROS 2 installation and setup complete."

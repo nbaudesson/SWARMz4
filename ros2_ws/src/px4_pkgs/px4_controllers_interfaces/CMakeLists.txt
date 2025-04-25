@@ -24,6 +24,7 @@ set(msg_files
 # Generate interfaces
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
+  "srv/SetVelocities.srv"
   "action/GotoPosition.action"
   DEPENDENCIES geometry_msgs
 )

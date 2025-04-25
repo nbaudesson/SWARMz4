@@ -31,7 +31,7 @@ Parameters:
 - takeoff_height (float, default: 1.0): Height for automatic takeoff in meters
 - hover_timeout (float, default: 10.0): Time to hover before auto-landing
 - land_height_threshold (float, default: 0.4): Height threshold for landing detection
-- mpc_xy_vel_max (float, default: 12.0): Maximum horizontal velocity for position control
+- horizontal_speed (float, default: 12.0): Maximum horizontal velocity for position control
 - command_velocity_timeout (float, default: 2.0): Timeout for velocity commands
 
 Usage Examples:
@@ -58,11 +58,36 @@ Usage Examples:
    ros2 topic pub --once /px4_0/target_pose px4_controllers_interfaces/msg/PointYaw "{position: {x: 5.0, y: 0.0, z: -2.0}, yaw: 0.0}"
    ```
 
+4.ROS2 Commands for Testing Velocity Control Mode.
+    # To start the controller with velocity mode enabled:
+    ```bash
+    ros2 run offboard_control_py offboard_control_px4 --ros-args -r __ns:=/px4_0 -p offboard_mode:=velocity
+    ```
+
+    # Commands to send velocity messages:
+    ```bash
+    # Move forward at 1.0 m/s (in FRD frame)
+    ros2 topic pub --once /px4_0/target_pose px4_controllers_interfaces/msg/PointYaw "{position: {x: 1.0, y: 0.0, z: 0.0}, yaw: 0.0}"
+
+    # Move right at 0.5 m/s (in FRD frame)
+    ros2 topic pub --once /px4_0/target_pose px4_controllers_interfaces/msg/PointYaw "{position: {x: 0.0, y: 0.5, z: 0.0}, yaw: 0.0}"
+
+    # Move up at 0.3 m/s (in FRD frame)
+    ros2 topic pub --once /px4_0/target_pose px4_controllers_interfaces/msg/PointYaw "{position: {x: 0.0, y: 0.0, z: -0.3}, yaw: 0.0}"
+
+    # Turn at 15 degrees/second to the right (in FRD frame)
+    ros2 topic pub --once /px4_0/target_pose px4_controllers_interfaces/msg/PointYaw "{position: {x: 0.0, y: 0.0, z: 0.0}, yaw: 15.0}"
+
+    # Combined motion (forward + right + turning) (in FRD frame)
+    ros2 topic pub --once /px4_0/target_pose px4_controllers_interfaces/msg/PointYaw "{position: {x: 0.5, y: 0.5, z: 0.0}, yaw: 10.0}"
+    ```
+    Note: The velocity commands will time out after the command_velocity_timeout parameter (default 2.0 seconds).
+
 Action Server Details:
 - Goal: Target position and yaw in the frame of your choosing. Make sure to correclty set the same frame in the parameter coordinate_system of this node
 - Feedback: Current position, distance to target, elapsed time
 - Result: Success boolean (true if position reached, false if timed out)
-- Timeout: Calculated based on distance and MPC_XY_VEL_MAX parameter
+- Timeout: Calculated based on distance and horizontal_speed (MPC_XY_VEL_MAX parameter)
 
 Notes:
     - Z is negative up (NED frame)
@@ -79,13 +104,16 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition, VehicleStatus
 from px4_controllers_interfaces.msg import PointYaw
-import time
 import math
 import numpy as np
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from action_msgs.msg import GoalStatus
 from px4_controllers_interfaces.action import GotoPosition
-import threading, asyncio
+import threading
+# from mavros_msgs.srv import ParamSetV2
+from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
+from rcl_interfaces.srv import SetParameters
+from px4_controllers_interfaces.srv import SetVelocities
 
 class Pose:
     """Represents a pose with x, y, z coordinates and yaw."""
@@ -105,6 +133,9 @@ class Pose:
     
     def yaw_in_degrees(self):
         return math.degrees(self.yaw)
+    
+    def yaw_in_radians(self):
+        return math.radians(self.yaw)
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -134,7 +165,7 @@ class PX4OffboardControl(Node):
     LANDING = 2   # Executing landing sequence
     NAVIGATING = 3  # Moving to target position
     HOVER = 4     # Maintaining last position
-
+    
     def __init__(self) -> None:
         # Fix the parameter_overrides format
         super().__init__(
@@ -154,6 +185,8 @@ class PX4OffboardControl(Node):
 
         # Coordinate system parameters
         self.declare_parameter('coordinate_system', 'NED')  # Coordinate system used (NED, FRD or FLU)
+        self._coordinate_system = self.get_parameter('coordinate_system').value # Get initial value
+
         self.declare_parameter('offboard_mode', 'position')  # Offboard modes used (position, velocity). Acceleration, attitude, body_rate are not implemnented yet
 
         # Spawn position in simulation (used for position offsetting)
@@ -161,10 +194,11 @@ class PX4OffboardControl(Node):
         self.declare_parameter('spawn_y', 0.0)  # Y coordinate relative to world origin
         
         # Flight behavior parameters
-        self.declare_parameter('takeoff_height', 2.0)  # Height for initial takeoff in meters
+        self.declare_parameter('takeoff_height', 5.0)  # Height for initial takeoff in meters
         self.declare_parameter('hover_timeout', 10.0)  # Time to hover at target before auto-landing
         self.declare_parameter('land_height_threshold', 0.4)  # Height threshold for landing detection
-        self.declare_parameter('mpc_xy_vel_max', 12.0)  # Max horizontal speed for position control
+        self.declare_parameter('horizontal_speed', 12.0)  # Max horizontal speed for position control
+        self.declare_parameter('vertical_speed', 3.0)  # Max vertical speed for position control
         self.declare_parameter('command_velocity_timeout', 2.0)  # Max horizontal speed for position control
 
         # Store world spawn position for coordinate transformation between world and local coordinates
@@ -182,6 +216,8 @@ class PX4OffboardControl(Node):
         # Flight parameters
         self._timeout_margin = 3  # Multiplier for timeout calculation (200% extra time)
         self._min_timeout = 20.0  # Minimum timeout duration in seconds
+        self._min_vertical_speed = 0.2  # Minimum vertical speed in in m/s
+        self._min_horizontal_speed = 0.2  # Minimum horizontal speed in m/s
 
         # State variables
         self._state = self.IDLE  # Current flight state (IDLE, TAKEOFF, NAVIGATING, HOVER)
@@ -195,7 +231,7 @@ class PX4OffboardControl(Node):
         self.node_namespace = self.get_namespace()  # Used for multi-drone topics
         self.node_namespace = '' if self.node_namespace == '/' else self.node_namespace
         self._instance = int(self.node_namespace.split('_')[-1]) if '_' in self.node_namespace else 0
-
+        
         # Position tracking parameters
         self._position_valid = False    # Set when valid position data is received
         self._current_pos = Pose() # Current position in local frame, yaw in rad
@@ -205,6 +241,7 @@ class PX4OffboardControl(Node):
         self._last_reached_position = Pose()  # Last successfully reached position
         self._position_threshold = 0.15  # Distance threshold for position reached (meters)
         self._takeoff_case = False  # Which takeoff case are we in auto, setpoint or fail
+        self._auto_takeoff_in_progress = False  # Set when auto takeoff is in progress
         self._takeoff_complete = False  # Set when takeoff is finished, also serves as a flag to check if the drone is supposed to be in the air
         self._takeoff_start_time = 0.0  # Time when takeoff started
         self._landing_in_progress = False  # Set during landing sequence
@@ -233,7 +270,7 @@ class PX4OffboardControl(Node):
         self.control_timer = self.create_timer(float(1/4), self.control_loop)  # Main control logic at 4Hz
         self.command_timer = self.create_timer(float(1/10), self.command_loop)  # Command publishing at 3Hz (should be > 2Hz)
         
-        self.get_logger().info(f'NED Controller initialized at spawn position: {self._spawn_position}')
+        self.log(f'NED Controller initialized at spawn position: {self._spawn_position}', level='info')
 
     ##################
     ### ROS2 SETUP ###
@@ -253,6 +290,42 @@ class PX4OffboardControl(Node):
         self._goal_result = None
         # Event to signal when the goal processing is complete
         self._goal_event = threading.Event()
+        
+        # Setup service server
+        self.set_velocities_service = self.create_service(
+            SetVelocities,
+            f'{self.node_namespace}/set_velocities',
+            self.set_velocities_callback
+        )
+
+        # Initialize a single parameter service client
+        self._param_service_name = f"{self.node_namespace}/param/set_parameters"
+        self._param_client = self.create_client(SetParameters, self._param_service_name)
+
+    def set_ros2_parameter(self, param_id: str, param_value: float):
+        """Set a PX4 parameter using ROS2 parameter client API (non-blocking)."""
+        # Wait for the service to be available
+        if not self._param_client.wait_for_service(timeout_sec=0.1):
+            self.log(f'Parameter service {self._param_service_name} not available', level='warn')
+            return True  # Consider it "successful" to avoid blocking
+
+        # Create parameter message
+        param_value_msg = ParameterValue()
+        param_value_msg.type = ParameterType.PARAMETER_DOUBLE
+        param_value_msg.double_value = float(param_value)
+
+        # Create parameter request
+        param = Parameter()
+        param.name = param_id
+        param.value = param_value_msg
+        request = SetParameters.Request()
+        request.parameters = [param]
+
+        self.log(f'Sending parameter set request : {param_id}={param_value}', level='debug')
+        # Send the request without waiting
+        self._param_client.call_async(request)
+
+        return True  # Assume success to keep going
 
     def setup_publishers(self, qos_profile):
         """Setup all publishers with correct topics and QoS."""
@@ -292,7 +365,7 @@ class PX4OffboardControl(Node):
         self.vehicle_status = vehicle_status
         self._armed = vehicle_status.arming_state == VehicleStatus.ARMING_STATE_ARMED
         self._is_offboard = vehicle_status.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD
-        self._auto_takeoff_in_progress = vehicle_status.nav_state == VehicleStatus.NAVIGATION_STATE_AUTO_TAKEOFF
+        # self._auto_takeoff_in_progress = vehicle_status.nav_state == VehicleStatus.NAVIGATION_STATE_AUTO_TAKEOFF
         self._landing_in_progress = vehicle_status.nav_state == VehicleStatus.NAVIGATION_STATE_AUTO_LAND
         self._pre_flight_checks_passed = vehicle_status.pre_flight_checks_pass
 
@@ -307,16 +380,16 @@ class PX4OffboardControl(Node):
 
         # If the offboard_mode is position, we need to convert the message to a Pose object
         if (self.get_parameter('offboard_mode').value == 'position' 
-            or self.get_parameter('offboard_mode').value == 'position_velocity'):
+            or self.get_parameter('offboard_mode').value == 'velocity'):
             # Convert the PointYaw message to a Pose object
             self._target_pos = Pose.from_msg(msg)
             self._target = True
         elif (self.get_parameter('offboard_mode').value == 'acceleration' 
               or self.get_parameter('offboard_mode').value == 'attitude'
               or self.get_parameter('offboard_mode').value == 'body_rate'):
-            self.log(f"Offboard mode {self.get_parameter('offboard_mode')} not implemented yet", level='error') 
+            self.log(f"Offboard mode {self.get_parameter('offboard_mode').value} not implemented yet", level='error') 
         else:
-            self.log(f"Offboard mode {self.get_parameter('offboard_mode')} not recognized", level='error')  
+            self.log(f"Offboard mode {self.get_parameter('offboard_mode').value} not recognized", level='error')  
 
     def command_loop(self):
         """
@@ -340,7 +413,7 @@ class PX4OffboardControl(Node):
         #  Valid position check a.k.a. is the ekf working
         if self._position_valid is False:
             # If the drone is not in IDLE and the position is not valid, it means the drone has lost it and we need to land
-            self.log('Position estimation failed and drone is supposedly flying - EMERGENCY Landing', level='error')
+            self.log('[cmd_loop] Position estimation failed and drone is supposedly flying - EMERGENCY Landing', level='error')
             # If the drone has no valid position, we can't even use the LANDING state.
             self._state = self.IDLE
             # The sleep will outlast the frequency of the command loop, I hope changing the state first will avoid looping over this case
@@ -349,11 +422,11 @@ class PX4OffboardControl(Node):
   
         # Arming check
         if not self._armed:
-            self.log('Cannot send commands - vehicle not armed', level='warn')
+            self.log('[cmd_loop] Cannot send commands - vehicle not armed', level='warn')
             self.arm()
             # If not armed, while in the air (Which should not be possible) we need to land
             if self._current_pos.z < 0.0 and self._takeoff_complete and (self._state == self.NAVIGATING or self._state == self.HOVER):
-                self.log('Not armed and detected in the air - EMERGENCY Landing', level='error')
+                self.log('[cmd_loop] Not armed and detected in the air - EMERGENCY Landing', level='error')
                 # In this scenario, the drone is not able to run tracjectory setpoints
                 # So it needs to use the land command to get to the ground immediatly and restart the arming sequence of the IDLE state
                 self._setpoint_to_run = None 
@@ -366,23 +439,6 @@ class PX4OffboardControl(Node):
             self.offboard_mode()
             # return
         
-            # # Takeoff and landing states are the only states where we can be in an other navigation state than offboard mode (in this code)
-            # # If not in offboard mode, while in the air we need to land
-            # if self._current_pos.z < 0.0 and self._takeoff_complete and (self._state == self.NAVIGATING): # or self._state == self.HOVER
-            #     self.log('Not in offboard mode and detected in the air - EMERGENCY Landing', level='error')
-            #     # In this scenario, the drone is not able to run tracjectory setpoints
-            #     # So it needs to use the land command to get to the ground immediatly and restart the arming sequence of the IDLE state
-            #     self._landing_in_progress = True
-            #     self._state = self.LANDING
-            #     # Aboort the goal if it exists
-            #     if self._current_goal_handle is not None:
-            #         result = GotoPosition.Result()
-            #         result.success = False
-            #         self._goal_result = result  # Store the result before aborting
-            #         # Abort the goal instead of succeed for semantic correctness
-            #         self._current_goal_handle.abort()
-            #         self._goal_event.set()  # Signal that the goal is completed
-
         # Always publish control mode message
         # If the drone is in taking off state, landing state, or hovering state, we HAVE TO use the position mode
         if self._state == self.TAKEOFF or self._state == self.LANDING or self._state == self.HOVER:
@@ -391,13 +447,14 @@ class PX4OffboardControl(Node):
             self.publish_position_setpoint(x=self._setpoint_to_run.x, y=self._setpoint_to_run.y, z=self._setpoint_to_run.z, yaw=self._setpoint_to_run.yaw)
         else:
             if self.get_parameter('offboard_mode').value == 'position':
-                # If the drone is in navigating state, we HAVE TO use the position mode
                 self.publish_offboard_control_mode("position")
                 # Publish the trajectory setpoint in position mode
+                # self.log(f"[cmd_loop] Publishing position setpoint: {self._setpoint_to_run}", level='info')
                 self.publish_position_setpoint(x=self._setpoint_to_run.x, y=self._setpoint_to_run.y, z=self._setpoint_to_run.z, yaw=self._setpoint_to_run.yaw)
             elif self.get_parameter('offboard_mode').value == 'velocity':
-                self.publish_offboard_control_mode(self.get_parameter('offboard_mode').value)
+                self.publish_offboard_control_mode("velocity")
                 # Publish the trajectory setpoint in velocity mode
+                # self.log(f"[cmd_loop] Publishing velocity setpoint: {self._setpoint_to_run}", level='info')
                 self.publish_velocity_setpoint(vx=self._setpoint_to_run.x, vy=self._setpoint_to_run.y, vz=self._setpoint_to_run.z, yawspeed=self._setpoint_to_run.yaw)
 
     def control_loop(self):
@@ -433,22 +490,18 @@ class PX4OffboardControl(Node):
         """Handle idle state - wait for commands."""
         # Only try to arm and engage offboard mode if we have a target and valid position and pre-flight checks passed
         if self._position_valid is False:
-            self.log('Waiting for valid position data', level='info')
+            self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Waiting for valid position data', level='info')
             return
         
         if self._target is False :
-            self.log('Waiting for target', level='info')
+            self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Waiting for target', level='info')
             return
         
         if self._pre_flight_checks_passed is False:
-            self.log('Pre-flight checks not passed! Check PX4 terminal.', level='warn')
+            self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Pre-flight checks not passed! Check PX4 terminal.', level='warn')
             if self._is_offboard:
                 self.hold_mode()
             return
-        
-        # if self._armed is False :
-        #     self.arm()
-        #     return
 
         # If we get to this point, we're armed and we have somewhere to go to
         # Make the drone takeoff before sending the target as _setpoint_to_run
@@ -465,12 +518,12 @@ class PX4OffboardControl(Node):
                 self.handle_setpoint_takeoff_state()
             case 'fail':
                 # Stop _setpoint_to_run, log error, start landing and cancel action if there is one
-                self.log('Takeoff failed, switching to LANDING state', level='error')
+                self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Takeoff failed, switching to LANDING state', level='error')
                 self._state = self.LANDING
                 self._setpoint_to_run = None
-                self.log('Takeoff timeout reached', level='warn')
-                self.log(f'Current position: {self._current_pos}', level='warn')
-                self.log(f'Setpoint to run: {self._setpoint_to_run}', level='warn')
+                self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Takeoff timeout reached', level='warn')
+                self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Current position: {self._current_pos}', level='warn')
+                self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Setpoint to run: {self._setpoint_to_run}', level='warn')
                 self.log(self.vehicle_status, level='debug')
                 self._takeoff_complete = False
                 if self._current_goal_handle is not None:
@@ -487,26 +540,33 @@ class PX4OffboardControl(Node):
         # 1. Cancel any set goal if it exists
         if self._setpoint_to_run is not None:
             self._setpoint_to_run = None
-            self.log('Setpoint to run cancelled', level='info')
+            self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Setpoint to run cancelled', level='info')
 
         # 2. If auto takeoff sequence hasn't started yet, start it. And start the takeoff timer
         if self._auto_takeoff_in_progress is False:
+            self.set_auto_takeoff_height()
+            self.update_vertical_speed(2.5) # Default takeoff speed to avoid velocity control from changing it 
+            # MPC_TKO_SPEED is not modified by update_vertical_speed but it is limited by it
             self.take_off_mode()
-            # self.take_off()
             self.arm()
+            # self.take_off()
             self._auto_takeoff_in_progress = True
             self._takeoff_start_time = self.get_clock().now()
 
         # 3. Check if the drone is at the right height (with the same objective threshold as navigating), if so pass to NAVIGATING state
         # auto takeoff make it go a bit higher than the takeoff height, so we need to modify the threshold
-        if math.isclose(self._current_pos.z, -self._takeoff_height, abs_tol=self._position_threshold+0.3):
-            self._state = self.NAVIGATING
+        if math.isclose(self._current_pos.z, -self._takeoff_height, abs_tol=self._position_threshold):
+            self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Current height: {self._current_pos.z}, Takeoff height: {-self._takeoff_height}', level='info')
             self._takeoff_complete = True
-            self.log('Takeoff complete, transitioning to NAVIGATING state', level='info')
-            ### TODO: To test if necessary. Setting setpoint to run just in case
-            self.offboard_mode()
-            self._setpoint_to_run = self._current_pos
-            ###
+            self._auto_takeoff_in_progress = False
+            self._last_reached_position = Pose(
+                x=self._current_pos.x,
+                y=self._current_pos.y,
+                z=-self._takeoff_height,
+                yaw=self._current_pos.yaw
+            )
+            self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Takeoff complete, transitioning to NAVIGATING state', level='info')
+            self._state = self.NAVIGATING
             return
         
         # 4. Check if timeout has been reached, if so raise error to try setpoint takeoff
@@ -514,7 +574,8 @@ class PX4OffboardControl(Node):
             try:
                 if ((self.get_clock().now() - self._takeoff_start_time).nanoseconds / 1e9) > self._min_timeout:
                     self._takeoff_case = 'setpoint'
-                    self.log('Takeoff timeout reached, switching to setpoint takeoff', level='warn')
+                    self._auto_takeoff_in_progress = False
+                    self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Takeoff timeout reached, switching to setpoint takeoff', level='warn')
             except TypeError:
                 self._takeoff_start_time = self.get_clock().now()
 
@@ -523,12 +584,14 @@ class PX4OffboardControl(Node):
         Handle takeoff state in the state machine control loop, using setpoint method to takeoff.
         """
         if self._armed is False :
-                self.arm()
+            self.arm()
         if self._is_offboard is False:
             self.offboard_mode()
 
         # 1. if _setpoint_to_run is none, give the drone a setpoint with the drone's current position and yaw and and make a setpoint with z = takeoff_height and start timeout counting for takeoff
         if self._setpoint_to_run is None:
+            self.update_vertical_speed(2.5) # Default takeoff speed to avoid velocity control from changing it 
+            # MPC_TKO_SPEED is not modified by update_vertical_speed but it is limited by it
             self._setpoint_to_run = Pose(
                 x=self._current_pos.x,
                 y=self._current_pos.y,
@@ -537,14 +600,15 @@ class PX4OffboardControl(Node):
             )
             # Start the takeoff timer
             self._takeoff_start_time = self.get_clock().now()
-            self.log('Setpoint takeoff initiated', level='info')
+            self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Setpoint takeoff initiated', level='info')
             return
 
         # 2. check if the drone is at the right height (with the same objective threshold as navigating), if so pass to NAVIGATING state
         if math.isclose(self._current_pos.z, -self._takeoff_height, abs_tol=self._position_threshold):
+            self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Takeoff complete, transitioning to NAVIGATING state', level='info')
             self._state = self.NAVIGATING
-            self.log('Takeoff complete, transitioning to NAVIGATING state', level='info')
             self._takeoff_complete = True
+            self._last_reached_position = self._setpoint_to_run
             return 
 
         # 3. check if timeout has been reached, if so give logs about the drones status and setpoint to help debug the sequence,
@@ -562,6 +626,8 @@ class PX4OffboardControl(Node):
 
         # In this case we are hovering in loiter/hold state and the offboard mode method will not work.        
         if self._is_offboard is False:
+            self.update_vertical_speed(2.5) # Default takeoff speed to avoid velocity control from changing it 
+            # MPC_TKO_SPEED is not modified by update_vertical_speed but it is limited by it
             self.land()
 
         # 1. If the drone is not already landing, set the setpoint to the current position to make the drone stop and start the landing process
@@ -573,13 +639,15 @@ class PX4OffboardControl(Node):
                 yaw=self._current_pos.yaw
                 )
             self._landing_in_progress = True
+            self.update_vertical_speed(2.5) # Default takeoff speed to avoid velocity control from changing it 
+            # MPC_TKO_SPEED is not modified by update_vertical_speed but it is limited by it
         else:
             # 2. Check if horizontal speed is slow enough to start vertical landing. Run the land command only once to avoid flooding PX4
             if abs(self.vehicle_local_position.vx) < 0.1 and abs(self.vehicle_local_position.vy) < 0.1:
-                self.log('Horizontal speed low enough, landing initiated', level='info')
+                self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Horizontal speed low enough, landing initiated', level='info')
                 self._setpoint_to_run = None
                 self.land()
-                self.log('Landing complete', level='info')
+                self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Landing complete', level='info')
                 self._landing_in_progress = False
                 self._state = self.IDLE
                 return
@@ -603,19 +671,24 @@ class PX4OffboardControl(Node):
             # Check if there is a new target
             if self._target is True:
                 self._target = False  # New targets are one time uses
-                # a. We need to convert the target vector to local vector
-                # Then set the _setpoint_to_run to the target position in local frame and start the command velocity timer
+
+                # a. Update the horizontal and vertical max speed to the max speed of the drone to the value given 
+                #       by the user's target velocity
+                self.update_horizontal_speed(abs(max(abs(self._target_pos.x), abs(self._target_pos.y), self._min_horizontal_speed)))
+                self.update_vertical_speed(max(abs(self._target_pos.z), self._min_vertical_speed))
+                self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Target velocity is x :{self._target_pos.x} m/s, y: {self._target_pos.y} m/s, z : {self._target_pos.z}, yawspeed : {self._target_pos.yaw_in_radians} rad/s', level='info')
                 self._setpoint_to_run = convert_user_velocity_to_local_velocity(self._current_pos,
                                                                                 self._target_pos,
                                                                                 self.get_parameter('coordinate_system').value)
+
                 self._navigation_in_progress = True  # Start the navigation timer
                 self._command_velocity_timer = self.get_clock().now()
-                self.log('Velocity command initiated', level='info')
+                
             if self._navigation_in_progress is True:
                 # b. If there is no new target, we need to check if the velocity command has timed out
                 if ((self.get_clock().now() - self._command_velocity_timer).nanoseconds / 1e9) > self._command_velocity_timeout:
                     # If it has, change the state to HOVER
-                    self.log('Velocity command timeout reached', level='info')
+                    self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Velocity command timeout reached', level='info')
                     self._target = False
                     self._navigation_in_progress = False
                     self._last_reached_position = self._current_pos
@@ -625,7 +698,7 @@ class PX4OffboardControl(Node):
         if self.get_parameter('offboard_mode').value == 'position':
             # a. Check if a new target has been received
             if self._target is True and self._navigation_in_progress is False:
-                self.log(f'Going to {self._target_pos}', level='info')
+                self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Going to {self._target_pos}', level='info')
                 self._target = False
                 #   raise the flag, start the timer and set the timeout to get there
                 #   set _setpoint_to_run to the target position (from the requested coordinate system) converted to the local frame
@@ -633,7 +706,9 @@ class PX4OffboardControl(Node):
                                                                                         self._target_pos,
                                                                                         self._current_pos,
                                                                                         self.get_parameter('coordinate_system').value)
-                self.log(f'Local target position: {self._local_target_pos}', level='info')
+                self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Local target position: {self._local_target_pos}', level='info')
+                self.update_vertical_speed(self.get_parameter('vertical_speed').value) # change to parameter speed    
+                self.update_horizontal_speed(self.get_parameter('horizontal_speed').value) # change to parameter speed    
                 self._navigation_timeout = self.calculate_timeout(self._current_pos.to_list()[:3], self._local_target_pos.to_list()[:3])
                 # Go to the target position
                 self._setpoint_to_run = self._local_target_pos
@@ -658,10 +733,10 @@ class PX4OffboardControl(Node):
 
             # 4. Check if the drone has timed out
             if elapsed_time > self._navigation_timeout:
-                self.log('Navigation timeout reached', level='warn')
-                self.log(f'Current position: {self._current_pos}', level='warn')
-                self.log(f'Setpoint to run: {self._setpoint_to_run}', level='warn')
-                self.log('Hovering initiated due to timeout', level='error')
+                self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Navigation timeout reached', level='warn')
+                self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Current position: {self._current_pos}', level='warn')
+                self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Setpoint to run: {self._setpoint_to_run}', level='warn')
+                self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Hovering initiated due to timeout', level='error')
                 self.log(self.vehicle_status, level='debug')
                 self._last_reached_position = self._current_pos
                 self._navigation_in_progress = False
@@ -676,8 +751,8 @@ class PX4OffboardControl(Node):
             
         # 5. Check if the drone has reached the target position
             if distance_to_target <= self._position_threshold:
-                self.log('Target position reached', level='info')
-                self.log(f'Current position: {self._current_pos}', level='info')
+                self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Target position reached', level='info')
+                self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Current position: {self._current_pos}', level='info')
                 self._last_reached_position = self._local_target_pos
                 self._navigation_in_progress = False
                 # Check if there is still a valid goal handle before succeeding
@@ -713,6 +788,7 @@ class PX4OffboardControl(Node):
         if self._hovering_in_progress is False:
             self._setpoint_to_run = self._last_reached_position
             self._hovering_in_progress = True
+            self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Hovering at : {self._last_reached_position}', level='info')
             return
         
         # 3. If the drone is below the land height threshold and timer has not already started, we start the timer
@@ -723,7 +799,7 @@ class PX4OffboardControl(Node):
                 # We check if the timer has timed out
                 if ((self.get_clock().now() - self._low_altitude_hovering_timer).nanoseconds / 1e9) > self._hover_timeout:
                     # If it has, we start the landing sequence
-                    self.log('Hovering timeout reached, initiating landing', level='warn')
+                    self.log(f'[ctrl_loop: {self.get_state_name(self._state)}] Hovering timeout reached, initiating landing', level='warn')
                     self._state = self.LANDING
         else:
             if self._low_altitude_hovering_timer is not None:
@@ -750,7 +826,10 @@ class PX4OffboardControl(Node):
     def publish_velocity_setpoint(self, vx: float, vy: float, vz: float, yawspeed: float):
         """Publish velocity setpoint."""
         msg = TrajectorySetpoint()
+        msg.position = [float('nan'), float('nan'), float('nan')]
         msg.velocity = [float(vx), float(vy), float(vz)]
+        msg.acceleration = [float('nan'), float('nan'), float('nan')]
+        msg.yaw = float('nan')
         msg.yawspeed = float(yawspeed)
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
         self.trajectory_setpoint_publisher.publish(msg)
@@ -759,7 +838,10 @@ class PX4OffboardControl(Node):
         """Publish position setpoint."""
         msg = TrajectorySetpoint()
         msg.position = [float(x), float(y), float(z)]
+        msg.velocity = [float('nan'), float('nan'), float('nan')]
+        msg.acceleration = [float('nan'), float('nan'), float('nan')]
         msg.yaw = float(yaw)
+        msg.yawspeed = float('nan')
         msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
         self.trajectory_setpoint_publisher.publish(msg)
 
@@ -784,14 +866,12 @@ class PX4OffboardControl(Node):
 
     def arm(self):
         """Send arm command."""
-        self.publish_vehicle_command(
-            VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM, param1=1.0)
+        self.publish_vehicle_command(VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM, param1=1.0)
         self.log('Arm command sent', level='info')
         
     def disarm(self):
         """Send disarm command."""
-        self.publish_vehicle_command(
-            VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM, param1=0.0)
+        self.publish_vehicle_command(VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM, param1=0.0)
         self.log('Disarm command sent', level='info')
 
     def offboard_mode(self):
@@ -804,28 +884,34 @@ class PX4OffboardControl(Node):
     def hold_mode(self):
         """Switch to hold mode."""
         # Send nav_state request for hold mode
-        self.publish_vehicle_command(
-            VehicleCommand.VEHICLE_CMD_SET_NAV_STATE, param1=4.0)    
+        self.publish_vehicle_command(VehicleCommand.VEHICLE_CMD_SET_NAV_STATE, param1=4.0)    
         self.log('Switching to hold mode', level='info')
 
     def take_off_mode(self):
         """Switch to takeoff mode."""
         # Send nav_state request for takeoff mode
-        self.publish_vehicle_command(
-            VehicleCommand.VEHICLE_CMD_SET_NAV_STATE, param1=17.0)   
+        self.publish_vehicle_command(VehicleCommand.VEHICLE_CMD_SET_NAV_STATE, param1=17.0)   
         self.log('Switching to takeoff mode', level='info')
 
-    def take_off(self):
+    def set_auto_takeoff_height(self):
+        """Set the auto takeoff height.
+        PX4 Takeoff height parameter :
+        MIS_TAKEOFF_ALT : id= 1043  default=2.5(m) Default takeoff altitude
+        """
+        # self.publish_vehicle_command(VehicleCommand.VEHICLE_CMD_DO_SET_PARAMETER, param1 = 1043.0, param2=self._takeoff_height)
+        self.set_ros2_parameter('MIS_TAKEOFF_ALT', self._takeoff_height)
+        self.log(f"Takeoff altitude set to {self._takeoff_height}", level='info')
+
+    # I CANT MAKE THIS COMMAND WORK
+    def take_off(self): 
         """Command the vehicle to take off to specified altitude"""
-        self.publish_vehicle_command(
-            VehicleCommand.VEHICLE_CMD_NAV_TAKEOFF, param1 = 1.0, param7=self._takeoff_height) # param7 is altitude in meters
+        self.publish_vehicle_command(VehicleCommand.VEHICLE_CMD_NAV_TAKEOFF, param1 = 1.0, param7=self._takeoff_height) # param7 is altitude in meters
         self.log("Takeoff command send", level='info')
 
     def land_mode(self):
         """Switch to land mode."""
         # Send nav_state request for land mode
-        self.publish_vehicle_command(
-            VehicleCommand.VEHICLE_CMD_SET_NAV_STATE, param1=18.0)   
+        self.publish_vehicle_command(VehicleCommand.VEHICLE_CMD_SET_NAV_STATE, param1=18.0)   
         self.log('Switching to land mode', level='info')
 
     def land(self):
@@ -836,6 +922,78 @@ class PX4OffboardControl(Node):
         self._target = False
         self.log('Landing command sent', level='info')
 
+    def update_horizontal_speed(self, horizontal_speed):
+        """Update the horizontal speed.
+        PX4 Horizontall speed parameters :
+        MC_SLOW_DEF_HVEL : id= 1019  default=3.0(m/s) Default horizontal velocity limit
+        MPC_VEL_MANUAL   : id= 1101  default=10.0(m/s) Manual velocity limit
+        MPC_XY_VEL_MAX   : id= 1114  default=12.0(m/s) Maximum horizontal velocity
+        MPC_XY_CRUISE    : id= 1106  default=5.0(m/s) Cruise horizontal velocity
+        MPC_XY_VEL_ALL   : id= 1111  default=-10.0(m/s) Overall horizontal velocity
+        """
+        horizontal_speed = float(horizontal_speed)
+        self.log(f'Updating horizontal speed to {horizontal_speed}', level='info')
+        
+        # Set MC_SLOW_DEF_HVEL
+        param_id = 'MC_SLOW_DEF_HVEL'
+        self.log(f'Setting parameter {param_id} to {horizontal_speed}', level='debug')
+        self.set_ros2_parameter(param_id, horizontal_speed)
+        # self.publish_vehicle_command(VehicleCommand.VEHICLE_CMD_DO_SET_PARAMETER, param1=1019.0, param2=horizontal_speed)
+        
+        # Set MPC_VEL_MANUAL
+        param_id = 'MPC_VEL_MANUAL'
+        self.set_ros2_parameter(param_id, horizontal_speed)
+        # self.publish_vehicle_command(VehicleCommand.VEHICLE_CMD_DO_SET_PARAMETER, param1=1101.0, param2=horizontal_speed)
+        
+        # Set MPC_XY_VEL_MAX
+        param_id = 'MPC_XY_VEL_MAX'
+        self.log(f'Setting parameter {param_id} to {horizontal_speed}', level='debug')
+        self.set_ros2_parameter(param_id, horizontal_speed)
+        # self.publish_vehicle_command(VehicleCommand.VEHICLE_CMD_DO_SET_PARAMETER, param1=1114.0, param2=horizontal_speed)
+        
+        # Set MPC_XY_CRUISE
+        param_id = 'MPC_XY_CRUISE'
+        self.log(f'Setting parameter {param_id} to {horizontal_speed}', level='debug')
+        self.set_ros2_parameter(param_id, horizontal_speed)
+        # self.publish_vehicle_command(VehicleCommand.VEHICLE_CMD_DO_SET_PARAMETER, param1=1106.0, param2=horizontal_speed)
+        
+        # Set MPC_XY_VEL_ALL
+        param_id = 'MPC_XY_VEL_ALL'
+        self.log(f'Setting parameter {param_id} to {horizontal_speed}', level='debug')
+        self.set_ros2_parameter(param_id, horizontal_speed)
+        # self.publish_vehicle_command(VehicleCommand.VEHICLE_CMD_DO_SET_PARAMETER, param1=1111.0, param2=horizontal_speed)
+
+    def update_vertical_speed(self, vertical_speed):
+        """Update the vertical speed.
+        PX4 Vertical speed parameters :
+        MC_SLOW_DEF_VVEL : id= 1020  default=1.0(m/s) Default vertical velocity limit
+        MPC_Z_VEL_ALL    : id= 1122  default=-3.0(m/s) Overall vertical velocity limit
+        MPC_Z_VEL_MAX_DN : id= 1125  default=1.5(m/s) Maximum downward vertical velocity
+        MPC_Z_VEL_MAX_UP : id= 1126  default=3.0(m/s) Maximum upward vertical velocity
+        """
+        vertical_speed = float(vertical_speed)
+        self.log(f'Updating vertical speed to {vertical_speed}', level='info')
+
+        # Set MC_SLOW_DEF_VVEL
+        param_id = 'MC_SLOW_DEF_VVEL'
+        self.log(f'Setting parameter {param_id} to {vertical_speed}', level='debug')
+        self.set_ros2_parameter(param_id, vertical_speed)
+
+        # Set MPC_Z_VEL_ALL
+        param_id = 'MPC_Z_VEL_ALL'
+        self.log(f'Setting parameter {param_id} to {vertical_speed}', level='debug')
+        self.set_ros2_parameter(param_id, vertical_speed)
+
+        # Set MPC_Z_VEL_MAX_DN
+        param_id = 'MPC_Z_VEL_MAX_DN'
+        self.log(f'Setting parameter {param_id} to {vertical_speed}', level='debug')
+        self.set_ros2_parameter(param_id, vertical_speed)
+
+        # Set MPC_Z_VEL_MAX_UP
+        param_id = 'MPC_Z_VEL_MAX_UP'
+        self.log(f'Setting parameter {param_id} to {vertical_speed}', level='debug')
+        self.set_ros2_parameter(param_id, vertical_speed)
+        
     ###############################
     ### ACTION SERVER CALLBACKS ###
     ###############################
@@ -888,11 +1046,11 @@ class PX4OffboardControl(Node):
 
             # Handle result based on how the goal completed
             if self._goal_result is not None:
-                self.log('Goal completed with result: ' + str(self._goal_result.success))
+                self.log('Goal completed with result: ' + str(self._goal_result.success), level='info')
                 # The goal was already marked as succeeded or aborted in the control loop
                 return self._goal_result
             else:
-                self.log('Goal was canceled')
+                self.log('Goal was canceled', level='info')
                 # Only cancel if the goal is not already in a terminal state
                 if goal_handle.status != GoalStatus.STATUS_ABORTED and goal_handle.status != GoalStatus.STATUS_SUCCEEDED:
                     goal_handle.canceled()
@@ -903,16 +1061,41 @@ class PX4OffboardControl(Node):
         Handle cancel requests. If a goal is currently being processed,
         cancel it and signal the control loop to stop processing.
         """
-        self.log('Received cancel request')
+        self.log('Received cancel request', level='info')
 
         if self._current_goal_handle is not None:
-            self.log('Canceling current goal')
+            self.log('Canceling current goal', level='info')
             self._current_goal_handle.canceled()
             self._current_goal_handle = None
             self._goal_event.set()  # Signal the control loop to stop processing the current goal
             return CancelResponse.ACCEPT
 
-        return CancelResponse.REJECT 
+        return CancelResponse.REJECT
+    
+    ################################
+    ### SERVICE SERVER CALLBACKS ###
+    ################################
+
+    def set_velocities_callback(self, request, response):
+        """
+        Service callback to update horizontal and vertical speeds.
+        """
+        try:
+            if request.horizontal_speed != 0.0:
+                self.update_horizontal_speed(request.horizontal_speed)
+            if request.vertical_speed != 0.0:
+                self.update_vertical_speed(request.vertical_speed)
+
+            response.success = True
+            response.message = "Velocities updated successfully."
+            self.log(response.message, level='info')
+
+        except Exception as e:
+            response.success = False
+            response.message = f"Failed to update velocities: {str(e)}"
+            self.log(response.message, level='error')
+
+        return response
 
     ###############
     ###  TOOLS  ###
@@ -930,6 +1113,21 @@ class PX4OffboardControl(Node):
             elif level == 'error':
                 self.get_logger().error(message)
             self._last_log_message = message
+    
+    def get_state_name(self, state):
+        """Get the name of the current state."""
+        if state == self.IDLE:
+            return "IDLE"
+        elif state == self.TAKEOFF:
+            return "TAKEOFF"
+        elif state == self.LANDING:
+            return "LANDING"
+        elif state == self.NAVIGATING:
+            return "NAVIGATING"
+        elif state == self.HOVER:
+            return "HOVER"
+        else:
+            return "UNKNOWN"
 
     def calculate_timeout(self, current_position: list, target_position: list, expected_mean_speed=None) -> float:
         """Calculate timeout based on distance and velocity."""
@@ -938,7 +1136,7 @@ class PX4OffboardControl(Node):
         distance = calculate_distance(current_position, target_position)
         # Calculate expected time with safety margin
         if expected_mean_speed is None:
-            expected_mean_speed = self.get_parameter('mpc_xy_vel_max').value
+            expected_mean_speed = self.get_parameter('horizontal_speed').value
         velocity = expected_mean_speed * 0.7  # Reduced for acceleration/deceleration
         base_time = distance / velocity
         timeout = max(self._min_timeout, base_time * self._timeout_margin)
@@ -946,32 +1144,11 @@ class PX4OffboardControl(Node):
         self.log(f'Timeout calculation: distance={distance:.1f}m', level='info')
         self.log(f'velocity={velocity:.1f}m/s, timeout={timeout:.1f}s', level='info')
         return timeout
+    
 
 #################
 ### Functions ###
 #################
-
-def convert_local_NED_to_global_NED(spawn_position: Pose, current_position: Pose):
-    """
-    Vehicle local position returns NED local coordinates, convert current position and yaw to selected coordinate system.
-
-    Convert vehicle local position and yaw to the specified coordinate system.
-
-    Parameters:
-    - spawn_position: Pose object with x, y, z, yaw representing the spawn position.
-    - current_position: Pose object with x, y, z, yaw representing the current position in local NED.
-
-    Returns:
-    - Pose object with x, y, z, yaw
-    """
-
-    # Convert to local NED coordinates to GLOBAL NED coordinates
-    x = current_position.x + spawn_position.x
-    y = current_position.y + spawn_position.y
-    z = current_position.z
-    yaw = current_position.yaw
-
-    return Pose(x=x, y=y, z=z, yaw=yaw)
 
 def convert_objective_coordinates_to_local_coordinates(spawn_position: Pose, goal_position: Pose, current_position: Pose, system='NED'):
     """
@@ -1000,10 +1177,10 @@ def convert_objective_coordinates_to_local_coordinates(spawn_position: Pose, goa
 
     # Just use regular PX4 local NED coordinates
     elif system == 'local_NED':
-        x = current_position.x
-        y = current_position.y
-        z = current_position.z
-        yaw = current_position.yaw
+        x = goal_position.x
+        y = goal_position.y
+        z = goal_position.z
+        yaw = goal_position.yaw
 
     # Convert to LOCAL FRD coordinates to local NED coordinates
     elif system == 'FRD':
@@ -1040,25 +1217,35 @@ def convert_objective_coordinates_to_local_coordinates(spawn_position: Pose, goa
 
     return Pose(x=x, y=y, z=z, yaw=yaw)
 
-def convert_user_velocity_to_local_velocity(current_position: Pose, goal_velocity: Pose, system='FLU'):
+
+def old_convert_user_velocity_to_local_velocity(current_position: Pose, goal_velocity: Pose, system='NED'):
     """
     Convert goal velocity from selected coordinate system to local NED.
     Parameters:
     - current_position: Pose object with yaw representing the current orientation in local NED.
     - goal_velocity: Pose object with x, y, z, and yaw representing the goal velocity in the selected coordinate system.
-                     (linear x,y,z for velocity, and yaw for yawspeed)
+                     (linear x,y,z for velocity, and yaw for yawspeed in degrees/second)
     - system: String representing the target coordinate system ('NED', 'local_NED', 'FRD', 'FLU').
     Returns:
-    - Pose object representing the velocity in local NED.
+    - Pose object representing the velocity in local NED, with yaw in radians/second.
     """
+    # Always convert yaw from degrees/second to radians/second
+    yaw_in_radians = math.radians(goal_velocity.yaw)
+    
+    # Initialize output velocity vector
+    local_velocity = np.array([goal_velocity.x, goal_velocity.y, goal_velocity.z])
+    
+    # For invalid coordinate system
+    if system not in ('NED', 'local_NED', 'FRD', 'FLU'):
+        raise ValueError(f"Unsupported coordinate system: {system}")
+    
     # No conversion needed for local NED
     if system == 'local_NED':
-        return goal_velocity
+        # Just use the vector directly
+        pass
     
-    # For global NED, FRD, and FLU, the conversion is a rotation
-    elif system in ('NED', 'FRD', 'FLU'):
-        goal_velocity_np = np.array(goal_velocity.to_list()[:3])  # Extract x, y, z velocity
-
+    # For global NED, FRD, and FLU, apply appropriate rotations
+    else:
         # Rotation matrix for NED to local NED (inverse of local to NED)
         yaw = current_position.yaw
         rotation_matrix = np.array([
@@ -1068,13 +1255,13 @@ def convert_user_velocity_to_local_velocity(current_position: Pose, goal_velocit
         ])
 
         if system == 'FRD':
-            # FRD to NED rotation
+            # FRD to NED rotation (identity matrix in this case)
             frd_to_ned_rotation = np.array([
                 [1, 0, 0],
                 [0, 1, 0],
                 [0, 0, 1]
             ])
-            goal_velocity_np = frd_to_ned_rotation @ goal_velocity_np
+            local_velocity = frd_to_ned_rotation @ local_velocity
 
         elif system == 'FLU':
             # FLU to NED rotation
@@ -1083,16 +1270,97 @@ def convert_user_velocity_to_local_velocity(current_position: Pose, goal_velocit
                 [1, 0, 0],
                 [0, 0, -1]
             ])
-            goal_velocity_np = flu_to_ned_rotation @ goal_velocity_np
+            local_velocity = flu_to_ned_rotation @ local_velocity
 
         # Rotate to local NED
-        local_velocity_np = rotation_matrix @ goal_velocity_np
-        
-        # Create and return a Pose object
-        return Pose(x=local_velocity_np[0], y=local_velocity_np[1], z=local_velocity_np[2], yaw=goal_velocity.yaw)
+        local_velocity = rotation_matrix @ local_velocity
+    
+    # Return the final velocity with converted yaw
+    return Pose(
+        x=local_velocity[0], 
+        y=local_velocity[1], 
+        z=local_velocity[2], 
+        yaw=yaw_in_radians
+    )
 
-    else:
+def convert_user_velocity_to_local_velocity(current_position: Pose, goal_velocity: Pose, system='NED'):
+    """
+    Convert goal velocity from selected coordinate system to local NED.
+    Parameters:
+    - current_position: Pose object with yaw representing the current orientation in local NED.
+    - goal_velocity: Pose object with x, y, z, and yaw representing the goal velocity in the selected coordinate system.
+                     (linear x,y,z for velocity, and yaw for yawspeed in degrees/second)
+    - system: String representing the target coordinate system ('NED', 'local_NED', 'FRD', 'FLU').
+    Returns:
+    - Pose object representing the velocity in local NED, with yaw in radians/second.
+    """
+    # Always convert yaw from degrees/second to radians/second
+    yaw_in_radians = math.radians(goal_velocity.yaw)
+    
+    # Initialize output velocity vector
+    local_velocity = np.array([goal_velocity.x, goal_velocity.y, goal_velocity.z])
+    
+    # For invalid coordinate system
+    if system not in ('NED', 'local_NED', 'FRD', 'FLU'):
         raise ValueError(f"Unsupported coordinate system: {system}")
+    
+    # Handle different coordinate systems
+    if system == 'NED':
+        # For global NED, we need to rotate the velocity vector to align with the local NED frame
+        # This requires rotating by the difference between global north and the vehicle's current heading
+        yaw = current_position.yaw
+        # Create rotation matrix to convert from global NED to local NED
+        rotation_matrix = np.array([
+            [math.cos(yaw), math.sin(yaw), 0],
+            [-math.sin(yaw), math.cos(yaw), 0],
+            [0, 0, 1]
+        ])
+        # Apply rotation to velocity vector
+        local_velocity = rotation_matrix @ local_velocity
+    
+    elif system == 'local_NED':
+        # No conversion needed for local NED - it's already in the right frame
+        pass
+    
+    elif system == 'FRD':
+        # For body-fixed FRD frame, we need to rotate from the body frame to the local NED frame
+        yaw = current_position.yaw
+        # Body to local NED rotation
+        rotation_matrix = np.array([
+            [math.cos(yaw), -math.sin(yaw), 0],
+            [math.sin(yaw), math.cos(yaw), 0],
+            [0, 0, 1]
+        ])
+        # Apply rotation
+        local_velocity = rotation_matrix @ local_velocity
+    
+    elif system == 'FLU':
+        # For body-fixed FLU frame, we need to:
+        # 1. Convert from FLU to FRD coordinate convention (flip y and z axes)
+        # 2. Then convert from body frame to local NED
+        flu_to_frd = np.array([
+            [1, 0, 0],
+            [0, -1, 0],
+            [0, 0, -1]
+        ])
+        local_velocity = flu_to_frd @ local_velocity
+        
+        # Now convert from FRD to NED
+        yaw = current_position.yaw
+        body_to_ned_rotation = np.array([
+            [math.cos(yaw), -math.sin(yaw), 0],
+            [math.sin(yaw), math.cos(yaw), 0],
+            [0, 0, 1]
+        ])
+        local_velocity = body_to_ned_rotation @ local_velocity
+    
+    # Return the final velocity with converted yaw
+    return Pose(
+        x=local_velocity[0], 
+        y=local_velocity[1], 
+        z=local_velocity[2], 
+        yaw=yaw_in_radians
+    )
 
 def calculate_distance(pos1: list, pos2: list) -> float:
     """

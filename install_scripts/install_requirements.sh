@@ -30,4 +30,4 @@ sudo apt install libgz-transport13 -y
 sudo apt install python3-pip -y
 sudo ln -s /usr/bin/pip3 /usr/bin/pip
 # pip for ros2
-pip install --user empy==3.3.4 pyros-genmsg setuptools==58.2 psutil numpy==1.26.4 transforms3d
+pip install --break-system-packages empy==3.3.4 pyros-genmsg setuptools==58.2 psutil numpy==1.26.4 transforms3d

@@ -6,8 +6,6 @@ from sensor_msgs.msg import LaserScan
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
 from tf_transformations import quaternion_matrix
 
-from utils.gazebo_subscriber import GazeboPosesTracker
-
 def get_distance(tf1, tf2):
     """
     Compute 3D distance between two transforms (x, y, z).
@@ -71,6 +69,25 @@ def get_all_namespaces(node):
         if namespace and ('px4' in namespace or 'ship' in namespace):
             namespaces.add(f'/{namespace}')
     return list(namespaces)
+
+# def get_all_namespaces(node): Used for /model/flag_ship type topics
+#     """
+#     Get a list of all unique namespaces in the ROS 2 system through topics.
+#     :param node: The rclpy node
+#     :return: List of unique namespaces
+#     """
+#     topic_names_and_types = node.get_topic_names_and_types()
+#     namespaces = set()
+#     for topic_name, _ in topic_names_and_types:
+#         if 'ship' in topic_name:
+#             namespace = topic_name.split('/')[2]
+#             if namespace:
+#                 namespaces.add(f'/{namespace}')
+#         else:
+#             namespace = topic_name.split('/')[1]
+#             if namespace and ('px4' in namespace):
+#                 namespaces.add(f'/{namespace}')
+#     return list(namespaces)
 
 def get_all_drones(node):
     """

@@ -32,10 +32,9 @@ setup(
     entry_points={
         'console_scripts': [
             'offboard_control = '+package_name+'.offboard_control:main',
-            'offboard_control_frd = '+package_name+'.offboard_control_frd:main',
             'offboard_control_px4 = '+package_name+'.offboard_control_px4:main',
             'offboard_control_client = '+package_name+'.offboard_control_client:main',
-            'offboard_control_vel = '+package_name+'.offboard_control_vel:main',
+            'speed_tester = '+package_name+'.speed_tester:main',
         ],
     },
 )

@@ -1,5 +1,5 @@
 #!/bin/bash
-
+ 
 #############################################################################
 # SWARMz4 Game Launcher
 # ====================
@@ -40,17 +40,22 @@
 #   FIELD_LENGTH      : Field length in meters (default: 500)
 #   FIELD_WIDTH       : Field width in meters (default: 250)
 #   WORLD             : Gazebo world file name (default: swarmz_world)
-# 
+#
 # Examples and additional notes in original script header...
 #############################################################################
-
+ 
 #===========================================================================
 # 1. SWARMZ PATH SETUP
 #===========================================================================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARENT_DIR="$(dirname "$SCRIPT_DIR")"
+# Make sure SWARMZ4_PATH exists
 source "$PARENT_DIR/install_scripts/check_swarmz_path.sh"
 export SWARMZ4_PATH
+# Make sure Gazebo maritime plugin path is set
+source "$PARENT_DIR/install_scripts/set_gazebo_path.sh"
+export GZ_SIM_SYSTEM_PLUGIN_PATH=$GZ_SIM_SYSTEM_PLUGIN_PATH:$SWARMZ4_PATH/ros2_ws/install/gazebo_maritime/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SWARMZ4_PATH/ros2_ws/install/gazebo_maritime/lib
 
 #===========================================================================
 # 2. DEFAULT PARAMETERS
@@ -63,13 +68,28 @@ FIELD_WIDTH=250
 NUM_DRONES_PER_TEAM=5
 TOTAL_DRONES=$((NUM_DRONES_PER_TEAM * 2))
 HEADLESS_LEVEL=0                # 0=GUI, 1=Gazebo headless, 2=Full headless
-WORLD="swarmz_world_2"
+WORLD="game_world"            # Default world file name
+BOAT_MODEL_NAME="wam-v2"
 SPAWN_POSITION_FILE="$SWARMZ4_PATH/ros2_ws/src/px4_pkgs/px4_controllers/offboard_control_py/config/spawn_position.yaml"
 
+# Checkif we are running the script in a gnome-terminal or terminator
+TERMINAL_NAME=$(ps -o comm= $(ps -o ppid= $(ps -o ppid= $$)))
+TERMINAL_NAME=$(ps -p $PPID -o comm=)
+
+#Generate random spawn position for boats following the following specifications:
+#Spawn position Team 1: x=[0,20%], y=[0,WIDTH]
+#Spawn position Team 2: x=[80%,100%], y=[0,WIDTH]
+#The drones will use the spawn position of the boat to spawn 10 meters in front of it and centered creating a T formation
+start_x1=$(awk -v min=0 -v max=$((FIELD_LENGTH/5 - 10)) 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
+start_y1=$(awk -v min=0 -v max=$((FIELD_WIDTH - (NUM_DRONES_PER_TEAM))) 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
+start_x2=$(awk -v min=$((FIELD_LENGTH*4/5 + 10)) -v max=$FIELD_LENGTH 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
+start_y2=$(awk -v min=0 -v max=$((FIELD_WIDTH - (NUM_DRONES_PER_TEAM)))  'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
+ 
 # Bridge and Process PIDs
 CLOCK_BRIDGE_PID=""
 LASER_BRIDGE_PIDS=()
-
+BOAT_BRIDGE_PIDS=()
+ 
 #===========================================================================
 # 3. ARGUMENT PARSING
 #===========================================================================
@@ -80,37 +100,41 @@ if [ -n "$1" ]; then
     exit 1
   fi
 fi
-
+ 
 if [ -n "$2" ]; then
   SPAWN_POSITION_FILE=$2
 fi
-
+ 
 if [ -n "$3" ]; then
   NUM_DRONES_PER_TEAM=$3
   TOTAL_DRONES=$((NUM_DRONES_PER_TEAM * 2))
 fi
-
+ 
 if [ -n "$4" ]; then
   FIELD_LENGTH=$4
 fi
-
+ 
 if [ -n "$5" ]; then
   FIELD_WIDTH=$5
 fi
-
-if [ -n "$6" ]; then
-  WORLD=$6
-fi
-
+ 
 # Set output suppression for headless mode
 if [ "$HEADLESS_LEVEL" -eq 2 ]; then
   SUPPRESS_OUTPUT=true
   echo "Full headless mode activated. Output suppressed."
 fi
-
+ 
 #===========================================================================
 # 4. UTILITY FUNCTIONS
 #===========================================================================
+ 
+# Random spawn of boats and creation of bridges for boat control # TODO: UPDATE world.py name and add sizeable field
+warship_spawn() {
+ 
+    # Generate world sdl file with random boat x,y position and 0.8 meters over the ground
+    python3 $SWARMZ4_PATH/launch_scripts/world.py $start_x1 $start_y1 0.8 $start_x2 $start_y2 0.8 $WORLD $BOAT_MODEL_NAME
+}
+
 # Terminal handling with headless mode support
 launch_terminal() {
     local title="$1"
@@ -124,12 +148,30 @@ launch_terminal() {
         return
     fi
     
-    # For GUI modes, try to use gnome-terminal or fall back to xterm
-    if command -v gnome-terminal >/dev/null 2>&1; then
+    # For GUI modes, try to use gnome-terminal or terminator else fall back to xterm
+    # launch command with gnome
+    if [[ "$TERMINAL_NAME" == "gnome-terminal-" ]]; then
         gnome-terminal --tab --title="$title" -- bash -c "$command; echo 'Press Enter to close'; read"
+    # Launch command with terminator
+    elif [[ "$TERMINAL_NAME" == "terminator" || "$TERMINAL_NAME" == "x-terminal-emul" ]]; then
+            echo "No gnome-terminal found. Using terminator for $title."
+           
+            id="$ROS_DOMAIN_ID"
+            ros2="/opt/ros/$ROS_DISTRO/setup.bash"
+            # TODO: Remove .bashrc and add all necessary environment variables + Do a check for ROS2_DOMAIN_ID
+            terminator --new-tab -e "bash -c 'echo -ne \"\033]0;$title\007\"; \
+                export ROS_DOMAIN_ID=$id; \
+                source ~/.bashrc; \
+                source $ros2; \
+                source $SWARMZ4_PATH/ros2_ws/install/setup.bash; \
+                export SWARMZ4_PATH=\"$SWARMZ4_PATH\"; \
+                export GZ_SIM_SYSTEM_PLUGIN_PATH=\$GZ_SIM_SYSTEM_PLUGIN_PATH:\$SWARMZ4_PATH/ros2_ws/install/gazebo_maritime/lib; \
+                export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$SWARMZ4_PATH/ros2_ws/install/gazebo_maritime/lib; \
+                $command; \
+                echo \"Press Enter to close\"; read'" &        
     else
         # Fallback to xterm if available, otherwise run in background
-        if command -v xterm >/dev/null 2>&1; then
+        if [[ "$TERMINAL_NAME" == "xterm" ]]; then
             echo "No gnome-terminal found. Using xterm for $title."
             xterm -T "$title" -e "$command; echo 'Press Enter to close'; read" &
         else
@@ -139,7 +181,7 @@ launch_terminal() {
         fi
     fi
 }
-
+ 
 # Process cleanup function
 kill_processes() {
     echo "Cleaning up running processes..."
@@ -153,7 +195,7 @@ kill_processes() {
         pkill -9 -f "$proc" 2>/dev/null
     done
 }
-
+ 
 # Cleanup function for graceful exit
 cleanup() {
     echo "Initiating cleanup..."
@@ -161,6 +203,15 @@ cleanup() {
     
     if [ -n "$CLOCK_BRIDGE_PID" ]; then
         kill $CLOCK_BRIDGE_PID 2>/dev/null && echo "Stopped clock bridge"
+    fi
+
+    # Clean up boat bridges if they exist
+    if [ -n "$BOAT_BRIDGE_PIDS" ]; then
+        echo "Stopping boat bridges..."
+        for pid in "${BOAT_BRIDGE_PIDS[@]}"; do
+            kill $pid 2>/dev/null
+        done
+        echo "Boat bridges stopped"
     fi
     
     # Clean up laser bridges if they exist
@@ -174,7 +225,7 @@ cleanup() {
     
     echo "Cleanup complete"
 }
-
+ 
 # GPU detection function
 has_secondary_gpu() {
     # Check if lspci is available
@@ -203,7 +254,7 @@ has_secondary_gpu() {
     
     return 1
 }
-
+ 
 #===========================================================================
 # 5. SPAWN POSITION FUNCTIONS
 #===========================================================================
@@ -215,7 +266,7 @@ handle_spawn_position() {
     local drone_id=$4
     local x=$5
     local y=$6
-
+ 
     case $action in
         init)
             # Initialize the YAML structure with empty positions
@@ -256,7 +307,7 @@ EOL
             ;;
     esac
 }
-
+ 
 # Generate random team position within bounds
 generate_team_position() {
     local min_x=$1
@@ -272,7 +323,7 @@ generate_team_position() {
     
     echo "$x $y"
 }
-
+ 
 #===========================================================================
 # 6. DRONE SPAWN & MANAGEMENT FUNCTIONS
 #===========================================================================
@@ -302,7 +353,7 @@ launch_px4_instance() {
             echo "Using standard GPU configuration"
             cmd="PX4_UXRCE_DDS_NS=px4_$instance_id VERBOSE_SIM=1 PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART PX4_SIM_MODEL=$PX4_MODEL PX4_GZ_MODEL_POSE=\"$pose\" PX4_GZ_WORLD=\"$WORLD\" $headless_flag make px4_sitl $PX4_MODEL"
         fi
-
+ 
         # Launch with EKF reset script
         launch_terminal "px4_$instance_id" "$SWARMZ4_PATH/launch_scripts/px4_reset_sensors.sh \"$cmd\"" "$HEADLESS_LEVEL"
         
@@ -319,12 +370,12 @@ launch_px4_instance() {
             PX4_SIM_MODEL=$PX4_MODEL \
             PX4_GZ_WORLD=\"$WORLD\" \
             "
-
+ 
         # Either Gazebo headless or full headless
         if [ "$HEADLESS_LEVEL" -ge 1 ]; then
           cmd="$cmd HEADLESS=1"
         fi
-
+ 
         cmd="$cmd $SWARMZ4_PATH/PX4-Autopilot/build/px4_sitl_default/bin/px4 -i $instance_id"
         
         # Launch with EKF reset script
@@ -335,19 +386,23 @@ launch_px4_instance() {
         sleep 1
     fi
 }
-
+ 
 # Launch a team of drones with positioning
 launch_team() {
     local team_num=$1
-    local min_x=$2
-    local max_x=$3
-    local min_y=$4
-    local max_y=$5
+    local start_x=$2
+    local start_y=$3
+ 
+    #Take the spawn position of the boat and place the drones 10 meters in front of it and centered in y
+    if [ "$team_num" -eq 1 ]; then
+        start_x=$((start_x + 10))
+        start_y=$((start_y - 5))
+    elif [ "$team_num" -eq 2 ]; then
+        start_x=$((start_x - 10))
+        start_y=$((start_y - 3)) # 5-2 meter spacing for team 2
+    fi
     
-    # Generate random base position
-    local start_x=$(awk -v min=$min_x -v max=$max_x 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
-    local start_y=$(awk -v min=$min_y -v max=$((max_y - (NUM_DRONES_PER_TEAM * 2))) 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
-    
+ 
     echo "Spawning Team $team_num at base position ($start_x, $start_y)"
     
     # Launch drones in formation
@@ -362,7 +417,7 @@ launch_team() {
         echo "Drone $drone_id launched and spawn position updated."
     done
 }
-
+ 
 #===========================================================================
 # 7. BRIDGE FUNCTIONS
 #===========================================================================
@@ -374,19 +429,19 @@ start_laser_bridges() {
         return
     fi
     echo "Starting laser bridges for $TOTAL_DRONES drones..."
-
+ 
     # Set log level to ERROR to suppress INFO and WARN messages
     local log_level="ERROR"
     
     for ((i=0; i<TOTAL_DRONES; i++)); do
         # Construct the GZ laser topic path
         local gz_topic="/world/$WORLD/model/${PX4_MODEL}_${i}/link/lidar_sensor_link/sensor/lidar/scan"
-        local ros_topic="px4_${i}/laser/scan"
+        local ros_topic="laser/scan"
         
         # Start the bridge with log level control and unique node name
         echo "Starting laser bridge for drone $i: $gz_topic -> $ros_topic"
         ros2 run ros_gz_bridge parameter_bridge "$gz_topic@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan" \
-            --ros-args -r "$gz_topic:=$ros_topic" --log-level ros_gz_bridge:=$log_level -r __node:=laser_bridge_drone_${i} > /dev/null 2>&1 &
+            --ros-args --log-level ros_gz_bridge:=$log_level -r "$gz_topic:=$ros_topic" -r __ns:=/px4_${i} -r __node:=drone_laser_bridge > /dev/null 2>&1 &
         
         # Store the PID for cleanup
         LASER_BRIDGE_PIDS+=($!)        
@@ -395,14 +450,14 @@ start_laser_bridges() {
     done
     echo "All laser bridges started successfully"
 }
-
+ 
 # Start the clock bridge
 start_clock_bridge() {
     echo "Starting ROS 2 bridge for clock synchronization..."
     
     # Set log level to ERROR to suppress INFO and WARN messages
     local log_level="ERROR"
-
+ 
     # Launch clock bridge with log level control and unique node name
     ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock \
         --ros-args --log-level ros_gz_bridge:=$log_level -r __node:=clock_bridge > /dev/null 2>&1 &
@@ -411,18 +466,63 @@ start_clock_bridge() {
     echo "Clock bridge started (PID: $CLOCK_BRIDGE_PID)."
 }
 
+start_boat_bridge() {
+    # bridges for thruster and cannon control
+
+    # Set log level to ERROR to suppress INFO and WARN messages
+    local log_level="ERROR"
+    
+    for i in $(seq 1 2); do
+        echo "Starting left propeller bridge for flag ship $i"
+        local gz_topic="/model/flag_ship_${i}/joint/left_engine_propeller_joint/cmd_thrust"
+        local ros2_topic="left_propeller_cmd"
+        ros2 run ros_gz_bridge parameter_bridge $gz_topic@std_msgs/msg/Float64]gz.msgs.Double \
+            --ros-args --log-level ros_gz_bridge:=$log_level -r "$gz_topic:=$ros2_topic" -r __ns:=/flag_ship_${i} -r __node:=left_propeller > /dev/null 2>&1 &
+        # Store the PID for cleanup
+        BOAT_BRIDGE_PIDS+=($!)
+        sleep 0.1
+
+        echo "Starting right propeller bridge for flag ship $i"
+        local gz_topic="/model/flag_ship_${i}/joint/right_engine_propeller_joint/cmd_thrust"
+        local ros2_topic="right_propeller_cmd"
+        ros2 run ros_gz_bridge parameter_bridge /model/flag_ship_${i}/joint/right_engine_propeller_joint/cmd_thrust@std_msgs/msg/Float64]gz.msgs.Double \
+            --ros-args --log-level ros_gz_bridge:=$log_level -r "$gz_topic:=$ros2_topic" -r __ns:=/flag_ship_${i} -r __node:=right_propeller > /dev/null 2>&1 &
+        BOAT_BRIDGE_PIDS+=($!)
+        sleep 0.1
+
+        echo "Starting cannon pitch bridge for flag ship $i"
+        local gz_topic="/model/flag_ship_${i}/joint/j1/cmd_vel"
+        local ros2_topic="cannon_pitch_cmd"
+        ros2 run ros_gz_bridge parameter_bridge /model/flag_ship_${i}/joint/j1/cmd_vel@std_msgs/msg/Float64]gz.msgs.Double \
+            --ros-args --log-level ros_gz_bridge:=$log_level -r "$gz_topic:=$ros2_topic" -r __ns:=/flag_ship_${i} -r __node:=cannon_pitch > /dev/null 2>&1 &
+        BOAT_BRIDGE_PIDS+=($!)
+        sleep 0.1
+
+        echo "Starting cannon yaw bridge for flag ship $i"
+        local gz_topic="/model/flag_ship_${i}/joint/j2/cmd_vel"
+        local ros2_topic="cannon_yaw_cmd"
+        ros2 run ros_gz_bridge parameter_bridge /model/flag_ship_${i}/joint/j2/cmd_vel@std_msgs/msg/Float64]gz.msgs.Double \
+            --ros-args --log-level ros_gz_bridge:=$log_level -r "$gz_topic:=$ros2_topic" -r __ns:=/flag_ship_${i} -r __node:=cannon_yaw > /dev/null 2>&1 &
+        BOAT_BRIDGE_PIDS+=($!)
+        sleep 0.1
+
+    done
+}
+
+
 #===========================================================================
 # 8. MAIN EXECUTION
 #===========================================================================
 # Register cleanup handler
 trap cleanup INT TERM
-
+ 
 # Step 1: Clean up any existing processes
 echo "Step 1: Cleaning up existing processes..."
 kill_processes
 
 # Step 2: Start MicroXRCE-DDS Agent
 echo "Step 2: Starting MicroXRCE-DDS Agent..."
+echo "$SWARMZ4_PATH/Micro-XRCE-DDS-Agent"
 cd $SWARMZ4_PATH/Micro-XRCE-DDS-Agent || { echo "Micro-XRCE-DDS-Agent directory not found!"; exit 1; }
 launch_terminal "MicroXRCEAgent" "MicroXRCEAgent udp4 -p 8888 -v 4" "$HEADLESS_LEVEL"
 if [ "$HEADLESS_LEVEL" -eq 2 ]; then
@@ -434,7 +534,7 @@ fi
 # Step 3: Initialize spawn positions file
 echo "Step 3: Initializing spawn positions file..."
 handle_spawn_position "init" "$SPAWN_POSITION_FILE"
-
+ 
 # Step 4: Launch QGroundControl
 echo "Step 4: Launching QGroundControl..."
 if [ "$HEADLESS_LEVEL" -eq 2 ]; then
@@ -445,26 +545,30 @@ else
     # GUI mode
     $SWARMZ4_PATH/launch_scripts/QGroundControl.AppImage > /dev/null 2>&1 &
 fi
-
+ 
 # Step 5: Launch PX4 teams
 echo "Step 5: Launching drone teams..."
+ 
+#Spawn boats ans start thruster bridges
+warship_spawn
+ 
 cd $SWARMZ4_PATH/PX4-Autopilot || { echo "PX4-Autopilot directory not found!"; exit 1; }
-# Team 1: x=[0,20%], y=[0,WIDTH]
-launch_team 1 0 $((FIELD_LENGTH/5)) 0 $FIELD_WIDTH
-# Team 2: x=[80%,100%], y=[0,WIDTH]
-launch_team 2 $((FIELD_LENGTH*4/5)) $FIELD_LENGTH 0 $FIELD_WIDTH
-
+ 
+launch_team 1 $start_x1 $start_y1
+launch_team 2 $start_x2 $start_y2
+ 
 # Step 6: Start ROS 2 bridges
 echo "Step 6: Starting ROS 2 bridges..."
-cd $SWARMZ4_PATH/ros2_ws || { echo "ROS 2 workspace directory not found!"; exit 1; }
-source install/setup.bash
  
 # Start the clock bridge
 start_clock_bridge
-
+ 
 # Start the laser bridges
 start_laser_bridges
 
+# Start the boat bridges
+start_boat_bridge
+ 
 # Step 7: Wait for user to exit
 echo "Step 7: All processes started."
 if [ "$HEADLESS_LEVEL" -eq 2 ]; then
@@ -472,6 +576,6 @@ if [ "$HEADLESS_LEVEL" -eq 2 ]; then
 else
     echo "Press Ctrl+C to terminate all processes."
 fi
-
+ 
 trap "cleanup; exit 0" INT
 wait

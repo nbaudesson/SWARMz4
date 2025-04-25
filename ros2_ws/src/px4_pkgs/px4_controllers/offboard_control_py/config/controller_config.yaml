@@ -1,0 +1,18 @@
+# Drone controller configurations
+# Format: team_id:{drone_id:controller_type, ...}
+{
+  "1":{
+    "0": "NED",
+    "1": "NED",
+    "2": "NED",
+    "3": "NED",
+    "4": "NED",
+  },
+  "2":{
+    "5": "NED",
+    "6": "NED",
+    "7": "NED",
+    "8": "NED",
+    "9": "NED",
+  },
+}

@@ -69,11 +69,23 @@ if ! run_installation "install_PX4.sh"; then
     exit 1
 fi
 
-# Install PX4
+# Install custom files
 if ! run_installation "install_custom_files.sh"; then
     echo "Error: custom files installation failed"
     exit 1
 fi
+
+# Set up Gazebo paths for maritime simulation plugin
+if ! run_installation "set_gazebo_path.sh"; then
+    echo "Error: Gazebo path for martimie plugin setup failed"
+    exit 1
+fi
+
+# # Add mavlink port for speed service
+# if ! run_installation "add_mavlink_port.sh"; then
+#     echo "Error: add mavlink port failed"
+#     exit 1
+# fi
 
 echo "All installations completed successfully!"
 echo "SWARMz4 setup is complete."

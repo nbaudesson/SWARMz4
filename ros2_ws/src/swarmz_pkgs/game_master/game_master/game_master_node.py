@@ -37,7 +37,7 @@ from gz.msgs10.entity_pb2 import Entity
 from gz.msgs10.boolean_pb2 import Boolean
 from gz.msgs10.uint32_v_pb2 import UInt32_V
 from gz.transport13 import Node as GzNode
-
+from geometry_msgs.msg import Pose
 
 class GameMasterNode(Node):
     """
@@ -168,6 +168,9 @@ class GameMasterNode(Node):
         self.detection_publishers = {ns: self.create_publisher(Detections, f'{ns}/detections', 10) for ns in self.namespaces}
         self.communication_publishers = {ns: self.create_publisher(String, f'{ns}/out_going_messages', 10) for ns in self.namespaces}
         
+        #Publishers for boat positions
+        self.boat_position_publishers = {ns: self.create_publisher(Pose, f'{ns}/pose', 10) for ns in ships}
+
         # Timer to periodically update robot positions
         self.robot_poses = {}  # Combined position and orientation
         self.gz = GazeboPosesTracker(self.namespaces, world_name=self.gazebo_world_name)
@@ -239,6 +242,19 @@ class GameMasterNode(Node):
                                       pose['orientation']['z'],
                                       pose['orientation']['w'])
                     }
+                    #Check if a boat and publish its pose
+                    if ns.startswith("/flag_ship"):
+                        suffix = ns.split('_')[2]
+                        boat_pose = Pose()
+                        boat_pose.position.x = pose['position']['x']
+                        boat_pose.position.y = pose["position"]["y"]
+                        boat_pose.position.z = pose["position"]["z"]
+                        boat_pose.orientation.x = pose["orientation"]["x"]
+                        boat_pose.orientation.y = pose["orientation"]["y"]
+                        boat_pose.orientation.z = pose["orientation"]["z"]
+                        boat_pose.orientation.w = pose["orientation"]["w"]
+                        self.boat_position_publishers[f'/flag_ship_{suffix}'].publish(boat_pose)
+
                     # self.get_logger().info(f"Updated pose for {ns}: {self.robot_poses[ns]}")
                     valid_poses += 1
                 except Exception as e:

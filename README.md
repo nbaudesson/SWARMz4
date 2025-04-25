@@ -29,7 +29,7 @@ To install the project, follow these steps:
     echo "export SWARMZ4_PATH=\"$SWARMZ4_PATH\"" >> ~/.bashrc
     ```
 
-4. Build the ROS2 workspace. Make sure you have ```source ~/.bashrc``` or ```source /opt/ros/humble/setup.bash```.
+4. Build the ROS2 workspace
     ```bash
     cd ros2_ws
     colcon build && source install/setup.bash
@@ -51,7 +51,7 @@ SWARMz4 provides two different launch scripts:
    Example:
    ```bash
    # Launch game with GUI and 2 drones per team close to each other on gazebo's default map
-   ./launch_simulation.sh
+   ./launch_game.sh 0 2 5 2 default
    ```
 
 2. **Game Environment** (`launch_game.sh`):
@@ -146,7 +146,7 @@ SWARMz4 provides two different launch scripts:
    This will make the drone go 1m/s forward for 2 seconds (velocity_timeout).
 
 3. **Combat Actions**:
-   The tools to attack other robots are ros2 service in the game master package : 
+   The tools to attack other robots are ros2 services in the game master package : 
    - the [missile_server](https://github.com/nbaudesson/SWARMz4/blob/main/ros2_ws/src/swarmz_pkgs/game_master/game_master/missile_server.py) that will apply damage to the closest robot aligned with the shooter (drone or canon).
    ```bash
    # Fire missile
@@ -160,6 +160,52 @@ SWARMz4 provides two different launch scripts:
      "{robot_name: '/px4_1'}"
    ```
    To [call a ros2 service](https://docs.ros.org/en/rolling/Tutorials/Beginner-Client-Libraries/Writing-A-Simple-Py-Service-And-Client.html) from a program you can you [game_master_client](https://github.com/nbaudesson/SWARMz4/tree/main/ros2_ws/src/swarmz_pkgs/game_master/exemple) programs as an exemple.
+
+### Boat control
+1. **Boat thruster controller** 
+   For the control of boat's thrusters there are ROS2 topics available to publish directly the desired velocity, the topic have the following structure:
+   `/model/flag_ship_{team_id}/joint/{thruster}_engine_propeller_joint/cmd_thrust`
+   - **team_id**: you replace it with your team id (1 or 2)
+   - **thruster**: you replace it with the thruster you wanna control (left or right)
+
+   So if you wanna send a velocity command to the left thruster of team1's boat you can use the following command
+   ```bash
+   #Send velocity command to left thruster of team1 boat
+   ros2 topic pub /model/flag_ship_1/joint/left_engine_propeller_joint/cmd_thrust std_msgs/msg/Float64 "data: 2.0" --once
+   ```
+   - **NOTE:** The velocity command must be within the limits [-2.5,2.5] 
+   
+   Moreover, if you have a game master node running you can recover the boat's position via topic `/flag_ship_{team_id}/pose`
+   So if you run the following command you can get the current position and orientation of team1's boat
+   ```bash
+   #Get position and orientation of boat 1
+   ros2 topic echo /flag_ship_1/pose
+   ```
+
+2. **Boat cannon controller** 
+   For the cannon control, an action server in the boat_driver package is available to control the pitch and yaw of the cannon.
+
+   The action request is defined with 3 parameters in the Cannon.action file :  
+   - `pitch`: must be between [-1.57, 1.57]
+   - `yaw`: must be between [-3.14, 3.14]
+   - `target_ship` : name of the ship to control (example : flag_ship_1, flag_ship_2...)
+
+   Start the action server in a terminal: 
+
+   ```bash
+   # Activate cannon controller server
+   ros2 run boat_driver cannon_server
+   ```
+
+   You can then send a goal request to the controller with the following command:
+
+   ```bash
+   # Send a goal request to cannon controller server, you specify the target ship, yaw, and pitch desired
+   ros2 action send_goal /cannon cannon_interfaces/action/Cannon "{'pitch': 1.0, 'yaw': -1.0, 'target_ship': 'flag_ship_1'}" --feedback
+   ```
+
+   When you send a goal using the action client in the terminal, you will receive feedback showing the current pitch and yaw orientations of the cannon, with an average speed of 0.3 rad/s.
+
 
 ### Mission Configuration
 
