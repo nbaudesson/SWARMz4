@@ -1,18 +1,17 @@
 # Drone controller configurations
-# Format: team_id:{drone_id:controller_type, ...}
-{
-  "1":{
-    "0": "NED",
-    "1": "NED",
-    "2": "NED",
-    "3": "NED",
-    "4": "NED",
-  },
-  "2":{
-    "5": "NED",
-    "6": "NED",
-    "7": "NED",
-    "8": "NED",
-    "9": "NED",
-  },
-}
+# If you are from team 2 you must changes the IDs to px4_5, px4_6 .... px4_9
+px4_0:
+  coordinate_system: "NED"
+  offboard_mode: "position"
+px4_1:
+  coordinate_system: "NED"
+  offboard_mode: "position"
+px4_2:
+  coordinate_system: "NED"
+  offboard_mode: "position"
+px4_3:
+  coordinate_system: "NED"
+  offboard_mode: "position"
+px4_4:
+  coordinate_system: "NED"
+  offboard_mode: "position"

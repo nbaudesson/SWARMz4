@@ -29,17 +29,17 @@ sleep 1
 # expect "pxh>"
 # sleep 1
 
-send "sensor_baro_sim stop\r"
-expect "pxh>"
-sleep 1
+# send "sensor_baro_sim stop\r"
+# expect "pxh>"
+# sleep 1
 
 send "sensor_baro_sim start\r"
 expect "pxh>"
 sleep 1
 
-# send "sensor_mag_sim stop\r"
-# expect "pxh>"
-# sleep 1
+send "sensor_mag_sim stop\r"
+expect "pxh>"
+sleep 1
 
 # send "sensor_mag_sim start\r"
 # expect "pxh>"

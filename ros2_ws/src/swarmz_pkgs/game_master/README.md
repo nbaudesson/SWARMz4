@@ -1,217 +1,192 @@
 # Game Master Package
 
-A ROS2 package that manages multi-robot combat simulation in Gazebo. This system orchestrates battles between teams of drones and warships, handling detection, health tracking, damage calculation, and game state management.
+## Overview
+The Game Master package is the central controller for the multi-robot combat simulation game. It manages team formation, health tracking, robot detection, communication, scoring, and game state management. This document provides instructions on how to start a game, modify parameters, and interact with the game using the provided topics and services.
 
-## Game Overview
+---
 
-### Basic Concept
-Two teams compete in a simulated battlefield using PX4-controlled drones and flagship warships. The objective is to eliminate the enemy flagship or achieve air superiority by destroying enemy drones.
+## Starting a Game
 
-### Teams and Units
-- Teams are automatically formed with equal numbers when possible
-- Drones (PX4-controlled quadcopters) are small, agile units with limited health
-- Flagships are larger vessels with more health points and different detection capabilities
+1. **Ensure Prerequisites**:
+   - ROS2 and Gazebo are properly installed and configured.
+   - Use the `launch_game.sh` script located in the `launch_scripts` folder to launch the Gazebo simulation with the appropriate world file. Run the following command:
+     ```bash
+     ./launch_scripts/launch_game.sh
+     ```
 
-### Game Mechanics
-- **Health System**: Drones have 1 health point (instant kill), flagships have 6 health points
-- **Detection**: Units can only target enemies within their detection range
-- **Communication**: Units can only share information with teammates within communication range
-- **Weapons**: Units can fire missiles that deal damage when they hit enemies
-- **Kamikaze**: Units can self-destruct to damage multiple nearby enemies
+2. **Launch the Game Master Node**:
+   Use the following command to start the Game Master node:
+   ```bash
+   ros2 launch game_master game_master.launch.py
+   ```
 
-### Win Conditions (in priority order)
-1. Destroy the enemy flagship
-2. Have the flagship with more remaining health
-3. Have more surviving drones than the enemy team
-4. Draw if all conditions are equal
+3. **Monitor Logs**:
+   The Game Master node will log information about detected robots, team formation, and game state.
 
-## Node Architecture
+---
 
-The system consists of three main nodes that work together:
+## Parameters
 
-### 1. Game Master Node
+The Game Master node uses parameters defined in the `game_master_params.yaml` file. These parameters control various aspects of the game, such as detection ranges, health, and missile system settings.
 
-**Purpose**: Central manager for game state, health tracking, and win condition evaluation.
+### Key Parameters
 
-**How it works**:
-- Detects all participating robots at startup and forms teams automatically
-- Tracks health points for each unit
-- Simulates detection and communication ranges for all units
-- Monitors game time and provides countdown
-- Handles game termination and results logging
-- Removes destroyed units from simulation
+- **Detection Ranges**:
+  - `drone_detection_range` (default: 137.0): `=height*55% for 2 horizontal corridors` Maximum range at which drones can detect others.
+  - `ship2ship_detection_range` (default: 500.0): Maximum range at which ships can detect others. Can see the other ship across the map.
+  - `ship2drone_detection_range` (default: 162.0): `=height*65% Can smaller objects only closer, but has an edge on the drones` Maximum range at which ships can detect drones.
 
-**Inputs**:
-- Health update requests (via `/update_health` service)
-- Robot poses (via Gazebo subscription)
+- **Communication Ranges**:
+  - `drone_communication_range` (default: 144.0): `=drone_detection_range*105%` Maximum range for drone communications.
+  - `ship_communication_range` (default: 525.0): `=ship2ship_detection_range*105%` Maximum range for ship communications.
 
-**Outputs**:
-- Health status (via `/<robot_name>/health` topics)
-- Detection data (via `/<robot_name>/detections` topics)
-- Communication forwarding (via `/<robot_name>/out_going_messages` topics)
-- Game time (via `/game_master/time` topic)
-- Game results (written to files)
+- **Health**:
+  - `drone_health` (default: 1): Initial health points for drones. Instant kill for drones.
+  - `ship_health` (default: 6): Initial health points for ships. Increased ship health to make fleet battles more interesting
 
-### 2. Missile Server
+- **Missile System**:
+  - `drone_missile_range` (default: 69.0): `=drone_detection_range*50%` Maximum range for drone missiles.
+  - `ship_missile_range` (default: 81.0): `=ship2drone_detection_range*50%` Maximum range for ship missiles.
+  - `drone_missile_damage` (default: 1): Damage dealt by drone missiles.
+  - `ship_missile_damage` (default: 1): Damage dealt by ship missiles.
+  - `drone_cooldown` (default: 8.0): Cooldown time between drone shots.
+  - `ship_cooldown` (default: 6.0): Cooldown time between ship shots.
+  - `drone_magazine` (default: 2): Number of missiles per drone.
+  - `ship_magazine` (default: 4): Number of missiles per ship.
 
-**Purpose**: Handles missile firing mechanics and hit detection.
+- **Kamikaze System**:
+  - `explosion_damage` (default: 3): Amount of damage dealt by kamikaze explosions.
+  - `explosion_range` (default: 5.0): Radius of kamikaze explosion effect.
 
-**How it works**:
-- Processes missile firing requests from robots
-- Validates if the shooter has ammunition and isn't in cooldown
-- Checks if any valid targets are aligned with the shooter's orientation
-- Applies damage to the closest aligned target
-- Manages ammunition count and reload timers
+- **Game Settings**:
+  - `game_duration` (default: 300): Duration of the game in seconds. Comment: `5 minutes`
+  - `gazebo_world_name` (default: "game_world_water"): Name of the Gazebo world.
 
-**Inputs**:
-- Missile firing requests (via `/fire_missile` service)
-- Robot poses (via Gazebo subscription)
-- Health updates (via subscription to health topics)
+### Modifying Parameters
 
-**Outputs**:
-- Damage requests (via calls to `/update_health` service)
-- Firing confirmation and ammo count (via service response)
+To modify parameters, edit the `game_master_params.yaml` file located in the `config` directory of the `game_master` package. After making changes, restart the Game Master node to apply the new settings.
 
-### 3. Kamikaze Server
+---
 
-**Purpose**: Manages self-destruct actions and area damage.
+## Interacting with the Game
 
-**How it works**:
-- Processes kamikaze (self-destruct) requests from robots
-- Identifies all robots within explosion range
-- Applies damage to all affected robots including the kamikaze unit
-- Handles health updates for all affected units
+### Topics
 
-**Inputs**:
-- Kamikaze requests (via `/kamikaze` service)
-- Robot poses (via Gazebo subscription)
+#### Game Master Topics
+- **`/game_master/*`**:
+  - These topics are for the Game Master's internal use only.
+  - Gamers should not subscribe to these topics.
 
-**Outputs**:
-- Damage requests (via calls to `/update_health` service)
+#### Robot-Specific Topics
+- **`<robot_name>/health`**:
+  - Publishes the health status of the robot.
+  - **Message Type**: `std_msgs/msg/Int32`
+  - Only the robot with the corresponding name should subscribe to this topic.
 
-## Detection and Targeting System
+- **`<robot_name>/detections`**:
+  - Publishes detection information for the robot.
+  - **Message Type**: `swarmz_interfaces/msg/Detections`
+  - Only the robot with the corresponding name should subscribe to this topic.
 
-The detection system simulates sensors with specific ranges:
+- **`<robot_name>/incoming_messages`**:
+  - Publishes messages received by the robot from other robots.
+  - **Message Type**: `std_msgs/msg/String`
+  - Only the robot with the corresponding name should subscribe to this topic.
 
-- Drones can detect other units within 137 units
-- Ships can detect other ships from 500 units (across the map)
-- Ships can detect drones from 162 units
-- Detection information includes:
-  - Unit type (drone/ship)
-  - Friendship status (friend/foe)
-  - Relative position (in FRD coordinates)
+- **`<robot_name>/out_going_messages`**:
+  - Allows the robot to publish messages intended for other robots.
+  - **Message Type**: `std_msgs/msg/String`
 
-## Communication System
+### Communication Rules
 
-The communication system allows units to share information:
+- Each robot must be controlled by an independent ROS2 program.
+- A robot can only subscribe to its own topics.
+- Robots can communicate with each other using the `incoming_messages` and `out_going_messages` topics, which are managed by the Game Master.
+- A user program controlling a robot is not allowed to look into the topics of other robots, even if they are on the same team.
 
-- Drones can communicate with teammates within 144 units
-- Ships can communicate with teammates within 30 units
-- Messages from one unit are forwarded to all friendly units within range
+### Services
 
-## Weapon Systems
+#### Missile Firing
+- **Service Name**: `/fire_missile`
+- **Type**: `swarmz_interfaces/srv/Missile`
+- **Request Format**:
+  ```yaml
+  robot_name: string  # Name of the robot firing the missile
+  ```
+- **Response Format**:
+  ```yaml
+  has_fired: bool  # Indicates if the missile was successfully fired
+  ammo: int32      # Remaining ammunition for the robot
+  ```
+- **Description**: This service is managed by the Game Master node and provides a single interface for all robots to fire missiles. Robots are not allowed to request this service in the name of other robots. The `robot_name` in the request must match the name of the controlled robot.
+- **Usage**:
+  ```bash
+  ros2 service call /fire_missile swarmz_interfaces/srv/Missile "{robot_name: '<robot_name>'}"
+  ```
+  Replace `<robot_name>` with the namespace of the robot firing the missile.
 
-### Missiles
-- Drones: Range 69 units, 1 damage, 8s cooldown, 2 shots before reload
-- Ships: Range 81 units, 1 damage, 6s cooldown, 4 shots before reload
+#### Kamikaze
+- **Service Name**: `/kamikaze`
+- **Type**: `swarmz_interfaces/srv/Kamikaze`
+- **Request Format**:
+  ```yaml
+  robot_name: string  # Name of the robot initiating the kamikaze attack
+  ```
+- **Response Format**:
+  ```yaml
+  # Empty response
+  ```
+- **Description**: This service is managed by the Game Master node and provides a single interface for all robots to execute kamikaze actions. Robots are not allowed to request this service in the name of other robots. The `robot_name` in the request must match the name of the controlled robot.
+- **Usage**:
+  ```bash
+  ros2 service call /kamikaze swarmz_interfaces/srv/Kamikaze "{robot_name: '<robot_name>'}"
+  ```
+  Replace `<robot_name>` with the namespace of the robot initiating the kamikaze action.
 
-### Kamikaze (Self-Destruct)
-- 3 damage to all units within 5 units
-- Destroys the activating unit
+#### Examples
+For examples on how to use these services, refer to the `game_master_client_dynamic_test.py` file.
 
-## Configuration Parameters
+---
 
-### Game Master Node
-```yaml
-game_master_node:
-  ros__parameters:
-    drone_detection_range: 137.0      # Maximum detection range for drones
-    ship2ship_detection_range: 500.0  # Ship-to-ship detection range
-    ship2drone_detection_range: 162.0 # Ship-to-drone detection range
-    drone_communication_range: 144.0  # Drone communication range
-    ship_communication_range: 30.0    # Ship communication range
-    drone_health: 1                   # Drone initial health points
-    ship_health: 6                    # Ship initial health points
-    game_duration: 20                 # Game duration in seconds
-    gazebo_world_name: "swarmz_world_2"     # Gazebo world name
-    drone_model_base_name: "x500_lidar_front"  # Drone model base name
-```
+## Example Code and Launch File
 
-### Missile Server
-```yaml
-missile_server:
-  ros__parameters:
-    drone_missile_range: 69.0   # Drone missile range
-    ship_missile_range: 81.0    # Ship missile range
-    drone_missile_damage: 1     # Damage dealt by drone missiles
-    ship_missile_damage: 1      # Damage dealt by ship missiles
-    drone_cooldown: 8.0         # Cooldown between drone shots
-    ship_cooldown: 6.0          # Cooldown between ship shots
-    drone_magazine: 2           # Missiles per drone
-    ship_magazine: 4            # Missiles per ship
-    laser_width: 3.0            # Targeting beam width
-    drone_padding_x/y/z: 0.5    # Drone hitbox size
-    ship_padding_x: 6.0         # Ship hitbox X dimension
-    ship_padding_y: 1.0         # Ship hitbox Y dimension
-    ship_padding_z: 1.0         # Ship hitbox Z dimension
-```
+The `game_master_demo.launch.py` file is a convenience launch file that runs the `game_master_node` along with the `game_master_client_dynamic_test.py` example client. This setup demonstrates the features of the Game Master system in a choreographed simulation.
 
-### Kamikaze Server
-```yaml
-kamikaze_server:
-  ros__parameters:
-    explosion_damage: 3        # Damage dealt by explosion
-    explosion_range: 5.0       # Radius of explosion effect
-```
+### Features Demonstrated
+- Formation flying (arranging drones in a circle)
+- Inter-drone messaging
+- Detection visualization
+- Missile firing
+- Kamikaze attacks
+- Game timing and completion
 
-## Usage Examples
+### Demo Sequence
+1. Drones take off and arrange in a circle at the center of the field (~1 minute).
+2. Drone `/px4_1` sends a test message to demonstrate communication.
+3. Detection outputs are displayed from `/px4_1` and `/px4_6`.
+4. Drones `/px4_2` and `/px4_9` fire missiles.
+5. Drone `/px4_3` executes a kamikaze attack.
+6. Demo continues until game timeout.
 
-### Launching the Game
-```bash
-/home/nb_adm/SWARMz4/launch_scripts/launch_game.sh [HEADLESS_LEVEL] [SPAWN_FILE] [DRONES_PER_TEAM]
-```
+### How to Run
+- Use the following command to launch the demo:
+  ```bash
+  ros2 launch game_master game_master_demo.launch.py
+  ```
+  This will start the Game Master node, missile server, kamikaze server, and the example client in one terminal.
 
-Example: Launch with 5 drones per team in GUI mode:
-```bash
-/home/nb_adm/SWARMz4/launch_scripts/launch_game.sh 0 default 5
-```
+- Alternatively, you can run the example client separately after starting the Game Master node:
+  ```bash
+  ros2 run game_master game_master_client_dynamic_test.py
+  ```
 
-### Manual Service Calls
+---
 
-Fire a missile from drone 1:
-```bash
-ros2 service call /fire_missile swarmz_interfaces/srv/Missile "{robot_name: '/px4_1'}"
-```
+## Results
 
-Trigger kamikaze action for drone 2:
-```bash
-ros2 service call /kamikaze swarmz_interfaces/srv/Kamikaze "{robot_name: '/px4_2'}"
-```
+- Game results are saved in the `results` directory under the `SWARMz4` folder.
+- Individual game results are stored in timestamped files within the `individual_games` subdirectory.
 
-Update health manually:
-```bash
-ros2 service call /update_health swarmz_interfaces/srv/UpdateHealth "{robot_name: '/px4_3', damage: 1}"
-```
+---
 
-## Game Results
-
-Game results are stored in:
-- Cumulative results: `~/SWARMz4/results/game_results.txt`
-- Individual game results: `~/SWARMz4/results/individual_games/game_results_TIMESTAMP.txt`
-
-Example result:
-```
---- Game 1 ---
-Game Over
-Team 1 wins! (Has more surviving drones)
-Team 1 flagship health: 6/6
-Team 1 drones: 5 surviving, 0 destroyed
-Team 2 flagship health: 6/6
-Team 2 drones: 3 surviving, 2 destroyed
-```
-
-## Known Issues
-
-- Game number counting in result files may be incorrect when multiple games are run in sequence
-- When running without flagships, the game will only use drone counts to determine winners
-- If all drones on both teams are destroyed simultaneously, the game may declare a draw instead of evaluating flagship health
+For further details, refer to the source code and comments in the `game_master` package.

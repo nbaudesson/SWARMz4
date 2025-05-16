@@ -1,4 +1,3 @@
-
 import time
 import rclpy
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
@@ -82,7 +81,7 @@ class CannonServer(Node):
         min_yaw, max_yaw = -3.14, 3.14
         self.target_ship = goal_request.target_ship
 
-        if self.target_ship not in ["flag_ship_1", "flag_ship_2"]:
+        if self.target_ship not in ["/flag_ship_1", "/flag_ship_2"]:
             self.get_logger().warn(f" Canon cible {self.target_ship} invalide. Requête refusée.")
             return GoalResponse.REJECT
         
@@ -130,12 +129,12 @@ class CannonServer(Node):
 
         self.get_logger().info(f"Target: pitch= {self.target_pitch:.3f} rad, yaw= {self.target_yaw:.3f} rad, Current: pitch= {self.pitch:.3f} rad, yaw= {self.yaw:.3f} rad")
         # Choisir les publishers en fonction du canon cible
-        if self.target_ship == "flag_ship_1":
-            self.pitch_pub = self.create_publisher(Float64, '/model/flag_ship_1/joint/j1/cmd_vel', 10)
-            self.yaw_pub = self.create_publisher(Float64, '/model/flag_ship_1/joint/j2/cmd_vel', 10)
-        elif self.target_ship == "flag_ship_2":
-            self.pitch_pub = self.create_publisher(Float64, '/model/flag_ship_2/joint/j1/cmd_vel', 10)
-            self.yaw_pub = self.create_publisher(Float64, '/model/flag_ship_2/joint/j2/cmd_vel', 10)
+        if self.target_ship == "/flag_ship_1":
+            self.pitch_pub = self.create_publisher(Float64, '/flag_ship_1/cannon_pitch_cmd', 10)
+            self.yaw_pub = self.create_publisher(Float64, '/flag_ship_1/cannon_yaw_cmd', 10)
+        elif self.target_ship == "/flag_ship_2":
+            self.pitch_pub = self.create_publisher(Float64, '/flag_ship_2/cannon_pitch_cmd', 10)
+            self.yaw_pub = self.create_publisher(Float64, '/flag_ship_2/cannon_yaw_cmd', 10)
 
         feedback = Cannon.Feedback()
         result = Cannon.Result()
@@ -164,10 +163,10 @@ class CannonServer(Node):
                 return result
             
             # Mettre à jour les valeurs de pitch et yaw selon la cible
-            if self.target_ship == "flag_ship_1":
+            if self.target_ship == "/flag_ship_1":
                 self.pitch = self.pitch1
                 self.yaw = self.yaw1
-            elif self.target_ship == "flag_ship_2":
+            elif self.target_ship == "/flag_ship_2":
                 self.pitch = self.pitch2  # vous pouvez modifier ceci si nécessaire
                 self.yaw = self.yaw2
 

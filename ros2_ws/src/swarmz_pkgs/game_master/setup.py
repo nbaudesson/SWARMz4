@@ -29,13 +29,9 @@ setup(
     entry_points={
         'console_scripts': [
             'game_master_node = game_master.game_master_node:main',
-            'missile_server = game_master.missile_server:main',
-            'kamikaze_server = game_master.kamikaze_server:main',
-            'game_master_client_node = exemple.game_master_client:main',
+            'position_monitor = game_master.position_monitor:main',
             'game_master_client_static_test = exemple.game_master_client_static_test:main',
             'game_master_client_dynamic_test = exemple.game_master_client_dynamic_test:main',
-            'position_monitor = utils.position_monitor:main',
-            'game_state_broadcaster = game_master.game_state_broadcaster:main',
         ],
     },
 )

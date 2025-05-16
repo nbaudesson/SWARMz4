@@ -45,6 +45,12 @@ if ! run_installation "install_requirements.sh"; then
     exit 1
 fi
 
+# Set up Gazebo paths for maritime simulation plugin
+if ! run_installation "set_gazebo_path.sh"; then
+    echo "Error: Gazebo path for martimie plugin setup failed"
+    exit 1
+fi
+
 # Install ROS 2
 if ! run_installation "install_ros2.sh"; then
     echo "Error: ROS 2 installation failed"
@@ -72,12 +78,6 @@ fi
 # Install custom files
 if ! run_installation "install_custom_files.sh"; then
     echo "Error: custom files installation failed"
-    exit 1
-fi
-
-# Set up Gazebo paths for maritime simulation plugin
-if ! run_installation "set_gazebo_path.sh"; then
-    echo "Error: Gazebo path for martimie plugin setup failed"
     exit 1
 fi
 

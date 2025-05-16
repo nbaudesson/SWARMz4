@@ -22,7 +22,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'boat_test = '+package_name+'.boat_test:main',
+            'boat_client_demo = '+package_name+'.boat_client_demo:main',
             'cannon_server = '+package_name+'.cannon_server:main',
             'gz_tracker = '+package_name+'.gz_tracker:main'
         ],

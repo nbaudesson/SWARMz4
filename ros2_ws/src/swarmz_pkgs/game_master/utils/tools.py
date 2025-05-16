@@ -4,7 +4,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
-from tf_transformations import quaternion_matrix
+from tf_transformations import quaternion_matrix, euler_from_quaternion
 
 def get_distance(tf1, tf2):
     """
@@ -156,6 +156,52 @@ def get_relative_position_with_orientation(shooter_position, shooter_orientation
     transformed_position = rotation_matrix.T.dot(relative_position)
     
     return tuple(transformed_position)
+
+def get_relative_position_with_heading(transmitter_position, transmitter_orientation, receiver_position):
+    """
+    Calculate the relative position of the receiver in the transmitter's reference frame,
+    considering only the yaw (heading) of the transmitter and ignoring roll and pitch.
+    
+    This gives a more intuitive representation when the transmitter is tilted, as objects
+    will appear at their actual height relative to the horizontal plane.
+    
+    Args:
+        transmitter_position: (x, y, z) tuple of the transmitter's position
+        transmitter_orientation: (x, y, z, w) quaternion of the transmitter's orientation
+        receiver_position: (x, y, z) tuple of the receiver's position
+        
+    Returns:
+        tuple: (forward, right, down) relative position in transmitter's heading-only reference frame (FRD)
+    """
+    
+    # Convert receiver and transmitter positions to numpy arrays
+    trans_pos = np.array(transmitter_position)
+    recv_pos = np.array(receiver_position)
+    
+    # Calculate relative position in world frame
+    relative_pos_world = recv_pos - trans_pos
+    
+    # Extract only yaw from the quaternion
+    euler = euler_from_quaternion(transmitter_orientation)
+    yaw = euler[2]  # Only keep the yaw component (z-rotation)
+    
+    # Create rotation matrix for yaw only (rotation around z-axis)
+    cos_yaw = np.cos(yaw)
+    sin_yaw = np.sin(yaw)
+    
+    # Create a rotation matrix that only accounts for yaw rotation
+    # This uses Forward-Right-Down (FRD) convention directly
+    rotation_matrix = np.array([
+        [cos_yaw, sin_yaw, 0],   # Forward axis
+        [sin_yaw, -cos_yaw, 0],  # Right axis (note the sign changes from Left)
+        [0, 0, -1]               # Down axis (inverted from Up)
+    ])
+    
+    # Apply rotation to get relative position in heading-aligned frame
+    relative_pos_heading = np.dot(rotation_matrix, relative_pos_world)
+    
+    # Return as tuple (forward, right, down)
+    return tuple(relative_pos_heading)
 
 def is_aligned(node, shooter_position, shooter_orientation, target_position, target_padding, range, threshold, verbose=False):
     """

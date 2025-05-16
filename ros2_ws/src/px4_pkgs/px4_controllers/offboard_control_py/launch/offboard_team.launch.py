@@ -13,41 +13,35 @@ Features:
 - Default parameter handling
 
 Usage Examples:
-    1. Basic launch with default NED controller for all drones in team 1:
-       ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 coordinate_system:=NED
+    1. Basic launch with default NED controller and POSITION offboard mode for all drones in team 1:
+       ros2 launch offboard_control_py offboard_control.launch.py team_id:=1
 
-    2. Launch with specific coordinate system for all drones:
-       ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 coordinate_system:=FRD
+    2. Launch with specific coordinate system and offboard mode for all drones of team 1:
+       ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 coordinate_system:=FRD offboard_mode:=velocity
 
-    3. Launch with custom spawn positions:
-       ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 spawn_file:=path/to/spawn_config.yaml
+    3. Launch with custom spawn positions and custom configs:
+       ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 spawn_file:=path/to/spawn_config.yaml config_file:=path/to/controller_config.yaml
 
-Adding a New Controller Type:
-1. Create your controller node (e.g., 'offboard_control_custom.py')
-2. Add the controller to the controller_map dictionary in generate_drone_nodes():
-   controller_map = {
-       'NED': 'offboard_control_ned',
-       'FRD': 'offboard_control_frd',
-       'CUSTOM': 'offboard_control_custom'  # Add your controller here
-   }
-3. Update the controller configuration YAML to use your new controller type:
-   "1": {
-       "1": "CUSTOM",  # Use your controller for drone 1
-       ...
-   }
-4. Ensure your controller accepts the same parameters as existing controllers:
-   - spawn_x, spawn_y, spawn_yaw
-   - takeoff_height, hover_timeout, land_height_threshold
 """
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, GroupAction, TimerAction, IncludeLaunchDescription
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 import os
 from ament_index_python.packages import get_package_share_directory
 import yaml
 import os.path
+import subprocess
+
+
+def load_yaml_for_node(config_file_path, node_namespace):
+    """
+    Load config for each drone from a global config file with all the configs
+    """
+    with open(config_file_path, 'r') as f:
+        all_config = yaml.safe_load(f)
+        return all_config[node_namespace] if node_namespace in all_config else ""
 
 def load_yaml(file_path):
     """
@@ -76,6 +70,7 @@ def load_yaml(file_path):
 def resolve_file_path(file_path, package_dir, default_name):
     """
     Resolve file path, checking if absolute or needs to be found in config folder.
+    If the file doesn't exist in the default location, check source directory.
     
     Args:
         file_path (str): Path provided by user
@@ -85,131 +80,115 @@ def resolve_file_path(file_path, package_dir, default_name):
     Returns:
         str: Absolute path to the file
     """
+    resolved_path = ""
+    
     if not file_path:
         # If no file specified, use default in config folder
-        return os.path.join(package_dir, 'config', default_name)
+        resolved_path = os.path.join(package_dir, 'config', default_name)
     elif os.path.isabs(file_path):
         # If absolute path provided, use it directly
-        return file_path
+        resolved_path = file_path
     else:
         # If relative path, look in config folder
-        return os.path.join(package_dir, 'config', file_path)
+        resolved_path = os.path.join(package_dir, 'config', file_path)
+    
+    # Check if file exists at resolved path
+    if os.path.exists(resolved_path):
+        return resolved_path
+    
+    # Fallback to source directory path if the file doesn't exist
+    # Get SWARMZ4_PATH from environment
+    swarmz4_path = os.environ.get('SWARMZ4_PATH')
+    if swarmz4_path and default_name == 'spawn_position.yaml':
+        source_dir_path = os.path.join(
+            swarmz4_path, 
+            'ros2_ws/src/px4_pkgs/px4_controllers/offboard_control_py/config', 
+            default_name
+        )
+        if os.path.exists(source_dir_path):
+            print(f"Using spawn file from source directory: {source_dir_path}")
+            return source_dir_path
+    
+    # Return the original path even if not found (error will be handled later)
+    return resolved_path
+
+def launch_mavros_subprocess(namespace, drone_id, tgt_system):
+    # Suppress MAVROS prints by redirecting stdout and stderr to DEVNULL
+    mavros_cmd = [
+        'ros2', 'launch', 'mavros', 'px4.launch',
+        f'fcu_url:=udp://:1454{drone_id}@127.0.0.1:1455{drone_id}',
+        f'namespace:={namespace}',
+        f'tgt_system:={tgt_system}'
+    ]
+    subprocess.Popen(mavros_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def generate_drone_nodes(context, *args, **kwargs):
     """Generate ROS2 nodes for each drone based on configuration."""
     # Get launch configurations
     team_id = LaunchConfiguration('team_id').perform(context)
     coordinate_system = LaunchConfiguration('coordinate_system').perform(context)
+    offboard_mode = LaunchConfiguration('offboard_mode').perform(context)
     config_file = LaunchConfiguration('config_file').perform(context)
     spawn_file = LaunchConfiguration('spawn_file').perform(context)
     package_dir = get_package_share_directory('offboard_control_py')
     
     # Resolve paths for configuration files
-    spawn_file_path = resolve_file_path(spawn_file, package_dir, 'spawn_position_test.yaml')
+    spawn_file_path = resolve_file_path(spawn_file, package_dir, 'spawn_position.yaml')
     config_file_path = resolve_file_path(config_file, package_dir, 'controller_config.yaml')
     
     # Verify files exist
     if not os.path.exists(spawn_file_path):
         raise FileNotFoundError(f"Spawn file not found: {spawn_file_path}")
-    
-    # Load spawn positions
-    spawn_data = load_yaml(spawn_file_path)
-    
-    # Load controller configuration if file exists
-    controller_config = None
-    if config_file and os.path.exists(config_file_path):
-        controller_config = load_yaml(config_file_path)
-    
-    nodes = []
-    
-    # Get team's drone data
-    team_drones = spawn_data.get(team_id, {})
-    
-    # Map of supported controller types to their executables
-    # Add new controllers here when implementing them
-    controller_map = {
-        'NED': 'offboard_control_px4',  # North-East-Down frame controller
-        'FRD': 'offboard_control_px4',   # Forward-Right-Down frame controller
-	    'FLU': 'offboard_control_px4'   # Forward-Left-Up frame controller
-    }
-    
-    # Add detailed logging for configuration loading
-    print("\nController Configuration Decision Log:")
-    print("--------------------------------------")
-    
-    # Log config file status
-    if os.path.exists(config_file_path):
-        print(f"Found controller config file: {config_file_path}")
-        controller_config = load_yaml(config_file_path)
-        configured_drones = sorted(list(controller_config.get(team_id, {}).keys()))
-        print(f"Available controller configurations for team {team_id}: {configured_drones}")
-    else:
-        print(f"No controller config file found at: {config_file_path}")
-        print("Will use default or launch argument controller type")
-        controller_config = None
 
-    # Log spawn file status
-    spawn_drones = sorted(list(team_drones.keys()))
-    print(f"\nSpawn positions for team {team_id}: {spawn_drones}")
-    
-    # Log launch argument controller type
-    print(f"Launch argument coordinate_system: {coordinate_system or 'Not provided'}")
-    
-    print(f"\nController Selection for Team {team_id}:")
-    print("----------------------------------------")
+    # Load and log spawn positions
+    spawn_data = load_yaml(spawn_file_path)
+    team_drones = spawn_data.get(team_id, {})
     
     # Process each drone that has spawn data
     nodes = []
     for drone_id, spawn_info in team_drones.items():
-        print(f"\nDrone {drone_id} controller selection:")
-        
-        # Determine controller type with detailed logging
-        drone_controller = None
-        
+        namespace = f'px4_{drone_id}'
+        tgt_system = int(drone_id) + 1
+        config=None
         # 1. Try launch argument
-        if coordinate_system:
-            drone_controller = coordinate_system
-            print(f"  → Using controller from launch argument: {coordinate_system}")
-        
+        if coordinate_system and offboard_mode: 
+            config = {'coordinate_sysyem':coordinate_system, 'offboard_mode':offboard_mode}
+        elif coordinate_system:
+            config = {'coordinate_sysyem':coordinate_system, 'offboard_mode':'position'}
+        elif offboard_mode:
+            config = {'coordinate_sysyem':'NED', 'offboard_mode':{offboard_mode}}
         # 2. Try controller config file
-        if not drone_controller and controller_config and str(team_id) in controller_config:
-            drone_controller = controller_config[str(team_id)].get(str(drone_id))
-            if drone_controller:
-                print(f"  → Using controller from config file: {drone_controller}")
-            else:
-                print("  → No controller specified in config file")
-        
+        if not config and load_yaml_for_node(config_file_path, namespace):
+            config = load_yaml_for_node(config_file_path, namespace)
         # 3. Use default
-        if not drone_controller:
-            drone_controller = 'NED'
-            print("  → Using default controller: NED")
-        
-        # Map controller type to executable name
-        node_executable = controller_map.get(drone_controller.upper())
-        if not node_executable:
-            print(f"  ⚠ Warning: Unknown controller type '{drone_controller}'")
-            continue
-            
-        # Create node for this drone
-        node = Node(
+        if not config:
+            config = {'coordinate_sysyem':'NED', 'offboard_mode':'position'}
+
+        # Launch MAVROS as subprocess (not as Node)
+        launch_mavros_subprocess(namespace, drone_id, tgt_system)
+
+        # Offboard controller node (still as ROS2 node)
+        controller_node = Node(
             package='offboard_control_py',
-            executable=node_executable,
-            namespace=f'px4_{drone_id}',
-            parameters=[{
-                'spawn_x': spawn_info.get('x', 0.0),
-                'spawn_y': spawn_info.get('y', 0.0),
-                'spawn_yaw': spawn_info.get('yaw', 0.0),
-                'takeoff_height': 1.0,
-                'hover_timeout': 10.0,
-                'land_height_threshold': 0.4,
-		        'coordinate_system': drone_controller
-            }],
+            executable='offboard_control_px4',
+            namespace=namespace,
+            parameters=[
+                config, {
+                    'spawn_x': spawn_info.get('x', 0.0),
+                    'spawn_y': spawn_info.get('y', 0.0),
+                    'spawn_yaw': spawn_info.get('yaw', 0.0)
+                }
+            ],
             output='screen',
             emulate_tty=True
         )
-        nodes.append(node)
-    
-    print(f"\nCreated {len(nodes)} controller nodes for team {team_id}\n")
+
+        # Group: mavros first, then controller after a short delay
+        group = GroupAction([
+            TimerAction(period=3.0, actions=[controller_node])
+        ])
+        nodes.append(group)
+        
     return nodes
 
 def generate_launch_description():
@@ -218,7 +197,6 @@ def generate_launch_description():
     
     Launch Arguments:
     - team_id: Team identifier (1 or 2)
-    - coordinate_system: Default coordinate_system for all drones if not specified in config
     - config_file: Path to controller configuration YAML
     - spawn_file: Path to spawn positions YAML
     
@@ -233,11 +211,6 @@ def generate_launch_description():
             description='Team ID (1 or 2)'
         ),
         DeclareLaunchArgument(
-            'coordinate_system',
-            default_value='NED',
-            description='Default coordinate system (NED, FRD or FLU) if not specified in config'
-        ),
-        DeclareLaunchArgument(
             'config_file',
             default_value='',
             description='Path to controller configuration YAML file'
@@ -247,7 +220,16 @@ def generate_launch_description():
             default_value='',
             description='Path to spawn positions YAML file'
         ),
-        
+        DeclareLaunchArgument(
+            'coordinate_system',
+            default_value='',
+            description='Default coordinate system (NED, FRD or FLU) if not specified in config'
+        ),
+        DeclareLaunchArgument(
+            'offboard_mode',
+            default_value='',
+            description='Default offboard mode if not specified in config'
+        ),
         # Generate nodes through OpaqueFunction
         OpaqueFunction(function=generate_drone_nodes)
     ])

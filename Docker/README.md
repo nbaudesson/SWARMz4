@@ -17,10 +17,10 @@ Get already built image from Docker Hub:
 docker pull crybakowski/swarmz4sim
 ```
 
-Or build fresh image:
+Or build fresh image (from SWARMz4 parent directory):
 
 ```bash
-docker build --no-cache -t crybakowski/swarmz4sim:latest .
+docker build --no-cache -t crybakowski/swarmz4sim:latest -f Docker/Dockerfile .
 ```
 
 ### Single container launch

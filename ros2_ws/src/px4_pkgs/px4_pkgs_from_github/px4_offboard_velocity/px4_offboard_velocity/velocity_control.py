@@ -52,6 +52,61 @@ from math import pi
 from std_msgs.msg import Bool
 
 
+def convert_velocity_to_ned(velocity_cmd, current_attitude, coordinate_system):
+    """
+    Convert velocity commands from various coordinate systems to NED (North-East-Down)
+    
+    Parameters:
+    velocity_cmd - Vector3 containing velocity command in source coordinate system
+    current_attitude - current yaw angle in radians
+    coordinate_system - string identifier of source system ('FLU', 'FRD', 'NED')
+    
+    Returns:
+    Vector3 containing velocity in NED coordinate system
+    """
+    result = Vector3()
+    yaw = current_attitude  # Current yaw angle in radians
+    cos_yaw = np.cos(yaw)
+    sin_yaw = np.sin(yaw)
+    
+    if coordinate_system == 'FRD':
+        # FRD (Forward-Right-Down) to NED (North-East-Down)
+        # 1. Rotate from body-frame to world-frame
+        # Note: Right in FRD is opposite of Left in FLU
+        
+        # First convert from body to world
+        body_forward = velocity_cmd.x
+        body_right = velocity_cmd.y
+        body_down = velocity_cmd.z
+        
+        # Convert to NED
+        # North = Forward component projected onto North axis + Right component projected onto North axis
+        result.x = body_forward * cos_yaw + body_right * sin_yaw
+        # East = Forward component projected onto East axis - Right component projected onto East axis
+        result.y = body_forward * sin_yaw - body_right * cos_yaw
+        # Down = Down (already aligned)
+        result.z = body_down
+        
+    elif coordinate_system == 'NED':
+        # Already in NED coordinate system, no conversion needed
+        result.x = velocity_cmd.x
+        result.y = velocity_cmd.y
+        result.z = velocity_cmd.z
+        
+    else:
+        # Default to FLU conversion if coordinate system is 'FLU' or not recognized
+        # This maintains backward compatibility and makes FLU the default fallback
+        body_forward = velocity_cmd.x
+        body_left = velocity_cmd.y
+        body_up = velocity_cmd.z
+        
+        result.x = body_forward * cos_yaw - body_left * sin_yaw
+        result.y = body_forward * sin_yaw + body_left * cos_yaw
+        result.z = -body_up
+    
+    return result
+
+
 class OffboardControl(Node):
     """
     A ROS2 node for controlling PX4 drone velocity in offboard mode.
@@ -66,6 +121,10 @@ class OffboardControl(Node):
             history=QoSHistoryPolicy.KEEP_LAST,
             depth=1
         )
+
+        # Parameters
+        self.declare_parameter('coordinate_system', 'FLU')
+        self._coordinate_system = self.get_parameter('coordinate_system').value
 
         #Create subscriptions
         self.status_sub = self.create_subscription(
@@ -264,17 +323,11 @@ class OffboardControl(Node):
 
     def offboard_velocity_callback(self, msg):
         """
-        Convert velocity commands from FLU (Forward-Left-Up) to 
-        NED (North-East-Down) coordinate system
+        Convert velocity commands from the configured coordinate system to NED
         """
-        #implements NED -> FLU Transformation
-        # X (FLU) is -Y (NED)
-        self.velocity.x = -msg.linear.y
-        # Y (FLU) is X (NED)
-        self.velocity.y = msg.linear.x
-        # Z (FLU) is -Z (NED)
-        self.velocity.z = -msg.linear.z
-        # A conversion for angular z is done in the attitude_callback function(it's the '-' in front of self.trueYaw)
+        # Use the coordinate system conversion function
+        ned_velocity = convert_velocity_to_ned(msg.linear, -self.trueYaw, self._coordinate_system)
+        self.velocity = ned_velocity
         self.yaw = msg.angular.z
 
     def attitude_callback(self, msg):
@@ -289,8 +342,7 @@ class OffboardControl(Node):
         """
         Main control loop:
         1. Publish offboard control mode
-        2. Transform velocity commands to world frame
-        3. Send trajectory setpoints
+        2. Send trajectory setpoints
         """
         if(self.offboardMode == True):
             # Publish heartbeat / offboard control modes
@@ -301,18 +353,12 @@ class OffboardControl(Node):
             offboard_msg.acceleration = False
             self.publisher_offboard_mode.publish(offboard_msg)            
 
-            # Compute velocity in the world frame
-            cos_yaw = np.cos(self.trueYaw)
-            sin_yaw = np.sin(self.trueYaw)
-            velocity_world_x = (self.velocity.x * cos_yaw - self.velocity.y * sin_yaw)
-            velocity_world_y = (self.velocity.x * sin_yaw + self.velocity.y * cos_yaw)
-
             # Create and publish TrajectorySetpoint message with NaN values for position and acceleration
             trajectory_msg = TrajectorySetpoint()
             trajectory_msg.timestamp = int(Clock().now().nanoseconds / 1000)
-            trajectory_msg.velocity[0] = velocity_world_x
-            trajectory_msg.velocity[1] = velocity_world_y
-            trajectory_msg.velocity[2] = self.velocity.z
+            trajectory_msg.velocity[0] = float(self.velocity.x)
+            trajectory_msg.velocity[1] = float(self.velocity.y)
+            trajectory_msg.velocity[2] = float(self.velocity.z)
             trajectory_msg.position[0] = float('nan')
             trajectory_msg.position[1] = float('nan')
             trajectory_msg.position[2] = float('nan')

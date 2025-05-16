@@ -67,24 +67,13 @@ FIELD_LENGTH=500
 FIELD_WIDTH=250
 NUM_DRONES_PER_TEAM=5
 TOTAL_DRONES=$((NUM_DRONES_PER_TEAM * 2))
-HEADLESS_LEVEL=0                # 0=GUI, 1=Gazebo headless, 2=Full headless
-WORLD="game_world"            # Default world file name
-BOAT_MODEL_NAME="wam-v2"
-SPAWN_POSITION_FILE="$SWARMZ4_PATH/ros2_ws/src/px4_pkgs/px4_controllers/offboard_control_py/config/spawn_position.yaml"
+HEADLESS_LEVEL=0                # 0=GUI, 1=Gazebo headless, 2=Full headless /home/jesus/swarmz_github/SWARMz4/ros2_ws/install/offboard_control_py/share/offboard_control_py/config/controller_config.yaml
 
-# Checkif we are running the script in a gnome-terminal or terminator
-TERMINAL_NAME=$(ps -o comm= $(ps -o ppid= $(ps -o ppid= $$)))
-TERMINAL_NAME=$(ps -p $PPID -o comm=)
+# SPAWN_POSITION_FILE="$SWARMZ4_PATH/ros2_ws/src/px4_pkgs/px4_controllers/offboard_control_py/config/spawn_position_test.yaml"
+SPAWN_POSITION_FILE="$SWARMZ4_PATH/ros2_ws/install/offboard_control_py/share/offboard_control_py/config/spawn_position.yaml"
+# Getting the name of the terminal we are using to run the script (gnome-terminal, terminator, xterm)
+TERMINAL_NAME=$(ps -p $PPID -o comm=) # get the name of the actual terminal (sourcing)
 
-#Generate random spawn position for boats following the following specifications:
-#Spawn position Team 1: x=[0,20%], y=[0,WIDTH]
-#Spawn position Team 2: x=[80%,100%], y=[0,WIDTH]
-#The drones will use the spawn position of the boat to spawn 10 meters in front of it and centered creating a T formation
-start_x1=$(awk -v min=0 -v max=$((FIELD_LENGTH/5 - 10)) 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
-start_y1=$(awk -v min=0 -v max=$((FIELD_WIDTH - (NUM_DRONES_PER_TEAM))) 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
-start_x2=$(awk -v min=$((FIELD_LENGTH*4/5 + 10)) -v max=$FIELD_LENGTH 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
-start_y2=$(awk -v min=0 -v max=$((FIELD_WIDTH - (NUM_DRONES_PER_TEAM)))  'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
- 
 # Bridge and Process PIDs
 CLOCK_BRIDGE_PID=""
 LASER_BRIDGE_PIDS=()
@@ -131,8 +120,8 @@ fi
 # Random spawn of boats and creation of bridges for boat control # TODO: UPDATE world.py name and add sizeable field
 warship_spawn() {
  
-    # Generate world sdl file with random boat x,y position and 0.8 meters over the ground
-    python3 $SWARMZ4_PATH/launch_scripts/world.py $start_x1 $start_y1 0.8 $start_x2 $start_y2 0.8 $WORLD $BOAT_MODEL_NAME
+    # Generate world sdl file with random boat x,y position and 1.1 meters over the ground
+    python3 $SWARMZ4_PATH/launch_scripts/create_world_water.py $start_x1 $start_y1 1.1 $start_x2 $start_y2 1.1 "game_world_water" "wam-v2" $FIELD_LENGTH $FIELD_WIDTH
 }
 
 # Terminal handling with headless mode support
@@ -141,41 +130,58 @@ launch_terminal() {
     local command="$2"
     local headless_level="$3"
     
-    # For level 2 (full headless), just run in background
+    # Vérifie si la session tmux existe déjà
+    if tmux has-session -t "$title" 2>/dev/null; then
+        echo "Session tmux '$title' déjà existante. Suppression et relancement."
+        tmux kill-session -t "$title"
+    fi
+ 
+    # Crée une nouvelle session tmux en mode détaché
+    echo "Lancement de la session tmux '$title'"
+    tmux new-session -d -s "$title" "$command"
+ 
+    # Si headless_level est égal à 2, exécute en arrière-plan sans terminal
     if [ "$headless_level" -eq 2 ]; then
         echo "Starting process: $title (silent background)"
         eval "$command > /dev/null 2>&1 &"
         return
     fi
-    
-    # For GUI modes, try to use gnome-terminal or terminator else fall back to xterm
-    # launch command with gnome
+ 
+    # Vérification si le script bash est lancé dans un terminal graphique
+    if [[ "$TERMINAL_NAME" != "gnome-terminal-" && "$TERMINAL_NAME" != "terminator" && "$TERMINAL_NAME" != "x-terminal-emul" && "$TERMINAL_NAME" != "xterm" ]]; then
+        TERMINAL_NAME=$(ps -o comm= $(ps -o ppid= $(ps -o ppid= $$))) # Obtenir le nom du terminal parent
+    fi
+ 
+    # Si le terminal graphique est gnome-terminal
     if [[ "$TERMINAL_NAME" == "gnome-terminal-" ]]; then
-        gnome-terminal --tab --title="$title" -- bash -c "$command; echo 'Press Enter to close'; read"
+        echo "Launching with gnome-terminal"
+        gnome-terminal --tab --title="$title" -- bash -c "tmux attach -t $title; exec bash"
+    # Si le terminal graphique est terminator
     # Launch command with terminator
     elif [[ "$TERMINAL_NAME" == "terminator" || "$TERMINAL_NAME" == "x-terminal-emul" ]]; then
-            echo "No gnome-terminal found. Using terminator for $title."
-           
-            id="$ROS_DOMAIN_ID"
-            ros2="/opt/ros/$ROS_DISTRO/setup.bash"
-            # TODO: Remove .bashrc and add all necessary environment variables + Do a check for ROS2_DOMAIN_ID
-            terminator --new-tab -e "bash -c 'echo -ne \"\033]0;$title\007\"; \
-                export ROS_DOMAIN_ID=$id; \
-                source ~/.bashrc; \
-                source $ros2; \
-                source $SWARMZ4_PATH/ros2_ws/install/setup.bash; \
-                export SWARMZ4_PATH=\"$SWARMZ4_PATH\"; \
-                export GZ_SIM_SYSTEM_PLUGIN_PATH=\$GZ_SIM_SYSTEM_PLUGIN_PATH:\$SWARMZ4_PATH/ros2_ws/install/gazebo_maritime/lib; \
-                export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$SWARMZ4_PATH/ros2_ws/install/gazebo_maritime/lib; \
-                $command; \
-                echo \"Press Enter to close\"; read'" &        
+        echo "No gnome-terminal found. Using terminator for $title."
+ 
+        id="$ROS_DOMAIN_ID"
+        ros2="/opt/ros/$ROS_DISTRO/setup.bash"
+ 
+        # Lancement du terminal Terminator avec attachement à tmux
+        terminator --new-tab -e "bash -c 'echo -ne \"\033]0;$title\007\"; \
+            export ROS_DOMAIN_ID=$id; \
+            source ~/.bashrc; \
+            source $ros2; \
+            source $SWARMZ4_PATH2/ros2_ws/install/setup.bash; \
+            export SWARMZ4_PATH2=\"$SWARMZ4_PATH2\"; \
+            export GZ_SIM_SYSTEM_PLUGIN_PATH=\$GZ_SIM_SYSTEM_PLUGIN_PATH:\$SWARMZ4_PATH2/ros2_ws/install/gazebo_maritime/lib; \
+            export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$SWARMZ4_PATH2/ros2_ws/install/gazebo_maritime/lib; \
+            tmux attach -t $title || tmux new -s $title; \
+            echo \"Press Enter to close\"; read'" &
     else
-        # Fallback to xterm if available, otherwise run in background
+        # Si aucun terminal graphique trouvé, utiliser xterm ou exécuter en arrière-plan
         if [[ "$TERMINAL_NAME" == "xterm" ]]; then
             echo "No gnome-terminal found. Using xterm for $title."
-            xterm -T "$title" -e "$command; echo 'Press Enter to close'; read" &
+            xterm -T "$title" -e "tmux attach -t $title; exec bash" &
         else
-            # If neither terminal is available, run in background
+            # Si aucun terminal graphique n'est trouvé, lancer en arrière-plan
             echo "No gnome-terminal or xterm found. Running $title in background."
             eval "$command &"
         fi
@@ -299,29 +305,27 @@ EOL
             ;;
             
         update)
-            # Swap x and y when writing to file to fit for NED coordinates in Gazebo
-            sed -i "/\"$drone_id\":{/,/}/{s/x: [0-9.-]*/x: $y/}" "$file"
-            sed -i "/\"$drone_id\":{/,/}/{s/y: [0-9.-]*/y: $x/}" "$file"
-            # Always set yaw to 90 (facing East) regardless of team
-            sed -i "/\"$drone_id\":{/,/}/{s/yaw: [0-9.-]*/yaw: 90/}" "$file"
+            sed -i "/    \"$drone_id\":{/,/^      yaw:/ {
+                /      x: [0-9.-]*/ s/: .*/: $y,/
+                /      y: [0-9.-]*/ s/: .*/: $x,/
+                /      yaw: [0-9.-]*/ s/: .*/: 90},/
+            }" "$file"
             ;;
     esac
 }
  
 # Generate random team position within bounds
 generate_team_position() {
-    local min_x=$1
-    local max_x=$2
-    local min_y=$3
-    local max_y=$4
-    
-    # Generate random x within bounds
-    local x=$(awk -v min=$min_x -v max=$max_x 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
-    # Generate random y, leaving space for the line of drones
-    local max_y_adjusted=$((max_y - (NUM_DRONES_PER_TEAM * 2)))
-    local y=$(awk -v min=$min_y -v max=$max_y_adjusted 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
-    
-    echo "$x $y"
+    #Generate random spawn position for boats following the following specifications:
+    #Spawn position Team 1: x=[0,20%], y=[0,WIDTH]
+    #Spawn position Team 2: x=[80%,100%], y=[0,WIDTH]
+    #The drones will use the spawn position of the boat to spawn 10 meters in front of it and centered creating a T formation
+    seed=$(date +%s%N) # nanosecond precision
+    start_x1=$(( RANDOM % ((FIELD_LENGTH / 5 - 10) + 1) ))
+    start_y1=$(( NUM_DRONES_PER_TEAM + RANDOM % (FIELD_WIDTH - 2 * NUM_DRONES_PER_TEAM + 1) ))
+    start_x2=$(( (FIELD_LENGTH * 4 / 5 + 10) + RANDOM % (FIELD_LENGTH - (FIELD_LENGTH * 4 / 5 + 10) + 1) ))
+    start_y2=$(( NUM_DRONES_PER_TEAM + RANDOM % (FIELD_WIDTH - 2 * NUM_DRONES_PER_TEAM + 1) ))
+
 }
  
 #===========================================================================
@@ -348,10 +352,10 @@ launch_px4_instance() {
         local cmd=""
         if has_secondary_gpu; then
             echo "Using switcherooctl to leverage dedicated GPU"
-            cmd="switcherooctl launch env PX4_UXRCE_DDS_NS=px4_$instance_id VERBOSE_SIM=1 PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART PX4_SIM_MODEL=$PX4_MODEL PX4_GZ_MODEL_POSE=\"$pose\" PX4_GZ_WORLD=\"$WORLD\" $headless_flag make px4_sitl $PX4_MODEL"
+            cmd="switcherooctl launch env PX4_UXRCE_DDS_NS=px4_$instance_id VERBOSE_SIM=1 PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART PX4_SIM_MODEL=$PX4_MODEL PX4_GZ_MODEL_POSE=\"$pose\" PX4_GZ_WORLD=game_world_water $headless_flag make px4_sitl $PX4_MODEL"
         else
             echo "Using standard GPU configuration"
-            cmd="PX4_UXRCE_DDS_NS=px4_$instance_id VERBOSE_SIM=1 PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART PX4_SIM_MODEL=$PX4_MODEL PX4_GZ_MODEL_POSE=\"$pose\" PX4_GZ_WORLD=\"$WORLD\" $headless_flag make px4_sitl $PX4_MODEL"
+            cmd="PX4_UXRCE_DDS_NS=px4_$instance_id VERBOSE_SIM=1 PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART PX4_SIM_MODEL=$PX4_MODEL PX4_GZ_MODEL_POSE=\"$pose\" PX4_GZ_WORLD=game_world_water $headless_flag make px4_sitl $PX4_MODEL"
         fi
  
         # Launch with EKF reset script
@@ -368,7 +372,7 @@ launch_px4_instance() {
             PX4_SYS_AUTOSTART=$PX4_SYS_AUTOSTART \
             PX4_GZ_MODEL_POSE=\"$pose\" \
             PX4_SIM_MODEL=$PX4_MODEL \
-            PX4_GZ_WORLD=\"$WORLD\" \
+            PX4_GZ_WORLD=game_world_water \
             "
  
         # Either Gazebo headless or full headless
@@ -392,7 +396,9 @@ launch_team() {
     local team_num=$1
     local start_x=$2
     local start_y=$3
- 
+
+    echo "Spawning Team $team_num at base position ($start_x, $start_y)"
+
     #Take the spawn position of the boat and place the drones 10 meters in front of it and centered in y
     if [ "$team_num" -eq 1 ]; then
         start_x=$((start_x + 10))
@@ -401,9 +407,6 @@ launch_team() {
         start_x=$((start_x - 10))
         start_y=$((start_y - 3)) # 5-2 meter spacing for team 2
     fi
-    
- 
-    echo "Spawning Team $team_num at base position ($start_x, $start_y)"
     
     # Launch drones in formation
     for ((i=0; i<NUM_DRONES_PER_TEAM; i++)); do
@@ -435,7 +438,7 @@ start_laser_bridges() {
     
     for ((i=0; i<TOTAL_DRONES; i++)); do
         # Construct the GZ laser topic path
-        local gz_topic="/world/$WORLD/model/${PX4_MODEL}_${i}/link/lidar_sensor_link/sensor/lidar/scan"
+        local gz_topic="/world/game_world_water/model/${PX4_MODEL}_${i}/link/lidar_sensor_link/sensor/lidar/scan"
         local ros_topic="laser/scan"
         
         # Start the bridge with log level control and unique node name
@@ -534,7 +537,7 @@ fi
 # Step 3: Initialize spawn positions file
 echo "Step 3: Initializing spawn positions file..."
 handle_spawn_position "init" "$SPAWN_POSITION_FILE"
- 
+
 # Step 4: Launch QGroundControl
 echo "Step 4: Launching QGroundControl..."
 if [ "$HEADLESS_LEVEL" -eq 2 ]; then
@@ -548,7 +551,8 @@ fi
  
 # Step 5: Launch PX4 teams
 echo "Step 5: Launching drone teams..."
- 
+#Generate random spawn positions
+generate_team_position
 #Spawn boats ans start thruster bridges
 warship_spawn
  
@@ -569,6 +573,16 @@ start_laser_bridges
 # Start the boat bridges
 start_boat_bridge
  
+# Step 6.5: Copy spawn position file to source directory
+echo "Step 6.5: Copying spawn position file to source directory..."
+SOURCE_DIR_SPAWN_FILE="$SWARMZ4_PATH/ros2_ws/src/px4_pkgs/px4_controllers/offboard_control_py/config/spawn_position.yaml"
+cp "$SPAWN_POSITION_FILE" "$SOURCE_DIR_SPAWN_FILE"
+if [ $? -eq 0 ]; then
+    echo "Successfully copied spawn position file to: $SOURCE_DIR_SPAWN_FILE"
+else
+    echo "Warning: Failed to copy spawn position file to source directory"
+fi
+
 # Step 7: Wait for user to exit
 echo "Step 7: All processes started."
 if [ "$HEADLESS_LEVEL" -eq 2 ]; then

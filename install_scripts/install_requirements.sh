@@ -30,4 +30,14 @@ sudo apt install libgz-transport13 -y
 sudo apt install python3-pip -y
 sudo ln -s /usr/bin/pip3 /usr/bin/pip
 # pip for ros2
-pip install --break-system-packages empy==3.3.4 pyros-genmsg setuptools==58.2 psutil numpy==1.26.4 transforms3d
+UBUNTU_VERSION=$(grep -oP 'VERSION_ID="\K[^"]+' /etc/os-release)
+if [[ "$UBUNTU_VERSION" == "22.04" ]]; then
+    # Ubuntu 22.04
+    pip install --user empy==3.3.4 pyros-genmsg setuptools==58.2 psutil numpy==1.26.4 transforms3d
+elif [[ "$UBUNTU_VERSION" == "24.04" ]]; then
+    # Ubuntu 24.04
+    # The apt are not the same versions between 22.04 and 24.04
+    sudo apt install python3-empy python3-numpy python3-setuptools python3-transforms3d -y
+else
+    echo "Unsupported Ubuntu version: $UBUNTU_VERSION"
+fi

@@ -29,7 +29,7 @@ install_ros2_humble() {
     export LANG=en_US.UTF-8
 
     sudo apt install -y software-properties-common
-    sudo add-apt-repository universe
+    sudo add-apt-repository universe -y
     sudo apt update && sudo apt install -y curl gnupg2 lsb-release
 
     sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
@@ -64,7 +64,7 @@ install_ros2_jazzy() {
     export LANG=en_US.UTF-8
 
     sudo apt install -y software-properties-common
-    sudo add-apt-repository universe
+    sudo add-apt-repository universe -y
     sudo apt update && sudo apt install -y curl gnupg2 lsb-release
 
     sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg

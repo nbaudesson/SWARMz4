@@ -8,18 +8,9 @@ game_master_node:
     ship_communication_range: 525.0 # =ship2ship_detection_range*105%
     drone_health: 1       # Instant kill for drones 
     ship_health: 6        # Increased ship health to make fleet battles more interesting
-    game_duration: 20  # 5 minutes
-    gazebo_world_name: "swarmz_world_2"  # Previously named 'world_name'
-    drone_model_base_name: "x500_lidar_front"  # Base name for drone models in Gazebo
-
-warship_node:
-  ros__parameters:
-    use_sim_time: True
-    canon_py_rotation_speed: 0.261 # pitch and yaw rotation 360°/24s -> 15°/s in rad/s
-
-missile_server:
-  ros__parameters:
-    use_sim_time: True
+    game_duration: 3000  # 5 minutes
+    gazebo_world_name: "game_world_water"
+    # Missile server parameters
     drone_missile_range: 69.0 # =drone_detection_range*50%
     ship_missile_range: 81.0 # =ship2drone_detection_range*50%
     drone_missile_damage: 1
@@ -28,18 +19,18 @@ missile_server:
     ship_cooldown: 6.0
     drone_magazine: 2
     ship_magazine: 4
-    laser_width: 3.0
+    laser_width: 5.0
     drone_padding_x: 0.5
     drone_padding_y: 0.5
     drone_padding_z: 0.5
     ship_padding_x: 6.0
     ship_padding_y: 1.0
     ship_padding_z: 1.0
-    world_name: "swarmz_world_2"
-
-kamikaze_server:
-  ros__parameters:
-    use_sim_time: True
+    # Kamikaze server parameters
     explosion_damage: 3
     explosion_range: 5.0
-    world_name: "swarmz_world_2"
+
+warship_node:
+  ros__parameters:
+    use_sim_time: True
+    canon_py_rotation_speed: 0.261 # pitch and yaw rotation 360°/24s -> 15°/s in rad/s

@@ -1,0 +1,175 @@
+--- Game 1 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 2 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 3 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 4 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 5 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 6 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 7 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 8 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 9 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 10 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 11 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 12 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 13 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 14 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 15 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 16 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
