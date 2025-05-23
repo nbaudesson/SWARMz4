@@ -173,3 +173,69 @@ Team 2 flagship health: 6/6
 Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
 Team 2 destroyed drones: None
 Winner: draw
+
+--- Game 17 ---
+Game Over
+Team 1 wins! (Destroyed enemy flagship)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: None
+Team 1 destroyed drones: /px4_3, /px4_4, /px4_2, /px4_0, /px4_1
+Team 2 flagship health: 0/6
+Team 2 surviving drones: /px4_6, /px4_8
+Team 2 destroyed drones: /px4_5, /px4_9, /px4_7
+Winner: team_1
+
+--- Game 18 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_4, /px4_2, /px4_1, /px4_0, /px4_3
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_7, /px4_8, /px4_6, /px4_5, /px4_9
+Team 2 destroyed drones: None
+Winner: draw
+
+--- Game 19 ---
+Game Over
+Team 2 wins! (Destroyed enemy flagship)
+Team 1 flagship health: 0/6
+Team 1 surviving drones: /px4_1, /px4_0, /px4_3
+Team 1 destroyed drones: /px4_4, /px4_2
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
+Team 2 destroyed drones: None
+Winner: team_2
+
+--- Game 20 ---
+Game Over
+Team 2 wins! (Destroyed enemy flagship)
+Team 1 flagship health: 0/6
+Team 1 surviving drones: /px4_1, /px4_3, /px4_0
+Team 1 destroyed drones: /px4_2, /px4_4
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_6, /px4_9, /px4_8, /px4_5, /px4_7
+Team 2 destroyed drones: None
+Winner: team_2
+
+--- Game 21 ---
+Game Over
+Team 2 wins! (Has more surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_4, /px4_3, /px4_1, /px4_0
+Team 1 destroyed drones: /px4_2
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_7, /px4_6, /px4_5, /px4_9, /px4_8
+Team 2 destroyed drones: None
+Winner: team_2
+
+--- Game 22 ---
+Game Over
+The game is a draw! (Equal flagship health and surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_0, /px4_4, /px4_1, /px4_3, /px4_2
+Team 1 destroyed drones: None
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_7, /px4_6, /px4_8, /px4_9, /px4_5
+Team 2 destroyed drones: None
+Winner: draw

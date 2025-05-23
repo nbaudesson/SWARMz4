@@ -18,6 +18,8 @@ setup(
         (os.path.join('share', package_name, 'config'), glob(os.path.join('config', '*.yaml'))),
         # Include all scripts.
         (os.path.join('share', package_name, 'utils'), glob(os.path.join('utils', '*.py'))),
+        # Include all bash scripts.
+        (os.path.join('share', package_name, 'utils'), glob(os.path.join('utils', '*.sh'))),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -30,8 +32,6 @@ setup(
         'console_scripts': [
             'game_master_node = game_master.game_master_node:main',
             'position_monitor = game_master.position_monitor:main',
-            'game_master_client_static_test = exemple.game_master_client_static_test:main',
-            'game_master_client_dynamic_test = exemple.game_master_client_dynamic_test:main',
         ],
     },
 )

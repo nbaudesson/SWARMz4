@@ -6,9 +6,10 @@ import tf_transformations
 import numpy as np
 import time 
 import threading
+import logging
 
 class GazeboPosesTracker(Node):
-    def __init__(self, robot_names, px4_prefix="x500_lidar_front", flag_ship_prefix="flag_ship", world_name="swarmz_world_2", logger=None):
+    def __init__(self, robot_names, px4_prefix="x500_lidar_front", flag_ship_prefix="flag_ship", world_name="game_world_water", logger=None):
         super().__init__()
         # Create a Gazebo transport node
         self.world_name = world_name
@@ -16,7 +17,17 @@ class GazeboPosesTracker(Node):
         self.model_names = []
         self.px4_prefix = px4_prefix
         self.flag_ship_prefix = flag_ship_prefix
-        self.logger = logger
+        
+        # Set the logger 
+        if logger:
+            self.logger = logger
+        else:
+            self.logger = logging.getLogger(__name__)
+            self.logger.setLevel(logging.INFO)
+            console_handler = logging.StreamHandler()
+            formatter = logging.Formatter('[%(levelname)s] %(message)s')
+            console_handler.setFormatter(formatter)
+            self.logger.addHandler(console_handler)
 
         # Create a mapping from input names to Gazebo names
         self.name_mapping = {}
@@ -69,20 +80,23 @@ class GazeboPosesTracker(Node):
             setattr(self, f"yaw_{i}", 0.0)
         
         # Get the IDs of the links gun and gr of the flag_ship 
-        self.get_model_id("flag_ship_1")
-        self.get_model_id("flag_ship_2")
-
-        # Supplementary test 
-        self.get_model_id("px4_0")
+        # Initialize model IDs for all robots
+        for robot_name in robot_names:
+            if robot_name:
+                # Strip the leading slash if present
+                clean_name = robot_name.lstrip('/')
+                # Only call get_model_id for base model names, not derived ones like gun/gr
+                if not any(keyword in clean_name for keyword in ["cannon", "gun", "gr"]):
+                    self.get_model_id(clean_name)
 
         # Log of the models ID and models names detected
-        self.logger.info(f"Detected models ID: {self.model_id}")
+        # self.logger.info(f"[gazebo_subscriber] : Detected models ID: {self.model_id}")
         excluded_keywords = ["cannon", "gun", "gr"]
         self.detected_models = [
             name for name in self.model_names
             if not any(keyword in name for keyword in excluded_keywords)
         ]
-        self.logger.info(f"Detected models names: {self.detected_models}")
+        self.logger.info(f"[gazebo_subscriber] : Detected models : {self.detected_models}")
 
         # timmer to update the cannon relative pose 
         self.start_timmer = time.time()
@@ -91,9 +105,8 @@ class GazeboPosesTracker(Node):
         # Subscribe to topics
         try:
             self.subscribe(Pose_V, self.topic_dynamic_pose, self.dynamic_pose_cb)
-            # print(f"Subscribed to topic [{self.topic_dynamic_pose}]")
         except Exception as e:
-            print(f"Error subscribing to topic [{self.topic_dynamic_pose}]: {e}")
+            self.logger.error(f"[gazebo_subscriber] : Error subscribing to topic [{self.topic_dynamic_pose}]: {e}")
 
     def get_model_id(self, model_name):
         """
@@ -138,9 +151,9 @@ class GazeboPosesTracker(Node):
 
                 return self.model_id[model_name]["id"]
             else:
-                print("Failed to call the service.", response_bytes)
+                self.logger.warning(f"[gazebo_subscriber] : Failed to call the service : {response_bytes}")
         except Exception as e:
-            print(f"Error when calling service : {e}")
+            self.logger.error(f"[gazebo_subscriber] : Error when calling service : {e}")
     
     def get_cannon_rpy(self):
         """
@@ -188,6 +201,13 @@ class GazeboPosesTracker(Node):
             
             # Update the gun and gr pose of both boat
             elif model_name in self.link_name:
+                # Case when the service fail to get the IDs
+                if self.pitch_id1 == 0.0 or self.pitch_id2 == 0.0 or self.yaw_id1 == 0.0 or self.yaw_id2 == 0.0:
+                    self.get_model_id("flag_ship_1")
+                    self.get_model_id("flag_ship_2")
+                    self.logger.error("[gazebo_subscriber] : Error gz service failed to get the IDs !")
+                    return 
+                
                 if pose.id==self.pitch_id1 or pose.id==self.yaw_id1:
                     model_name = f"flag_ship_{model_name}_{1}"
                 elif pose.id==self.pitch_id2 or pose.id==self.yaw_id2:
@@ -287,6 +307,13 @@ class GazeboPosesTracker(Node):
         # Combine translation and rotation into a single matrix
         transformation_matrix = np.dot(translation_matrix, rotation_matrix)
         return transformation_matrix
+    
+    def print_pose_deltas(self):
+        print("\n--- Current Poses ---")
+        for model_name, pose in self.poses.items():
+            print(f"Model: {model_name}")
+            print(f"Position: {pose['position']}")
+            print(f"Orientation: {pose['orientation']}")
 
 def main():
     robot_names = ['/flag_ship_1', '/flag_ship_2', "/px4_1", "/px4_2"]
@@ -294,10 +321,10 @@ def main():
     try:
         for robot in robot_names:
             pose = gz.get_pose(robot)
-            print(robot)        
-            print(pose) # The first time this poses are not updtate due to the delay of getting the data from the gz topic
+            gz.logger.info(f"[gazebo_subscriber] : {robot}")        
+            gz.logger.info(f"[gazebo_subscriber] : {pose}") # The first time this poses are not updtate due to the delay of getting the data from the gz topic
     except KeyboardInterrupt:
-        print("Shutting down...")
+        gz.logger.info("[gazebo_subscriber] : Shutting down...")
 
 if __name__ == "__main__":
     main()

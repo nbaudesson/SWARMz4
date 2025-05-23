@@ -34,7 +34,7 @@ def get_laser_distance(node, robot_name, laser_topic="laser_beam", timeout_sec=1
         if msg.ranges:
             distance = min(r for r in msg.ranges if not math.isinf(r) and not math.isnan(r))  # Filter out inf/nan
         else:
-            logger.warn("Received LaserScan with empty ranges")
+            logger.warn("[tools]: Received LaserScan with empty ranges")
             distance = float('inf')
 
     distance = None
@@ -229,15 +229,15 @@ def is_aligned(node, shooter_position, shooter_orientation, target_position, tar
         radius_at_point = math.sqrt(rel_pos[1]**2 + rel_pos[2]**2)
         
         if verbose:
-            node.get_logger().info(f"Relative position: {rel_pos}")
-            node.get_logger().info(f"Distance along cone: {forward_distance}")
-            node.get_logger().info(f"Radius at point: {radius_at_point}")
-            node.get_logger().info(f"Max allowed radius at this distance: {max_radius}")
+            node.get_logger().info(f"[tools]: Relative position: {rel_pos}")
+            node.get_logger().info(f"[tools]: Distance along cone: {forward_distance}")
+            node.get_logger().info(f"[tools]: Radius at point: {radius_at_point}")
+            node.get_logger().info(f"[tools]: Max allowed radius at this distance: {max_radius}")
             
         return radius_at_point <= max_radius
         
     except Exception as e:
-        node.get_logger().error(f"Failed to calculate alignment: {e}")
+        node.get_logger().error(f"[tools]: Failed to calculate alignment: {e}")
         return False
 
 def get_cube_corners(position, orientation, padding, is_quaternion=True):
@@ -319,12 +319,12 @@ def is_aligned_HB(node, shooter_position, shooter_orientation, target_position, 
         ])
         
         if verbose >= 1:
-            node.get_logger().info("=== Starting Alignment Check ===")
-            node.get_logger().info(f"Target position: {target_position}")
-            node.get_logger().info(f"Target padding: {target_padding}")
-            node.get_logger().info(f"Shooter position: {shooter_position}")
-            node.get_logger().info(f"Range: {range}, Threshold: {threshold}")
-            node.get_logger().info(f"Corners in shooter frame:\n{corners_relative}")
+            node.get_logger().info("[tools]: === Starting Alignment Check ===")
+            node.get_logger().info(f"[tools]: Target position: {target_position}")
+            node.get_logger().info(f"[tools]: Target padding: {target_padding}")
+            node.get_logger().info(f"[tools]: Shooter position: {shooter_position}")
+            node.get_logger().info(f"[tools]: Range: {range}, Threshold: {threshold}")
+            node.get_logger().info(f"[tools]: Corners in shooter frame:\n{corners_relative}")
 
         # Define each face by its four corner indices
         # Order matters: corners must form a valid rectangle
@@ -339,7 +339,7 @@ def is_aligned_HB(node, shooter_position, shooter_orientation, target_position, 
 
         for face_idx, face_indices in enumerate(faces):
             if verbose >= 2:
-                node.get_logger().info(f"\n=== Checking Face {face_idx} ===")
+                node.get_logger().info(f"\n[tools]: === Checking Face {face_idx} ===")
             
             face_corners = corners_relative[list(face_indices)]
             edge1 = face_corners[1] - face_corners[0]
@@ -350,16 +350,16 @@ def is_aligned_HB(node, shooter_position, shooter_orientation, target_position, 
             
             if center[0] <= 0:
                 if verbose >= 2:
-                    node.get_logger().info(f"Skipping face {face_idx}: Behind shooter (X = {center[0]:.3f})")
+                    node.get_logger().info(f"[tools]: Skipping face {face_idx}: Behind shooter (X = {center[0]:.3f})")
                 continue
 
             if verbose >= 2:
-                node.get_logger().info(f"Face center: {center}")
-                node.get_logger().info(f"Face normal: {normal}")
+                node.get_logger().info(f"[tools]: Face center: {center}")
+                node.get_logger().info(f"[tools]: Face normal: {normal}")
 
             # Corner check
             if verbose >= 2:
-                node.get_logger().info("\n--- Checking corners ---")
+                node.get_logger().info("\n[tools]: --- Checking corners ---")
             
             for corner_idx, corner in enumerate(face_corners):
                 forward_dist = corner[0]
@@ -368,26 +368,26 @@ def is_aligned_HB(node, shooter_position, shooter_orientation, target_position, 
                     cone_radius = (threshold * forward_dist) / range
                     
                     if verbose >= 2:
-                        node.get_logger().info(f"Corner {corner_idx}:")
-                        node.get_logger().info(f"  Position: {corner}")
-                        node.get_logger().info(f"  Forward distance: {forward_dist:.3f}")
-                        node.get_logger().info(f"  Lateral distance: {lateral_dist:.3f}")
-                        node.get_logger().info(f"  Cone radius at this distance: {cone_radius:.3f}")
-                        node.get_logger().info(f"  Within cone: {lateral_dist <= cone_radius}")
+                        node.get_logger().info(f"[tools]: Corner {corner_idx}:")
+                        node.get_logger().info(f"         Position: {corner}")
+                        node.get_logger().info(f"         Forward distance: {forward_dist:.3f}")
+                        node.get_logger().info(f"         Lateral distance: {lateral_dist:.3f}")
+                        node.get_logger().info(f"         Cone radius at this distance: {cone_radius:.3f}")
+                        node.get_logger().info(f"         Within cone: {lateral_dist <= cone_radius}")
                     
                     if lateral_dist <= cone_radius:
                         if verbose >= 1:
-                            node.get_logger().info(f"Hit detected on corner {corner_idx} of face {face_idx}")
+                            node.get_logger().info(f"[tools]: Hit detected on corner {corner_idx} of face {face_idx}")
                         return True
 
             # Face intersection check
             if verbose >= 2:
-                node.get_logger().info("\n--- Checking face intersection ---")
+                node.get_logger().info("\n[tools]: --- Checking face intersection ---")
             
             face_x = center[0]
             if face_x <= 0 or face_x > range:
                 if verbose >= 2:
-                    node.get_logger().info(f"Face {face_idx} out of range: X = {face_x:.3f}")
+                    node.get_logger().info(f"[tools]: Face {face_idx} out of range: X = {face_x:.3f}")
                 continue
             
             min_y = min(c[1] for c in face_corners)
@@ -402,27 +402,27 @@ def is_aligned_HB(node, shooter_position, shooter_orientation, target_position, 
             rect_center_z = (min_z + max_z)/2
 
             if verbose >= 2:
-                node.get_logger().info(f"Face bounds in YZ plane:")
-                node.get_logger().info(f"  Y: [{min_y:.3f}, {max_y:.3f}]")
-                node.get_logger().info(f"  Z: [{min_z:.3f}, {max_z:.3f}]")
-                node.get_logger().info(f"  Cone radius at this distance: {cone_radius:.3f}")
-                node.get_logger().info(f"  Rectangle center: ({rect_center_y:.3f}, {rect_center_z:.3f})")
-                node.get_logger().info(f"  Rectangle size: {rect_half_width*2:.3f} x {rect_half_height*2:.3f}")
-                node.get_logger().info(f"  Distance to center: Y={abs(rect_center_y):.3f}, Z={abs(rect_center_z):.3f}")
-                node.get_logger().info(f"  Allowed distance: Y={rect_half_width + cone_radius:.3f}, Z={rect_half_height + cone_radius:.3f}")
+                node.get_logger().info(f"[tools]: Face bounds in YZ plane:")
+                node.get_logger().info(f"         Y: [{min_y:.3f}, {max_y:.3f}]")
+                node.get_logger().info(f"         Z: [{min_z:.3f}, {max_z:.3f}]")
+                node.get_logger().info(f"         Cone radius at this distance: {cone_radius:.3f}")
+                node.get_logger().info(f"         Rectangle center: ({rect_center_y:.3f}, {rect_center_z:.3f})")
+                node.get_logger().info(f"         Rectangle size: {rect_half_width*2:.3f} x {rect_half_height*2:.3f}")
+                node.get_logger().info(f"         Distance to center: Y={abs(rect_center_y):.3f}, Z={abs(rect_center_z):.3f}")
+                node.get_logger().info(f"         Allowed distance: Y={rect_half_width + cone_radius:.3f}, Z={rect_half_height + cone_radius:.3f}")
 
             if abs(rect_center_y) <= rect_half_width + cone_radius and \
                abs(rect_center_z) <= rect_half_height + cone_radius:
                 if verbose >= 1:
-                    node.get_logger().info(f"Hit detected on face {face_idx}")
+                    node.get_logger().info(f"[tools]: Hit detected on face {face_idx}")
                 return True
 
         if verbose >= 1:
-            node.get_logger().info("\n=== No intersection found with any face ===")
+            node.get_logger().info("\n[tools]: === No intersection found with any face ===")
         return False
         
     except Exception as e:
-        node.get_logger().error(f"Failed to calculate alignment: {e}")
+        node.get_logger().error(f"[tools]: Failed to calculate alignment: {e}")
         return False
 
 def get_stable_namespaces(node, max_attempts=10, wait_time=1.0):
@@ -444,7 +444,7 @@ def get_stable_namespaces(node, max_attempts=10, wait_time=1.0):
         current_namespaces = get_all_namespaces(node)
         
         if not current_namespaces:
-            node.get_logger().warn("No namespaces detected. Waiting...")
+            node.get_logger().warn("[tools]: No namespaces detected. Waiting...")
             time.sleep(wait_time)
             attempts += 1
             continue
@@ -453,7 +453,7 @@ def get_stable_namespaces(node, max_attempts=10, wait_time=1.0):
         current_namespaces.sort()
         
         if prev_namespaces is not None and current_namespaces == prev_namespaces:
-            node.get_logger().info(f"Stable list of namespaces detected: {current_namespaces}")
+            node.get_logger().info(f"[tools]: Stable list of namespaces detected: {current_namespaces}")
             return current_namespaces
             
         # node.get_logger().info(f"Detected namespaces (attempt {attempts+1}/{max_attempts}): {current_namespaces}")
@@ -462,7 +462,7 @@ def get_stable_namespaces(node, max_attempts=10, wait_time=1.0):
         time.sleep(wait_time)
     
     # If we couldn't get a stable list, return the last one we got
-    node.get_logger().warn(f"Could not get stable namespaces after {max_attempts} attempts. Using last detected list: {prev_namespaces}")
+    node.get_logger().warn(f"[tools]: Could not get stable namespaces after {max_attempts} attempts. Using last detected list: {prev_namespaces}")
     return prev_namespaces or []
 
 def test_is_aligned(node, threshold, padding_x, padding_y, padding_z, verbose=False):

@@ -117,11 +117,11 @@ fi
 # 4. UTILITY FUNCTIONS
 #===========================================================================
  
-# Random spawn of boats and creation of bridges for boat control # TODO: UPDATE world.py name and add sizeable field
+# Random spawn of boats and creation of bridges for boat control
 warship_spawn() {
  
     # Generate world sdl file with random boat x,y position and 1.1 meters over the ground
-    python3 $SWARMZ4_PATH/launch_scripts/create_world_water.py $start_x1 $start_y1 1.1 $start_x2 $start_y2 1.1 "game_world_water" "wam-v2" $FIELD_LENGTH $FIELD_WIDTH
+    python3 $SWARMZ4_PATH/launch_scripts/create_world_water.py $start_x1 $start_y1 2.2 $start_x2 $start_y2 2.2 "game_world_water" "wam-v2" $FIELD_LENGTH $FIELD_WIDTH
 }
 
 # Terminal handling with headless mode support

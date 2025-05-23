@@ -8,7 +8,7 @@ package_name = 'offboard_control_py'
 demo_client_scripts = []
 
 # Walk through the demo_clients directory and its subdirectories
-for root, dirs, files in os.walk(os.path.join(package_name, 'demo_clients')):
+for root, dirs, files in os.walk(os.path.join(package_name, 'client_codes')):
     # Get the relative path from the package
     rel_path = os.path.relpath(root, package_name)
     # Convert path separator to dots for the import path

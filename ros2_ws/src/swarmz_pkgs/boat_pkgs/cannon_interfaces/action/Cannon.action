@@ -1,7 +1,6 @@
 #Goal
 float32 pitch
 float32 yaw
-string target_ship
 ---
 #Result
 bool success

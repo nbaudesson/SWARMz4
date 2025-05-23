@@ -1,36 +1,43 @@
 game_master_node:
   ros__parameters:
     use_sim_time: True
-    drone_detection_range: 137.0 # =height*55% for 2 horizontal corridors
-    ship2ship_detection_range: 500.0 # Can see the other ship across the map
-    ship2drone_detection_range: 162.0 #  =height*65% Can smaller objects only closer, but has an edge on the drones
-    drone_communication_range: 144.0 # =drone_detection_range*105%
-    ship_communication_range: 525.0 # =ship2ship_detection_range*105%
-    drone_health: 1       # Instant kill for drones 
-    ship_health: 6        # Increased ship health to make fleet battles more interesting
-    game_duration: 3000  # 5 minutes
+    # Detection ranges
+    drone_detection_range: 137.0
+    ship2ship_detection_range: 500.0
+    ship2drone_detection_range: 162.0
+    drone_communication_range: 144.0
+    ship_communication_range: 525.0
+    
+    # Health and damage settings
+    drone_health: 1
+    ship_health: 6
+    
+    # Game rules
+    game_duration: 300  # 5 minutes
+    
+    # Gazebo configuration
     gazebo_world_name: "game_world_water"
-    # Missile server parameters
-    drone_missile_range: 69.0 # =drone_detection_range*50%
-    ship_missile_range: 81.0 # =ship2drone_detection_range*50%
+    drone_model_base_name: "x500_lidar_front"
+    
+    # Missile system parameters
+    drone_missile_range: 69.0
+    ship_missile_range: 81.0
     drone_missile_damage: 1
     ship_missile_damage: 1
     drone_cooldown: 8.0
     ship_cooldown: 6.0
     drone_magazine: 2
     ship_magazine: 4
-    laser_width: 5.0
+    laser_width: 4.0
+    
+    # Target size padding
     drone_padding_x: 0.5
     drone_padding_y: 0.5
     drone_padding_z: 0.5
     ship_padding_x: 6.0
     ship_padding_y: 1.0
     ship_padding_z: 1.0
-    # Kamikaze server parameters
+    
+    # Kamikaze parameters
     explosion_damage: 3
     explosion_range: 5.0
-
-warship_node:
-  ros__parameters:
-    use_sim_time: True
-    canon_py_rotation_speed: 0.261 # pitch and yaw rotation 360°/24s -> 15°/s in rad/s

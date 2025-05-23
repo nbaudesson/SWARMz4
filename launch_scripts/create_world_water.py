@@ -176,7 +176,7 @@ xml_content += """
     <uri>
       https://fuel.gazebosim.org/1.0/OpenRobotics/models/Coast Water
     </uri>
-    <pose>0 0 1.0 0 0 0</pose>
+    <pose>0 0 0.8 0 0 0</pose>
     </include>
 
     <!-- The wave field -->

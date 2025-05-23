@@ -6,7 +6,7 @@ from rclpy.node import Node
 from rclpy.executors import MultiThreadedExecutor
 from std_msgs.msg import Float64
 from cannon_interfaces.action import Cannon
-from boat_driver.gz_tracker import GazeboPosesTracker
+from .gz_tracker import GazeboPosesTracker
 # from game_master.gazebo_subscriber import GazeboPosesTracker
 from action_msgs.msg import GoalStatus
 
@@ -17,21 +17,25 @@ class CannonServer(Node):
 
         self.rate = self.create_rate(100, self.get_clock())
         # Déclaration des paramètres
-        self.declare_parameter("speed", 1.0) # peu importe si la valeur de speed est grande la valeur sera ici limité par celle définie dans le model sdf du bateau
+        self.declare_parameter("speed", 1.0)
         self.declare_parameter("tolerance", 0.017)
-        self.speed = self.get_parameter("speed").value # get_parameter_value()
+        self.speed = self.get_parameter("speed").value
         self.tolerance = self.get_parameter("tolerance").value
+        
+        # Fix namespace handling to avoid double slashes
+        self.namespace = self.get_namespace()
+        if self.namespace.endswith('/'):
+            self.namespace = self.namespace[:-1]  # Remove trailing slash
+            
+        # Now create publishers with properly formatted topic names
+        self.pitch_pub = self.create_publisher(Float64, f'{self.namespace}/cannon_pitch_cmd', 10)
+        self.yaw_pub = self.create_publisher(Float64, f'{self.namespace}/cannon_yaw_cmd', 10)
 
         # Initialisation des poses
         self.pitch = 0.0
         self.yaw = 0.0
-        self.pitch1 = 0.0
-        self.yaw1 = 0.0
-        self.pitch2 = 0.0
-        self.yaw2 = 0.0
     
         # Initialisation de targets
-        self.target_ship = None  
         self.target_pitch = 0.0
         self.target_yaw = 0.0
 
@@ -40,12 +44,11 @@ class CannonServer(Node):
         self._current_goal_request = None
 
         # Interface Gazebo
-        robot_names = ["/flag_ship_1", "/flag_ship_2"]
-        self.gz_tracker = GazeboPosesTracker(robot_names)
+        self.gz_tracker = GazeboPosesTracker(self.namespace, logger=self.get_logger())
         self.update_positions() # Premier appel pour obtenir orientation du cannon 
 
         # Timer pour mise à jour continue des poses
-        self.timer = self.create_timer(0.05, self.update_positions)  # 20Hz
+        self.timer = self.create_timer(0.1, self.update_positions)  # 10Hz
 
         # Action server
         self._action_server = ActionServer(
@@ -62,12 +65,10 @@ class CannonServer(Node):
 
     def update_positions(self):
         try:
-            pitch1, pitch2, yaw1, yaw2 = self.gz_tracker.get_cannon_rpy()
+            pitch, yaw= self.gz_tracker.get_cannon_rpy()
             # # Mettre à jour les valeurs de pitch et yaw
-            self.pitch1 = pitch1
-            self.yaw1 = yaw1
-            self.pitch2 = pitch2
-            self.yaw2 = yaw2
+            self.pitch = pitch
+            self.yaw = yaw
         except Exception as e:
             self.get_logger().error(f"Erreur de lecture de pose Gazebo : {e}")
 
@@ -79,11 +80,6 @@ class CannonServer(Node):
         # Définition des bornes autorisées
         min_pitch, max_pitch = -1.57, 1.57
         min_yaw, max_yaw = -3.14, 3.14
-        self.target_ship = goal_request.target_ship
-
-        if self.target_ship not in ["/flag_ship_1", "/flag_ship_2"]:
-            self.get_logger().warn(f" Canon cible {self.target_ship} invalide. Requête refusée.")
-            return GoalResponse.REJECT
         
         if not (min_pitch <= self.target_pitch <= max_pitch):
             self.get_logger().warn(
@@ -101,8 +97,7 @@ class CannonServer(Node):
         if self._current_goal_handle is not None and self._current_goal_handle.status == GoalStatus.STATUS_EXECUTING:
             current = self._current_goal_request
             if (current.pitch == goal_request.pitch and
-                current.yaw == goal_request.yaw and
-                current.target_ship == goal_request.target_ship):
+                current.yaw == goal_request.yaw):
                 self.get_logger().info("Goal identique déjà en cours. Rejeté.")
                 return GoalResponse.REJECT
             else:
@@ -128,13 +123,6 @@ class CannonServer(Node):
         # self.get_logger().info(f"Current: pitch={self.pitch:.3f}, yaw={self.yaw:.3f}")
 
         self.get_logger().info(f"Target: pitch= {self.target_pitch:.3f} rad, yaw= {self.target_yaw:.3f} rad, Current: pitch= {self.pitch:.3f} rad, yaw= {self.yaw:.3f} rad")
-        # Choisir les publishers en fonction du canon cible
-        if self.target_ship == "/flag_ship_1":
-            self.pitch_pub = self.create_publisher(Float64, '/flag_ship_1/cannon_pitch_cmd', 10)
-            self.yaw_pub = self.create_publisher(Float64, '/flag_ship_1/cannon_yaw_cmd', 10)
-        elif self.target_ship == "/flag_ship_2":
-            self.pitch_pub = self.create_publisher(Float64, '/flag_ship_2/cannon_pitch_cmd', 10)
-            self.yaw_pub = self.create_publisher(Float64, '/flag_ship_2/cannon_yaw_cmd', 10)
 
         feedback = Cannon.Feedback()
         result = Cannon.Result()
@@ -161,14 +149,6 @@ class CannonServer(Node):
             if goal_handle.status != GoalStatus.STATUS_EXECUTING:
                 # self.get_logger().warn("Goal actuel abandonné !") # Vérification que l'action a bien été interrompue 
                 return result
-            
-            # Mettre à jour les valeurs de pitch et yaw selon la cible
-            if self.target_ship == "/flag_ship_1":
-                self.pitch = self.pitch1
-                self.yaw = self.yaw1
-            elif self.target_ship == "/flag_ship_2":
-                self.pitch = self.pitch2  # vous pouvez modifier ceci si nécessaire
-                self.yaw = self.yaw2
 
             # Vérifier si le timeout est atteint
             if time.time() > end_time:

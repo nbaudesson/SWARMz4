@@ -4,11 +4,15 @@ Game Master Launch File
 
 Components Launched:
 -----------------
-1. Game Master Node: Central game controller for multi-robot combat simulation
-
+1. Game Master Node: Central game controller
+2. Missile Server: Handles missile firing mechanics
+3. Kamikaze Server: Manages self-destruct actions
+4. Game demo client launch: Launch all nodes with their missions
 Configuration:
 ------------
 - Loads parameters from game_master_params.yaml
+- Enables simulation time
+- Configures debug options for Gazebo tracking
 """
 
 from launch import LaunchDescription
@@ -17,7 +21,8 @@ from ament_index_python.packages import get_package_share_directory
 import os
 import signal
 import subprocess
-from launch.actions import DeclareLaunchArgument, LogInfo
+from launch.actions import DeclareLaunchArgument, LogInfo,IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 import launch.logging
 
@@ -36,7 +41,6 @@ def generate_launch_description():
     # Initialize launch logger
     logger = launch.logging.get_logger('launch')
     
-    # Get the path to the config file
     config = os.path.join(
         get_package_share_directory('game_master'),
         'config',
@@ -45,40 +49,27 @@ def generate_launch_description():
 
     # Use proper logging instead of print
     logger.info(f"Loading configuration from: {config}")
-
-    # Add log level configuration
-    log_level_arg = DeclareLaunchArgument(
-        'log_level',
-        default_value='info',
-        description='Logging level for all nodes: debug, info, warn, error, fatal'
-    )
     
-    # Register shutdown handler
+    # Replace the original signal handler with a safer shutdown approach
     def safe_shutdown():
         """Safely shutdown the simulation without crashing Gazebo"""
         logger.info("Launch file received shutdown request")
-        shutdown_swarmz()
+        # Don't kill Gazebo processes directly
+        # Only cleanup ROS2 nodes and let them handle their own Gazebo connections
         
+    # Register the safer shutdown function
     signal.signal(signal.SIGINT, lambda sig, frame: safe_shutdown())
+    
 
-    return LaunchDescription([
-        log_level_arg,
+    return LaunchDescription([    
+        # Add LogInfo actions for clear launch sequence logging
+        LogInfo(msg=["Starting Game Master system components..."]),
         
-        # Start the game master node
-        LogInfo(msg=["Starting Game Master node..."]),
-        
-        # Launch the game master node with configuration from YAML only
         Node(
             package='game_master',
             executable='game_master_node',
             name='game_master_node',
             output='screen',
-            arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')],
-            parameters=[
-                config  # Load all parameters from the YAML file
-            ]
+            parameters=[config],
         ),
-        
-        # Completion message
-        LogInfo(msg=["Game Master node started"]),
     ])

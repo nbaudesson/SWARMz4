@@ -1,0 +1,9 @@
+Game Over
+Team 2 wins! (Has more surviving drones)
+Team 1 flagship health: 6/6
+Team 1 surviving drones: /px4_4, /px4_3, /px4_1, /px4_0
+Team 1 destroyed drones: /px4_2
+Team 2 flagship health: 6/6
+Team 2 surviving drones: /px4_7, /px4_6, /px4_5, /px4_9, /px4_8
+Team 2 destroyed drones: None
+Winner: team_2

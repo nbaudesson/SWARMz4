@@ -1,2 +1,4 @@
 RobotState[12] robots
 float64 remaining_time
+builtin_interfaces/Time sim_time
+builtin_interfaces/Time real_time

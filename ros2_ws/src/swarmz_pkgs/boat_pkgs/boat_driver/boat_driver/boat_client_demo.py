@@ -19,10 +19,8 @@ class boat_test(Node):
 
         super().__init__('boat_client')
         self.get_logger().info("Launching ship client example")
-        self.declare_parameter("team_id",1)
         self.declare_parameter("tolerance_angle",5.0)
         self.declare_parameter("tolerance_distance",10.0)
-        self.team_id = self.get_parameter("team_id").value
         self.node_namespace = self.get_namespace()
 
         #Publishers for thrusters control
@@ -33,11 +31,11 @@ class boat_test(Node):
         #Subscriber to get ship's detections
         self.detections_subscriber = self.create_subscription(Detections, f'{self.node_namespace}/detections', self.detections_callback, 10)
         #Subscriber to get ship's health
-        self.detections_subscriber = self.create_subscription(Int32, f'{self.node_namespace}/health', self.health_callback, 10)
+        self.health_subscriber = self.create_subscription(Int32, f'{self.node_namespace}/health', self.health_callback, 10)
         #Subscriber to get ship's incoming messages
-        self.detections_subscriber = self.create_subscription(String, f'{self.node_namespace}/incoming_messages', self.incoming_callback, 10)
+        self.incoming_subscriber = self.create_subscription(String, f'{self.node_namespace}/incoming_messages', self.incoming_callback, 10)
         #Subscriber to get ship's outgoing messages
-        self.detections_subscriber = self.create_subscription(String, f'{self.node_namespace}/out_going_messages', self.outgoing_callback, 10)
+        self.outgoing_subscriber = self.create_subscription(String, f'{self.node_namespace}/out_going_messages', self.outgoing_callback, 10)
 
         #Parameters and initial values
         self.thruster_min_speed = -2.5
@@ -58,10 +56,10 @@ class boat_test(Node):
         self.fire_missile_done = True
 
         # Action client for cannon control
-        self.cannon_client = ActionClient(self, Cannon, '/cannon')
+        self.cannon_client = ActionClient(self, Cannon, f'{self.node_namespace}/cannon')
 
         # Service client for missile
-        self.missile_client = self.create_client(Missile, '/fire_missile')
+        self.missile_client = self.create_client(Missile, '/game_master/fire_missile')
 
         # Handle shutdown signal to publish 0 commands and stop the boat
         signal.signal(signal.SIGINT, self.shutdown_callback)
@@ -127,7 +125,7 @@ class boat_test(Node):
                 posible_targets.sort(key=lambda x: x[0])
                 self.assign_target_done = True
                 if self.fire_missile_done:
-                    self.send_goal(posible_targets[0][1],posible_targets[0][2],self.node_namespace)
+                    self.send_goal(posible_targets[0][1],posible_targets[0][2])
 
     def calculate_distance (self,x,y,z):
 
@@ -211,16 +209,13 @@ class boat_test(Node):
         self.left_thruster_pub.publish(left_thrust_msg)
         self.right_thruster_pub.publish(right_thrust_msg)
 
-    def send_goal(self, pitch, yaw, target_ship):
+    def send_goal(self, pitch, yaw):
 
         goal_msg = Cannon.Goal()
         goal_msg.pitch = pitch
         goal_msg.yaw = yaw
-        goal_msg.target_ship = target_ship
-        
         self.cannon_client.wait_for_server()
-    
-        self.get_logger().info(f'Sending goal: pitch={pitch}, yaw={yaw}, ship={target_ship}')
+        self.get_logger().info(f'Sending goal: pitch={pitch}, yaw={yaw}')
         self._send_goal_future = self.cannon_client.send_goal_async(
             goal_msg,
             feedback_callback=self.feedback_callback
@@ -281,12 +276,12 @@ def main(args=None):
     print("Waiting for all the drones to be in position before starting the ship client...")
     
     client = boat_test()
-    time.sleep(20)
+    time.sleep(60)
 
     while rclpy.ok()and client.fire_missile_done:  
         rclpy.spin_once(client)
 
-    if client.team_id==1:
+    if client.node_namespace == "/flag_ship_1":
         desired_position_x = 50.0
         desired_position_y = 125.0
     else:

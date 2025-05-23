@@ -1,13 +1,17 @@
 import subprocess
 import sys
 import threading
+import time
 from gz.msgs10.scene_pb2 import Scene
 from gz.msgs10.empty_pb2 import Empty
 from gz.msgs10.entity_pb2 import Entity
 from gz.msgs10.boolean_pb2 import Boolean
 from gz.transport13 import Node
+import os
+from ament_index_python.packages import get_packages_with_prefixes, get_package_share_directory
+import logging 
 
-def get_model_id(model_name, world_name="game_world", gz_node=None):
+def get_model_id(model_name, logger=None, world_name="game_world", gz_node=None):
     """
     Find the ID of a model by its name using Gazebo Transport API.
     Falls back to command line if the API request fails.
@@ -17,52 +21,52 @@ def get_model_id(model_name, world_name="game_world", gz_node=None):
     :param gz_node: Optional existing Gazebo transport node to use
     :return: The ID of the model if found, otherwise None.
     """
+    logger = logger or logging.getLogger(__name__)
+
     # Try using the Gazebo Transport API first
     node = gz_node if gz_node is not None else Node()
     scene_info = Scene()
 
     # Request scene info from Gazebo using the provided world name
     try:
-        # print(f"Requesting scene info from Gazebo for world: {world_name}")
         result, response = node.request(f"/world/{world_name}/scene/info", Empty(), Empty, Scene, 1000)
         if result:
             scene_info = response
             # Search for the model in the received scene info
             for model in scene_info.model:
                 if model.name == model_name:
-                    # print(f"Found model '{model_name}' with ID: {model.id}")
                     return model.id
         else:
-            print(f"Gazebo Transport API request failed: No response received.")
+            logger.warning(f"Gazebo Transport API request failed: No response received.")
     except Exception as e:
-        print(f"Gazebo Transport API request failed with exception: {e}")
+        logger.error(f"Gazebo Transport API request failed with exception: {e}")
     
-    # If we get here, the API request failed or the model wasn't found
-    # Try using the working gz model command as fallback
-    try:
-        # Construct the command
-        cmd = ["gz", "model", "-m", model_name]
-        print(f"Executing command: {' '.join(cmd)}")
+    # # If we get here, the API request failed or the model wasn't found
+    # # Try using the working gz model command as fallback
+    # try:
+    #     # Construct the command
+    #     cmd = ["gz", "model", "-m", model_name]
+    #     logger.info(f"Executing command: {' '.join(cmd)}")
 
-        # Execute the command
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        print(f"Command output: {result.stdout}")
-        print(f"Command error (if any): {result.stderr}")
+    #     # Execute the command
+    #     result = subprocess.run(cmd, capture_output=True, text=True)
+    #     # logger.info(f"Command output: {result.stdout}")
+    #     # logger.info(f"Command error (if any): {result.stderr}")
 
-        # Process the output
-        model_id = extract_model_id(result.stdout, model_name)
-        if model_id is not None:
-            print(f"Found model '{model_name}' with ID: {model_id} (via gz model -m)")
-            return model_id
-        else:
-            print(f"Model ID for '{model_name}' not found in command output.")
-            return None
+    #     # Process the output
+    #     model_id = extract_model_id(result.stdout, model_name, logger)
+    #     if model_id is not None:
+    #         logger.info(f"Found model '{model_name}' with ID: {model_id} (via gz model -m)")
+    #         return model_id
+    #     else:
+    #         logger.warning(f"Model ID for '{model_name}' not found in command output.")
+    #         return None
 
-    except Exception as e:
-        print(f"Command line fallback failed with exception: {e}")
+    # except Exception as e:
+    #     logger.error(f"Command line fallback failed with exception: {e}")
         return None
 
-def extract_model_id(output, model_name):
+def extract_model_id(output, model_name, logger=None):
     """
     Extract the model ID from the command output of `gz model -m`.
 
@@ -73,6 +77,8 @@ def extract_model_id(output, model_name):
     Returns:
         int: The model ID if found, otherwise None.
     """
+    logger = logger or logging.getLogger(__name__)
+    
     try:
         # Look for the line containing the model name and ID
         lines = output.splitlines()
@@ -83,10 +89,10 @@ def extract_model_id(output, model_name):
                     model_id_str = lines[i - 1].split("[")[1].split("]")[0]
                     return int(model_id_str)
     except Exception as e:
-        print(f"Error extracting model ID: {e}")
+        logger.error(f"Error extracting model ID: {e}")
     return None
 
-def remove_model(model_id, fail_event, world_name="game_world", gz_node=None):
+def remove_model(model_id, fail_event, logger=None, world_name="game_world", gz_node=None):
     """
     Remove the model using its ID via Gazebo Transport API.
     Falls back to command line if the API request fails.
@@ -95,6 +101,8 @@ def remove_model(model_id, fail_event, world_name="game_world", gz_node=None):
     :param world_name: The name of the Gazebo world.
     :param gz_node: Optional existing Gazebo transport node to use
     """
+    logger = logger or logging.getLogger(__name__)
+
     # Try using the Gazebo Transport API first
     node = gz_node if gz_node is not None else Node()
     entity_msg = Entity()
@@ -106,42 +114,31 @@ def remove_model(model_id, fail_event, world_name="game_world", gz_node=None):
 
     # Request to remove the model from Gazebo using the provided world name
     try:
-        result, response = node.request(f"/world/{world_name}/remove", entity_msg, Entity, Boolean, 1000)
+        result, response = node.request(f"/world/{world_name}/remove", entity_msg, Entity, Boolean, 100)
         if result and response.data:
-            print(f"Successfully requested removal of model ID {model_id}")
             success = True
-        else:
-            try:
-                print(f"Trying command line removal for model ID {model_id}...")
-                # Try to get the model name first (optional)
-                cmd_remove = f"gz model -r {model_id} -w {world_name}"
-                subprocess.run(cmd_remove, shell=True, check=False)
-                print(f"Command line removal attempted for model ID {model_id}")
-            except Exception as e:
-                print(f"Command line removal also failed: {e}")
     except Exception as e:
-        print(f"Gazebo Transport API removal failed: {e}")
+        logger.error(f"Gazebo Transport API removal failed: {e}")
 
        # If the first method fails, attempt to remove the model using raw request
         entity_byte = entity_msg.SerializeToString()
         try:
+            time.sleep(0.5)
             result, response = node.request_raw(
                 f"/world/{world_name}/remove",
                 entity_byte,
                 "gz.msgs.Entity",
                 "gz.msgs.Boolean",  # Correct "Boolan" to "Boolean" if needed
-                1000
+                100
             )
 
             if result and response:
-                print(f"Successfully requested_raw removal of model ID {model_id}")
                 success = True
         except Exception as e:
-            print(f"Gazebo Transport API removal (raw) failed: {e}")
+            logger.error(f"Gazebo Transport API removal (raw) failed: {e}")
     
     # If no method succeeded, indicate failure
     if not success:
-        print(f"Failed to remove model ID {model_id} after all attempts.")
         fail_event.set()  # Signal that the thread to remove the model as failed 
 
 def kill_drone_processes(instance_number):
@@ -197,22 +194,38 @@ def remove_model_thread(model_id, fail_event, world_name="game_world", gz_node=N
     except Exception as e:
         print(f"Error removing model {model_id}: {e}")
 
-def shutdown_drone(instance_number):
+
+def get_own_package_name():
+    current_path = os.path.abspath(__file__)
+    packages = get_packages_with_prefixes()
+
+    for pkg_name, install_prefix in packages.items():
+        # Vérifie si le fichier courant est dans le répertoire du package
+        if current_path.startswith(os.path.abspath(install_prefix)):
+            return pkg_name
+
+    raise RuntimeError("Impossible de détecter automatiquement le nom du package.")
+                       
+def shutdown_drone(instance_number, logger=None):
     """
     Shutdown the drown in QGC and stop all the mavlink interfaces
 
     :param instance_number : The ID of the drone to be removed
     """
+    package_name = get_own_package_name()
+    script_path = os.path.join(get_package_share_directory(package_name), "utils", "shutdown.sh")
+
+
     try:
         result = subprocess.run(
-            ["expect", "./shutdown.sh", str(f"px4_{instance_number}")],
+            ["expect", script_path, f"px4_{instance_number}"],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
         )
     except subprocess.CalledProcessError as e:
-        print(f"Error shutdown the drone '{instance_number}':\n{e.stderr}", file=sys.stderr)
+        logger.error(f"Error shutting down the drone '{instance_number}':\n{e.stderr}", file=sys.stderr)
         sys.exit(e.returncode)
 
 def kill_drone_from_game_master_thread(namespace, drone_model_base_name, drone_models={}, logger=None, world_name="game_world", gz_node=None):
@@ -285,7 +298,7 @@ def kill_drone_from_game_master(namespace, drone_model_base_name, drone_models={
         model_id = drone_models[namespace]
     else:
         model_name = f"{drone_model_base_name}_{instance_number}"
-        model_id = get_model_id(model_name, world_name, gz_node)
+        model_id = get_model_id(model_name, logger, world_name, gz_node)
     
     # Define the sequential kill process
     def sequential_kill_process():
@@ -296,23 +309,32 @@ def kill_drone_from_game_master(namespace, drone_model_base_name, drone_models={
                 log_info(f"Attempting to remove model with ID {model_id} from Gazebo")
                 # Use an event to track if removal failed
                 fail_event = threading.Event()
-                remove_model(model_id, fail_event, world_name, gz_node)
+                remove_model(model_id, fail_event, logger, world_name, gz_node)
                 model_removed = not fail_event.is_set()
-                log_info(f"Model removal {'succeeded' if model_removed else 'failed'}")
+                log_info(f"Model removal {'succeeded' if model_removed else 'failed'} for model with ID {model_id}")
             else:
                 log_warn(f"No model ID found for {namespace}, skipping Gazebo model removal")
             
             # Step 2: If model removal failed, try shutdown_drone
-            if not model_removed and instance_number != 0:
-                log_info(f"Attempting to shut down drone {instance_number}")
+            cmd_remove = "gz model --list"
+            result = subprocess.run(
+                cmd_remove,
+                shell=True, 
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+                )
+            model = f"{drone_model_base_name}_{instance_number}"
+
+            if model in result.stdout and instance_number != 0:
                 try:
-                    shutdown_drone(instance_number)
+                    shutdown_drone(instance_number, logger)
                     log_info(f"Shutdown of drone {instance_number} completed")
                 except Exception as e:
                     log_error(f"Error shutting down drone {instance_number}: {e}")
             
             # Step 3: Kill ROS2 nodes with the drone's namespace
-            log_info(f"Killing ROS2 nodes for namespace {namespace}")
             try:
                 subprocess.run(f'pgrep -f "\-r __ns:={namespace}" | xargs kill -9', shell=True, check=False)
                 log_info(f"ROS2 nodes for {namespace} killed")
@@ -321,7 +343,6 @@ def kill_drone_from_game_master(namespace, drone_model_base_name, drone_models={
             
             # Step 4: For drones other than drone 0, kill the drone's PX4 processes
             if instance_number != 0:
-                log_info(f"Killing PX4 processes for drone {instance_number}")
                 try:
                     # Kill the px4 instance
                     subprocess.run(f'pkill -f "px4 -i {instance_number}"', shell=True, check=False)
@@ -339,12 +360,12 @@ def kill_drone_from_game_master(namespace, drone_model_base_name, drone_models={
     # Start the kill process
     if non_blocking:
         # Start in a separate thread and return immediately
+        log_info(f"Started non-blocking kill sequence for {namespace}")
         kill_thread = threading.Thread(
             target=sequential_kill_process,
             daemon=True  # Make thread daemon so it doesn't block program exit
         )
         kill_thread.start()
-        log_info(f"Started non-blocking kill sequence for {namespace}")
         return True
     else:
         # Run the process in the current thread

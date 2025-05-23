@@ -19,10 +19,8 @@ class boat_test(Node):
 
         super().__init__('boat_client')
         self.get_logger().info("Launching ship client example")
-        self.declare_parameter("team_id",1)
         self.declare_parameter("tolerance_angle",5.0)
         self.declare_parameter("tolerance_distance",10.0)
-        self.team_id = self.get_parameter("team_id").value
         self.node_namespace = self.get_namespace()
 
         #Publishers for thrusters control
@@ -33,11 +31,11 @@ class boat_test(Node):
         #Subscriber to get ship's detections
         self.detections_subscriber = self.create_subscription(Detections, f'{self.node_namespace}/detections', self.detections_callback, 10)
         #Subscriber to get ship's health
-        self.detections_subscriber = self.create_subscription(Int32, f'{self.node_namespace}/health', self.health_callback, 10)
+        self.health_subscriber = self.create_subscription(Int32, f'{self.node_namespace}/health', self.health_callback, 10)
         #Subscriber to get ship's incoming messages
-        self.detections_subscriber = self.create_subscription(String, f'{self.node_namespace}/incoming_messages', self.incoming_callback, 10)
+        self.incoming_subscriber = self.create_subscription(String, f'{self.node_namespace}/incoming_messages', self.incoming_callback, 10)
         #Subscriber to get ship's outgoing messages
-        self.detections_subscriber = self.create_subscription(String, f'{self.node_namespace}/out_going_messages', self.outgoing_callback, 10)
+        self.outgoing_subscriber = self.create_subscription(String, f'{self.node_namespace}/out_going_messages', self.outgoing_callback, 10)
 
         #Parameters and initial values
         self.thruster_min_speed = -2.5
@@ -56,10 +54,10 @@ class boat_test(Node):
         self.out_going_message = None
 
         # Action client for cannon control
-        self.cannon_client = ActionClient(self, Cannon, '/cannon')
+        self.cannon_client = ActionClient(self, Cannon, f'{self.node_namespace}/cannon')
 
         # Service client for missile
-        self.missile_client = self.create_client(Missile, '/fire_missile')
+        self.missile_client = self.create_client(Missile, '/game_master/fire_missile')
 
         # Handle shutdown signal to publish 0 commands and stop the boat
         signal.signal(signal.SIGINT, self.shutdown_callback)
@@ -201,18 +199,13 @@ class boat_test(Node):
         self.left_thruster_pub.publish(left_thrust_msg)
         self.right_thruster_pub.publish(right_thrust_msg)
 
-    def send_goal(self, pitch, yaw, target_ship):
+    def send_goal(self, pitch, yaw):
 
-        #Function to send a goal to the cannon action server
         goal_msg = Cannon.Goal()
         goal_msg.pitch = pitch
         goal_msg.yaw = yaw
-        goal_msg.target_ship = target_ship
-        
-        self.get_logger().info("Waiting for action server to be available")
         self.cannon_client.wait_for_server()
-    
-        self.get_logger().info(f'Sending goal: pitch={pitch}, yaw={yaw}, ship={target_ship}')
+        self.get_logger().info(f'Sending goal: pitch={pitch}, yaw={yaw}')
         self._send_goal_future = self.cannon_client.send_goal_async(
             goal_msg,
             feedback_callback=self.feedback_callback
@@ -222,8 +215,8 @@ class boat_test(Node):
 
     def feedback_callback(self, feedback_msg):
         feedback = feedback_msg.feedback
-        self.get_logger().info(f'Feedback: current_pitch={feedback.current_pitch:.2f}, '
-                               f'current_yaw={feedback.current_yaw:.2f}')
+        # self.get_logger().info(f'Feedback: current_pitch={feedback.current_pitch:.2f}, '
+        #                        f'current_yaw={feedback.current_yaw:.2f}')
 
     def goal_response_callback(self, future):
 

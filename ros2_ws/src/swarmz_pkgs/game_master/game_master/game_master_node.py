@@ -7,53 +7,26 @@ for both drones (PX4) and ships in a Gazebo-based simulation environment.
 
 Features:
 - Automatic team formation
-- Health and damage management
+- Health and damage management 
 - Detection range simulation
 - Inter-robot communication
-- Score tracking
 - Game state management
 - Automated game results logging
 - Missile firing system
 - Kamikaze/self-destruct functionality
-
-Usage:
-1. Ensure ROS2 and Gazebo are properly installed and configured.
-2. Launch the Gazebo simulation with the appropriate world file.
-3. Start the Game Master node using the following command:
-   ```bash
-   ros2 run game_master new_game_master_node
-   ```
-4. Robots in the simulation will automatically be detected and managed by the Game Master node.
-5. Use the provided services (`fire_missile`, `kamikaze`) to interact with the game.
-6. Monitor the game state and results through the `/game_master/game_state` topic and the generated results files.
-
-Manual Service Calls:
-- To fire a missile:
-  ```bash
-  ros2 service call /fire_missile swarmz_interfaces/srv/Missile "{robot_name: '/px4_1'}"
-  ```
-  Replace `/px4_1` with the namespace of the robot you want to fire from.
-
-- To trigger a kamikaze:
-  ```bash
-  ros2 service call /kamikaze swarmz_interfaces/srv/Kamikaze "{robot_name: '/px4_1'}"
-  ```
-  Replace `/px4_1` with the namespace of the robot you want to self-destruct.
-
-Results:
-- Game results are saved in the `results` directory under the `SWARMz4` folder in the user's home directory.
-- Individual game results are stored in timestamped files within the `individual_games` subdirectory.
 """
 
 import rclpy
+from builtin_interfaces.msg import Time
+import time
 from rclpy.node import Node
 from std_msgs.msg import String, Int32
+from utils.gazebo_subscriber import GazeboPosesTracker
 from swarmz_interfaces.msg import Detections, Detection, GameState, RobotState
 from utils.tools import get_distance, get_relative_position_with_orientation, get_relative_position_with_heading, get_stable_namespaces, is_aligned_HB
 from utils.kill_drone import get_model_id, kill_drone_from_game_master
-from utils.gazebo_subscriber import GazeboPosesTracker
 from swarmz_interfaces.srv import Kamikaze, Missile
-import time  # Still imported for sleep function only
+import time
 import threading
 import os
 from datetime import datetime
@@ -63,51 +36,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 class GameMasterNode(Node):
     """
-    Main node for managing the combat simulation game.
-
-    This node handles:
-    - Team formation and management
-    - Robot health tracking
-    - Detection and communication simulation
-    - Score keeping
-    - Game state management
-    - Results logging
-    - Missile firing system (integrated from missile_server)
-    - Kamikaze functionality (integrated from kamikaze_server)
-
-    Parameters (via ROS2 parameters):
-        drone_detection_range (float): Maximum range at which drones can detect others
-        ship_detection_range (float): Maximum range at which ships can detect others
-        drone_communication_range (float): Maximum range for drone communications
-        ship_communication_range (float): Maximum range for ship communications
-        drone_health (int): Initial health points for drones
-        ship_health (int): Initial health points for ships
-        drone_points (int): Points awarded for destroying a drone
-        ship_points (int): Points awarded for destroying a ship
-        game_duration (int): Game duration in seconds
-        gazebo_world_name (str): Name of the Gazebo world
-        drone_model_base_name (str): Base name pattern for drone models
-        
-        # Missile system parameters
-        drone_missile_range (float): Maximum range for drone missiles
-        ship_missile_range (float): Maximum range for ship missiles
-        drone_missile_damage (int): Damage dealt by drone missiles
-        ship_missile_damage (int): Damage dealt by ship missiles
-        drone_cooldown (float): Cooldown time between drone shots
-        ship_cooldown (float): Cooldown time between ship shots
-        drone_magazine (int): Number of missiles per drone
-        ship_magazine (int): Number of missiles per ship
-        laser_width (float): Width of targeting laser
-        drone_padding_x (float): Hit box X dimension for drones
-        drone_padding_y (float): Hit box Y dimension for drones
-        drone_padding_z (float): Hit box Z dimension for drones
-        ship_padding_x (float): Hit box X dimension for ships
-        ship_padding_y (float): Hit box Y dimension for ships
-        ship_padding_z (float): Hit box Z dimension for ships
-        
-        # Kamikaze system parameters
-        explosion_damage (int): Amount of damage dealt by kamikaze explosions
-        explosion_range (float): Radius of kamikaze explosion effect
+    Main node for managing the combat simulation game with a centralized robot data structure.
     """
 
     ###########################################
@@ -123,18 +52,15 @@ class GameMasterNode(Node):
         # Create a single Gazebo node instance for reuse
         self.gz_node = GzNode()
 
-        # Initialize locks for thread safety
-        self.robot_poses_lock = threading.Lock()
-        self.distance_cache_lock = threading.Lock()
-        self.health_points_lock = threading.Lock()
-
-        # Add a shutdown flag to safely handle thread termination
+        # Initialize the centralized robot dictionary and locks
+        self.robots = {}  # Main dictionary to store all robot data
+        self.robot_lock = threading.Lock()  # Lock for thread safety
         self.is_shutting_down = False
         self.detection_threads = []
 
-        # Add tracking for dead robots
-        self.dead_robots = {}  # Store data for robots that have been destroyed
-        self.all_robot_namespaces = []  # Track all robots that have existed
+        # Team tracking sets
+        self.team_1 = set()
+        self.team_2 = set()
 
         # Initialize game parameters
         self._init_game_parameters()
@@ -143,51 +69,82 @@ class GameMasterNode(Node):
 
         # Detect robot namespaces
         self.get_logger().info("Detecting robot namespaces...")
-        self.namespaces = get_stable_namespaces(self, max_attempts=10, wait_time=1.0)
+        namespaces = get_stable_namespaces(self, max_attempts=10, wait_time=1.0)
 
-        # Get Gazebo model IDs for drones
-        self.drone_models = self._get_model_ids(self.namespaces, self.gazebo_world_name)
-
-        # Log detected robots
-        self.get_logger().info(f"Detected robots: {self.namespaces}")
-
-        # Initialize teams, health, and missile systems
-        self._initialize_teams()
-        self._initialize_health_system()
-        self._initialize_missile_system()
+        # Initialize robot dictionary with detected robots
+        if not self._initialize_robots(namespaces):
+            self.get_logger().error("Failed to initialize robots due to unbalanced teams. Exiting.")
+            return
 
         # Set up publishers, subscribers, and services
         self._setup_communications()
-
-        # Initialize robot positions and timers
-        self.robot_poses = {}
-        self.robot_velocities = {}
-        self.last_update_time = {}
-        self.distance_cache = {}
-        self.gz = GazeboPosesTracker(self.namespaces, logger=self.get_logger(), world_name=self.gazebo_world_name)
+        
+        # Initialize Gazebo pose tracker
+        self.gz = GazeboPosesTracker(list(self.robots.keys()), logger=self.get_logger(), world_name=self.gazebo_world_name)
         self.get_logger().info("Gazebo poses tracker initialized")
         time.sleep(1)  # Allow time for Gazebo to initialize
 
-        # Populate self.robot_poses with initial positions
-        for ns in self.namespaces:
-            pose = self.gz.get_pose(ns)
-            self._update_poses(pose, ns)
-        self.last_update_time[ns] = self.get_clock().now()
-        self.get_logger().info(self._format_initial_positions(self.robot_poses))
-
-        # Call _update_positions_and_distance to initialize velocities and distances
+        # Update initial positions
         self._update_positions_and_distance()
-
-        # Timer for periodic detections
+        
+        # Setup game timers
         self.timer = self.create_timer(0.5, self._detections_callback)
-
+        self.update_positions_timer = self.create_timer(0.1, self._update_positions_and_distance)
+        
         # Initialize game timer
         current_time = self.get_clock().now()
         self.start_time = current_time
         self.game_timer = self.create_timer(1.0, self._game_timer_callback)
-
-        # Combine position updates and distance cache updates into a single timer
-        self.update_positions_timer = self.create_timer(0.1, self._update_positions_and_distance)  # Update every 100ms
+        
+        self.get_logger().info("Game Master Node initialized successfully")
+    
+    ###########################################
+    # FORMAT HELPERS FOR LOGGING
+    ###########################################
+    
+    def _format_float(self, value):
+        """Format a float value to 2 decimal places."""
+        if isinstance(value, float):
+            return round(value, 2)
+        return value
+    
+    def _format_position(self, pos):
+        """Format position dictionary to show only 2 decimal places for readability."""
+        if not pos:
+            return pos
+        return {
+            'x': round(pos['x'], 2) if isinstance(pos['x'], (float, int)) and pos['x'] is not None else pos['x'],
+            'y': round(pos['y'], 2) if isinstance(pos['y'], (float, int)) and pos['y'] is not None else pos['y'],
+            'z': round(pos['z'], 2) if isinstance(pos['z'], (float, int)) and pos['z'] is not None else pos['z']
+        }
+    
+    def _format_orientation(self, ori):
+        """Format orientation dictionary to show only 2 decimal places for readability."""
+        if not ori:
+            return ori
+        return {
+            'x': round(ori['x'], 2) if isinstance(ori['x'], (float, int)) and ori['x'] is not None else ori['x'],
+            'y': round(ori['y'], 2) if isinstance(ori['y'], (float, int)) and ori['y'] is not None else ori['y'],
+            'z': round(ori['z'], 2) if isinstance(ori['z'], (float, int)) and ori['z'] is not None else ori['z'],
+            'w': round(ori['w'], 2) if isinstance(ori['w'], (float, int)) and ori['w'] is not None else ori['w']
+        }
+    
+    def _format_dict_with_floats(self, d):
+        """Format all float values in a dictionary to 2 decimal places."""
+        if not isinstance(d, dict):
+            return d
+        
+        result = {}
+        for k, v in d.items():
+            if isinstance(v, float):
+                result[k] = round(v, 2)
+            elif isinstance(v, dict):
+                result[k] = self._format_dict_with_floats(v)
+            elif isinstance(v, list):
+                result[k] = [round(x, 2) if isinstance(x, float) else x for x in v]
+            else:
+                result[k] = v
+        return result
 
     ##############################
     # INITIALIZE GAME PARAMETERS #
@@ -227,7 +184,7 @@ class GameMasterNode(Node):
         self.declare_parameter('ship_cooldown', 6.0)
         self.declare_parameter('drone_magazine', 2)
         self.declare_parameter('ship_magazine', 4)
-        self.declare_parameter('laser_width', 5.0)
+        self.declare_parameter('laser_width', 4.0)
         
         self.declare_parameter('drone_padding_x', 0.5)
         self.declare_parameter('drone_padding_y', 0.5)
@@ -262,68 +219,114 @@ class GameMasterNode(Node):
         self.explosion_damage = self.get_parameter('explosion_damage').get_parameter_value().integer_value
         self.explosion_range = self.get_parameter('explosion_range').get_parameter_value().double_value
 
-    ########################################
-    # TEAM FORMATION AND HEALTH MANAGEMENT #
-    ########################################
-
-    def _initialize_teams(self):
-        """Organize robots into two teams based on namespaces."""
-        drones = [ns for ns in self.namespaces if '/px4_' in ns]
-        ships = [ns for ns in self.namespaces if '/flag_ship_' in ns]
-
-        # Sort drones and ships by numeric index
-        drones.sort(key=lambda x: int(x.split('_')[-1]))
-        ships.sort(key=lambda x: int(x.split('_')[-1]))
-
-        # Split drones and ships into two teams
+    def _initialize_robots(self, namespaces):
+        """Initialize the robot dictionary with detected namespaces."""
+        # Make sure namespaces are properly formatted
+        namespaces = [ns if ns.startswith('/') else f'/{ns}' for ns in namespaces]
+        
+        # Sort robots by type and index
+        drones = sorted([ns for ns in namespaces if '/px4_' in ns], 
+                    key=lambda x: int(x.split('_')[-1]))
+        ships = sorted([ns for ns in namespaces if '/flag_ship_' in ns], 
+                key=lambda x: int(x.split('_')[-1]))
+        
+        # Check if we have enough ships for balanced teams
+        if len(ships) < 2:
+            self.get_logger().error("Not enough ships detected for a balanced game (minimum 2 required).")
+            self._safe_shutdown_unbalanced()
+            return False
+        
+        # Team assignment
         drones_team_1 = (len(drones) + 1) // 2
         ships_team_1 = (len(ships) + 1) // 2
-        self.team_1 = drones[:drones_team_1] + ships[:ships_team_1]
-        self.team_2 = drones[drones_team_1:] + ships[ships_team_1:]
-
-        # Log warning if teams are uneven
-        if len(drones) % 2 != 0 or len(ships) % 2 != 0:
-            self.get_logger().warn("Uneven team composition detected.")
-
+        
+        team1_drones = drones[:drones_team_1]
+        team2_drones = drones[drones_team_1:]
+        team1_ships = ships[:ships_team_1]
+        team2_ships = ships[ships_team_1:]
+        
+        # Check for team balance
+        # Both teams should have at least one ship
+        if not team1_ships or not team2_ships:
+            self.get_logger().error(f"Unbalanced teams: Each team must have at least one ship.")
+            self._safe_shutdown_unbalanced()
+            return False
+        
+        # Check drone balance - allow a maximum difference of 1 drone
+        drone_diff = abs(len(team1_drones) - len(team2_drones))
+        if drone_diff > 1:
+            self.get_logger().error(f"Unbalanced teams: Drone count difference too large ({len(team1_drones)} vs {len(team2_drones)}).")
+            self._safe_shutdown_unbalanced()
+            return False
+        
+        # Update team sets
+        self.team_1 = set(team1_drones + team1_ships)
+        self.team_2 = set(team2_drones + team2_ships)
+        
+        # Log team assignments
         self.get_logger().info(f"Team 1: {self.team_1}")
         self.get_logger().info(f"Team 2: {self.team_2}")
-
-    def _initialize_health_system(self):
-        """Initialize health points for all robots."""
-        # Ensure namespace format consistency by adding leading slash if missing
-        self.namespaces = [ns if ns.startswith('/') else f'/{ns}' for ns in self.namespaces]
         
-        # Assign health points based on robot type
-        self.health_points = {
-            ns: self.drone_health if 'px4_' in ns else self.ship_health
-            for ns in self.namespaces if 'px4_' in ns or 'flag_ship' in ns
-        }
-        self.get_logger().info(f"Initialized health points: {self.health_points}")
-
-    def _initialize_missile_system(self):
-        """Initialize missile system tracking."""
-        # Initialize magazines for all robots
-        self.magazines = {ns: self.drone_magazine if 'px4' in ns else self.ship_magazine 
-                         for ns in self.namespaces}
+        # Get Gazebo model IDs for drones
+        drone_model_data = self._get_model_ids(drones, self.gazebo_world_name)
         
-        # Store timestamps as ROS Time objects for cooldown tracking
-        self.last_fire_time = {ns: self.get_clock().now() for ns in self.namespaces}
-    
+        # Initialize robot dictionary
+        for ns in namespaces:
+            is_drone = '/px4_' in ns
+            instance = int(ns.split('_')[-1])
+            team = 1 if ns in self.team_1 else 2
+            
+            # Base robot data
+            self.robots[ns] = {
+                "type": "drone" if is_drone else "ship",
+                "instance": instance,
+                "team": team,
+                "model_id": None,
+                "model_name": None,
+                "position": {"x": None, "y": None, "z": None},
+                "orientation": {"x": None, "y": None, "z": None, "w": None},
+                "distances": {},
+                "health": self.drone_health if is_drone else self.ship_health,
+                "ammo": self.drone_magazine if is_drone else self.ship_magazine,
+                "last_fire_time": self.get_clock().now()
+            }
+            
+            # Add model data if available for drones
+            if is_drone and ns in drone_model_data:
+                self.robots[ns]["model_id"] = drone_model_data[ns]['id']
+                self.robots[ns]["model_name"] = drone_model_data[ns]['model_name']
+        
+        self.get_logger().info(f"Initialized {len(self.robots)} robots")
+        return True
+
+    def _safe_shutdown_unbalanced(self):
+        """Safely shut down the node when teams are unbalanced."""
+        self.get_logger().error("Shutting down due to unbalanced teams.")
+        self.get_logger().error("For a fair game, ensure both teams have at least one ship and similar numbers of drones.")
+        
+        # Set the shutdown flag to prevent new thread creation
+        self.is_shutting_down = True
+        
+        # Create a thread to actually shut down ROS after a short delay
+        threading.Thread(target=self._actual_shutdown).start()
+
     def _setup_communications(self):
         """Set up all publishers, subscribers and services."""
         # Publishers for health points, detections, and communications
-        self.health_publishers = {ns: self.create_publisher(Int32, f'{ns}/health', 10) for ns in self.namespaces}
-        self.detection_publishers = {ns: self.create_publisher(Detections, f'{ns}/detections', 10) for ns in self.namespaces}
+        self.health_publishers = {ns: self.create_publisher(Int32, f'{ns}/health', 10) for ns in self.robots.keys()}
+        self.detection_publishers = {ns: self.create_publisher(Detections, f'{ns}/detections', 10) for ns in self.robots.keys()}
         
         # Publishers for boat positions
-        ships = [ns for ns in self.namespaces if '/flag_ship_' in ns]
+        ships = [ns for ns in self.robots.keys() if '/flag_ship_' in ns]
         self.boat_position_publishers = {ns: self.create_publisher(Pose, f'{ns}/localization', 10) for ns in ships}
 
         # Subscribers for communications
-        self.communication_publishers = {ns: self.create_publisher(String, f'{ns}/out_going_messages', 10) for ns in self.namespaces}
-        self.communication_subscribers = {ns: self.create_subscription(String, f'{ns}/incoming_messages', lambda msg, ns=ns: self._communication_callback(msg, ns), 10) for ns in self.namespaces}
+        self.communication_publishers = {ns: self.create_publisher(String, f'{ns}/out_going_messages', 10) for ns in self.robots.keys()}
+        self.communication_subscribers = {ns: self.create_subscription(String, f'{ns}/incoming_messages', 
+                                          lambda msg, ns=ns: self._communication_callback(msg, ns), 10) 
+                                         for ns in self.robots.keys()}
         
-        # Add time publisher (do this before initializing the game timer)
+        # Add time publisher
         self.time_publisher = self.create_publisher(Int32, '/game_master/time', 10)
         
         # Timer to periodically publish health status
@@ -342,15 +345,7 @@ class GameMasterNode(Node):
 
     def _get_model_ids(self, namespaces, world_name="game_world_water"):
         """
-        Get Gazebo model IDs and names for the list of robot namespaces by determining the drone model automatically.
-        The drone model is determined by checking if the `/px4_<px4_number>/laser/scan` topic exists.
-
-        Args:
-            namespaces (list): List of robot namespaces
-            world_name (str): Name of the Gazebo world
-
-        Returns:
-            dict: Mapping of namespace to a dictionary containing model ID and model name
+        Get Gazebo model IDs and names for the list of robot namespaces.
         """
         model_data = {}
         for ns in namespaces:
@@ -366,7 +361,7 @@ class GameMasterNode(Node):
                     model_name = f"x500_{instance_number}"
 
                 # Get the model ID using the determined model name
-                model_id = get_model_id(model_name, world_name=world_name)
+                model_id = get_model_id(model_name, logger=self.get_logger(), world_name=world_name)
                 if model_id:
                     model_data[ns] = {
                         'id': model_id,
@@ -376,95 +371,30 @@ class GameMasterNode(Node):
                 else:
                     self.get_logger().error(f"Could not find model ID for {ns} (model name: {model_name})")
         return model_data
-    
-    def _format_initial_positions(self, robot_poses):
-        """Format robot positions in a readable way."""
-        result = "\nInitial Positions:\n"
-        result += "=" * 40 + "\n"
-        
-        # Group robots by type
-        flagships = {}
-        drones_team1 = {}
-        drones_team2 = {}
-        
-        for ns, pose in robot_poses.items():
-            pos = pose['position']
-            if '/flag_ship_' in ns:
-                flagships[ns] = pos
-            elif '/px4_' in ns:
-                if ns in self.team_1:
-                    drones_team1[ns] = pos
-                else:
-                    drones_team2[ns] = pos
-        
-        # Format flagships
-        result += "Flagships:\n"
-        for ns, pos in sorted(flagships.items()):
-            team = "Team 1" if ns in self.team_1 else "Team 2"
-            # Use defensive formatting to handle potential None values
-            x = pos[0] if pos[0] is not None else 0.0
-            y = pos[1] if pos[1] is not None else 0.0
-            z = pos[2] if pos[2] is not None else 0.0
-            result += f"  {ns} ({team}): x={x:.1f}, y={y:.1f}, z={z:.1f}\n"
-        
-        # Format drones - Team 1
-        result += "\nTeam 1 Drones:\n"
-        for ns, pos in sorted(drones_team1.items(), key=lambda x: x[0]):
-            # Use defensive formatting again
-            x = pos[0] if pos[0] is not None else 0.0
-            y = pos[1] if pos[1] is not None else 0.0
-            z = pos[2] if pos[2] is not None else 0.0
-            result += f"  {ns}: x={x:.1f}, y={y:.1f}, z={z:.1f}\n"
-        
-        # Format drones - Team 2
-        result += "\nTeam 2 Drones:\n"
-        for ns, pos in sorted(drones_team2.items(), key=lambda x: x[0]):
-            # And again for team 2
-            x = pos[0] if pos[0] is not None else 0.0
-            y = pos[1] if pos[1] is not None else 0.0
-            z = pos[2] if pos[2] is not None else 0.0
-            result += f"  {ns}: x={x:.1f}, y={y:.1f}, z={z:.1f}\n"
-        
-        return result
 
     ####################################
-    # POSITION AND GAME STATE TRACKING #
+    # POSITION AND DISTANCE TRACKING   #
     ####################################
-
-    def _update_poses(self, pose, name):
-        if pose and all(pose['position'][k] is not None for k in ['x', 'y', 'z']):
-            self.robot_poses[name] = {
-                'position': (
-                    pose['position']['x'],
-                    pose['position']['y'],
-                    pose['position']['z']
-                ),
-                'orientation': (
-                    pose['orientation']['x'],
-                    pose['orientation']['y'],
-                    pose['orientation']['z'],
-                    pose['orientation']['w']
-                )
-            }
 
     def _update_positions_and_distance(self):
         """
-        Update the position and orientation of all robots in the simulation.
-        Also update the distance cache for all robots to avoid redundant distance calculations.
+        Update the position and orientation of all alive robots in the simulation.
+        Also update distances between robots.
         """
         try:
-            if not self.namespaces:
-                self.get_logger().warn("No robot namespaces detected, can't update positions or distances")
+            if not self.robots:
+                self.get_logger().warn("No robots detected, can't update positions or distances")
                 return
 
-            current_time = self.get_clock().now()
             valid_poses = 0
-
-            # Use ThreadPoolExecutor to parallelize position updates
+            
+            # Update positions for alive robots only (health > 0)
+            alive_robots = [ns for ns, robot in self.robots.items() if robot["health"] > 0]
+            
             with ThreadPoolExecutor() as executor:
                 futures = {
-                    executor.submit(self._update_position_for_namespace, ns, current_time): ns
-                    for ns in self.namespaces
+                    executor.submit(self._update_position_for_namespace, ns): ns
+                    for ns in alive_robots
                 }
                 for future in futures:
                     try:
@@ -472,91 +402,71 @@ class GameMasterNode(Node):
                     except Exception as e:
                         self.get_logger().error(f"Error updating pose for {futures[future]}: {e}")
 
-            # Use ThreadPoolExecutor to parallelize distance cache updates
-            with self.distance_cache_lock:
-                self.distance_cache = {}
-                with ThreadPoolExecutor() as executor:
-                    futures = {
-                        executor.submit(self._update_distance_for_namespace, ns1): ns1
-                        for ns1 in self.namespaces
-                    }
-                    for future in futures:
-                        try:
-                            ns1, distances = future.result()
-                            self.distance_cache[ns1] = distances
-                        except Exception as e:
-                            self.get_logger().error(f"Error updating distances for {futures[future]}: {e}")
+            # Update distances between alive robots
+            with ThreadPoolExecutor() as executor:
+                futures = {
+                    executor.submit(self._update_distance_for_namespace, ns): ns
+                    for ns in alive_robots
+                }
+                for future in futures:
+                    try:
+                        future.result()
+                    except Exception as e:
+                        self.get_logger().error(f"Error updating distances for {futures[future]}: {e}")
 
             # Publish GameState message if we have valid pose data
             if valid_poses > 0:
                 self._publish_game_state()
             else:
                 self.get_logger().warn("No valid poses retrieved from any robot")
-                return
+        
         except Exception as e:
             self.get_logger().error(f"Error in _update_positions_and_distance: {e}")
 
-    def _update_position_for_namespace(self, ns, current_time):
+    def _update_position_for_namespace(self, ns):
         """
-        Update the position, orientation, and velocity for a single namespace.
-
+        Update the position and orientation for a single namespace.
+        
         Args:
-            ns (str): Namespace of the robot.
-            current_time (Time): Current ROS2 time.
-
+            ns (str): Namespace of the robot
+            
         Returns:
-            int: 1 if the position was successfully updated, 0 otherwise.
+            int: 1 if the position was successfully updated, 0 otherwise
         """
         try:
+            if ns not in self.robots or self.robots[ns]["health"] <= 0:
+                return 0
+                
             pose = self.gz.get_pose(ns)
+            
             # Check if pose has valid values
             if pose['position']['x'] is None:
                 self.get_logger().warn(f"Invalid pose data for {ns}")
                 return 0
 
-            # Store current position and orientation
-            current_position = (pose['position']['x'], 
-                                pose['position']['y'], 
-                                pose['position']['z'])
-            current_orientation = (pose['orientation']['x'],
-                                   pose['orientation']['y'],
-                                   pose['orientation']['z'],
-                                   pose['orientation']['w'])
+            with self.robot_lock:
+                # Update position and orientation
+                self.robots[ns]["position"]["x"] = pose['position']['x']
+                self.robots[ns]["position"]["y"] = pose['position']['y']
+                self.robots[ns]["position"]["z"] = pose['position']['z']
+                self.robots[ns]["orientation"]["x"] = pose['orientation']['x']
+                self.robots[ns]["orientation"]["y"] = pose['orientation']['y']
+                self.robots[ns]["orientation"]["z"] = pose['orientation']['z']
+                self.robots[ns]["orientation"]["w"] = pose['orientation']['w']
 
-            # Calculate velocity if we have previous position data
-            velocity = (0.0, 0.0, 0.0)  # Default velocity
-            if ns in self.robot_poses and ns in self.last_update_time:
-                prev_position = self.robot_poses[ns]['position']
-                time_diff = (current_time - self.last_update_time[ns]).nanoseconds / 1e9
-
-                if time_diff > 0:
-                    # Calculate velocity components (m/s)
-                    vx = (current_position[0] - prev_position[0]) / time_diff
-                    vy = (current_position[1] - prev_position[1]) / time_diff
-                    vz = (current_position[2] - prev_position[2]) / time_diff
-                    velocity = (vx, vy, vz)
-
-            # Store updated position, orientation, and velocity
-            with self.robot_poses_lock:
-                self.robot_poses[ns] = {
-                    'position': current_position,
-                    'orientation': current_orientation
-                }
-                self.robot_velocities[ns] = velocity
-                self.last_update_time[ns] = current_time
-
-            # Check if a boat and publish its pose as the false flagship odometry system
-            if ns.startswith("/flag_ship"):
-                suffix = ns.split('_')[2]
+            # Check if a ship and publish its pose
+            if self.robots[ns]["type"] == "ship":
                 boat_pose = Pose()
                 boat_pose.position.x = pose['position']['x']
-                boat_pose.position.y = pose["position"]["y"]
-                boat_pose.position.z = pose["position"]["z"]
-                boat_pose.orientation.x = pose["orientation"]["x"]
-                boat_pose.orientation.y = pose["orientation"]["y"]
-                boat_pose.orientation.z = pose["orientation"]["z"]
-                boat_pose.orientation.w = pose["orientation"]["w"]
-                self.boat_position_publishers[f'/flag_ship_{suffix}'].publish(boat_pose)
+                boat_pose.position.y = pose['position']['y']
+                boat_pose.position.z = pose['position']['z']
+                boat_pose.orientation.x = pose['orientation']['x']
+                boat_pose.orientation.y = pose['orientation']['y']
+                boat_pose.orientation.z = pose['orientation']['z']
+                boat_pose.orientation.w = pose['orientation']['w']
+                
+                if ns in self.boat_position_publishers:
+                    self.boat_position_publishers[ns].publish(boat_pose)
 
             return 1
         except Exception as e:
@@ -566,56 +476,87 @@ class GameMasterNode(Node):
     def _update_distance_for_namespace(self, ns1):
         """
         Update the distance cache for a single namespace.
-
+        
         Args:
-            ns1 (str): Namespace of the robot.
-
-        Returns:
-            tuple: (ns1, dict) where dict contains distances to other namespaces.
+            ns1 (str): Namespace of the robot
         """
-        distances = {}
-        if ns1 not in self.robot_poses or None in self.robot_poses[ns1]['position']:
-            return ns1, distances
-
-        for ns2 in self.namespaces:
-            if ns1 == ns2 or ns2 not in self.robot_poses or None in self.robot_poses[ns2]['position']:
-                continue
-            distance = get_distance(self.robot_poses[ns1]['position'], self.robot_poses[ns2]['position'])
-            distances[ns2] = distance
-
-        return ns1, distances
+        if ns1 not in self.robots or self.robots[ns1]["health"] <= 0:
+            return
+            
+        robot1 = self.robots[ns1]
+        pos1 = robot1["position"]
+        
+        if pos1["x"] is None or pos1["y"] is None or pos1["z"] is None:
+            return
+        
+        # Convert to tuple format for the get_distance function
+        position1 = (pos1["x"], pos1["y"], pos1["z"])
+        
+        # Calculate distances to all other alive robots
+        with self.robot_lock:
+            robot1["distances"] = {}
+            for ns2, robot2 in self.robots.items():
+                if ns1 == ns2 or robot2["health"] <= 0:
+                    continue
+                    
+                pos2 = robot2["position"]
+                
+                if pos2["x"] is None or pos2["y"] is None or pos2["z"] is None:
+                    continue
+                    
+                position2 = (pos2["x"], pos2["y"], pos2["z"])
+                
+                # Calculate distance
+                distance = get_distance(position1, position2)
+                robot1["distances"][ns2] = distance
 
     def _publish_game_state(self):
         """
         Publish a GameState message containing the state of all robots.
-        Includes position, velocity, health, ammo, and remaining game time.
-        Also includes data for destroyed robots at their last known positions.
         """
         try:
             game_state = GameState()
             game_state.remaining_time = float(self.remaining_time)
+            
+            # Add simulation time (from ROS clock)
+            game_state.sim_time = self.get_clock().now().to_msg()
+            
+            # Get current wall time and convert to ROS Time message
+            current_time = time.time_ns()
+            seconds = current_time // 1_000_000_000
+            nanoseconds = current_time % 1_000_000_000
+            ros_time = Time()
+            ros_time.sec = int(seconds)
+            ros_time.nanosec = int(nanoseconds)
+            game_state.real_time = ros_time
+            
             robot_states = []
 
-            # Add states for all active robots
-            for ns in self.namespaces:
+            # Process all robots
+            for ns, robot in self.robots.items():
                 robot_state = RobotState()
-                robot_state.id = int(ns.split('_')[-1])  # Extract ID from namespace
-                robot_state.type = "drone" if '/px4_' in ns else "ship"
-
-                # Get regular pose for drones and ships
-                if ns in self.robot_poses:
-                    pose = self.robot_poses[ns]
-                    robot_state.pose.position.x = pose['position'][0]
-                    robot_state.pose.position.y = pose['position'][1]
-                    robot_state.pose.position.z = pose['position'][2]
-                    robot_state.pose.orientation.x = pose['orientation'][0]
-                    robot_state.pose.orientation.y = pose['orientation'][1]
-                    robot_state.pose.orientation.z = pose['orientation'][2]
-                    robot_state.pose.orientation.w = pose['orientation'][3]
-
-                # Add cannon orientation for ships
-                if '/flag_ship_' in ns:
-                    cannon_key = f"/relative_cannon_{ns.split('_')[-1]}"
+                robot_state.id = robot["instance"]
+                robot_state.type = robot["type"]
+                
+                # Add position and orientation
+                pos = robot["position"]
+                ori = robot["orientation"]
+                
+                robot_state.pose.position.x = pos["x"] if pos["x"] is not None else 0.0
+                robot_state.pose.position.y = pos["y"] if pos["y"] is not None else 0.0
+                robot_state.pose.position.z = pos["z"] if pos["z"] is not None else 0.0
+                robot_state.pose.orientation.x = ori["x"] if ori["x"] is not None else 0.0
+                robot_state.pose.orientation.y = ori["y"] if ori["y"] is not None else 0.0
+                robot_state.pose.orientation.z = ori["z"] if ori["z"] is not None else 0.0
+                robot_state.pose.orientation.w = ori["w"] if ori["w"] is not None else 1.0
+                
+                # Add health and ammo
+                robot_state.health = robot["health"]
+                robot_state.ammo = robot["ammo"]
+                
+                # For ships, add cannon orientation only if alive
+                if robot["type"] == "ship" and robot["health"] > 0:
+                    cannon_key = f"/relative_cannon_{robot['instance']}"
                     try:
                         cannon_pose = self.gz.get_pose(cannon_key)
                         if cannon_pose and cannon_pose['orientation']['x'] is not None:
@@ -625,39 +566,6 @@ class GameMasterNode(Node):
                             robot_state.canon_orientation.w = cannon_pose['orientation']['w']
                     except Exception as e:
                         self.get_logger().warn(f"Could not get cannon orientation for {cannon_key}: {e}")
-
-                # Add velocity, health, and ammo
-                if ns in self.robot_velocities:
-                    velocity = self.robot_velocities[ns]
-                    robot_state.velocity.x = velocity[0]
-                    robot_state.velocity.y = velocity[1]
-                    robot_state.velocity.z = velocity[2]
-                robot_state.health = self.health_points.get(ns, 0)
-                robot_state.ammo = self.magazines.get(ns, 0)
-
-                robot_states.append(robot_state)
-
-            # Add states for dead robots
-            for ns, data in self.dead_robots.items():
-                robot_state = RobotState()
-                robot_state.id = int(ns.split('_')[-1])  # Extract ID from namespace
-                robot_state.type = "drone"  # Dead robots are always drones (ships end the game)
-                
-                # Add last known position and orientation
-                robot_state.pose.position.x = data['position'][0]
-                robot_state.pose.position.y = data['position'][1]
-                robot_state.pose.position.z = data['position'][2]
-                robot_state.pose.orientation.x = data['orientation'][0]
-                robot_state.pose.orientation.y = data['orientation'][1]
-                robot_state.pose.orientation.z = data['orientation'][2]
-                robot_state.pose.orientation.w = data['orientation'][3]
-                
-                # Add zero velocity, zero health, and remaining ammo
-                robot_state.velocity.x = 0.0
-                robot_state.velocity.y = 0.0
-                robot_state.velocity.z = 0.0
-                robot_state.health = 0
-                robot_state.ammo = data['ammo']
                 
                 robot_states.append(robot_state)
 
@@ -674,20 +582,17 @@ class GameMasterNode(Node):
     def _detections_callback(self):
         """
         Manage the periodic publication of detection information.
-        Uses multi-threading to efficiently process and publish detection data for all robots simultaneously.
         """
-        # Skip if we're shutting down or don't have valid pose data
+        # Skip if we're shutting down
         if self.is_shutting_down:
             return
             
-        if not self.robot_poses or None in self.robot_poses[next(iter(self.robot_poses))]['position']:
-            return
-
         # Clear previous threads list
         self.detection_threads = []
         
-        # Create and start threads
-        for ns in self.namespaces:
+        # Create and start threads for all alive robots
+        alive_robots = [ns for ns, robot in self.robots.items() if robot["health"] > 0]
+        for ns in alive_robots:
             thread = threading.Thread(target=self._publish_detections, args=(ns,))
             self.detection_threads.append(thread)
             thread.start()
@@ -700,7 +605,6 @@ class GameMasterNode(Node):
     def _publish_detections(self, ns):
         """
         Publish detections for a specific robot.
-        :param ns: The namespace of the robot.
         """
         # Skip if we're shutting down
         if self.is_shutting_down:
@@ -722,257 +626,168 @@ class GameMasterNode(Node):
     def _get_detections(self, namespace):
         """
         Calculate which robots are within detection range of the specified robot.
-
-        Args:
-            namespace (str): The namespace of the detecting robot
-
-        Returns:
-            list[Detection]: List of Detection messages containing:
-                - Vehicle type (drone/ship)
-                - Friend/foe status
-                - Relative position in FRD (Forward-Right-Down) coordinates
-                - Uses heading-only orientation for more accurate height representation
         """
         detections = []
-        if namespace not in self.robot_poses:
+        if namespace not in self.robots or self.robots[namespace]["health"] <= 0:
             return detections
 
-        transmitter_pose = self.robot_poses[namespace]
-        # Validate transmitter pose
-        if None in transmitter_pose['position'] or None in transmitter_pose['orientation']:
+        # Get the robot information
+        robot = self.robots[namespace]
+        position = robot["position"]
+        orientation = robot["orientation"]
+        
+        # Validate position and orientation
+        if (position["x"] is None or position["y"] is None or position["z"] is None or
+            orientation["x"] is None or orientation["y"] is None or 
+            orientation["z"] is None or orientation["w"] is None):
             return detections
+
+        # Convert to tuple format for get_relative_position_with_heading
+        position_tuple = (position["x"], position["y"], position["z"])
+        orientation_tuple = (orientation["x"], orientation["y"], orientation["z"], orientation["w"])
 
         # Determine detection range based on the type of the detecting robot
-        if '/px4_' in namespace:
+        is_drone = robot["type"] == "drone"
+        if is_drone:
             detection_range = self.drone_detection_range
         else:
-            detection_range_ship2ship = self.get_parameter('ship2ship_detection_range').get_parameter_value().double_value
-            detection_range_ship2drone = self.get_parameter('ship2drone_detection_range').get_parameter_value().double_value
+            detection_range_ship2ship = self.ship2ship_detection_range
+            detection_range_ship2drone = self.ship2drone_detection_range
 
-        for robot, receiver_pose in self.robot_poses.items():
-            if robot == namespace:
+        # Check all other robots
+        for other_ns, distance in robot["distances"].items():
+            if other_ns not in self.robots or self.robots[other_ns]["health"] <= 0:
+                continue
+                
+            other_robot = self.robots[other_ns]
+            other_position = other_robot["position"]
+            
+            # Validate other robot's position
+            if other_position["x"] is None or other_position["y"] is None or other_position["z"] is None:
                 continue
 
-            # Validate receiver pose
-            if None in receiver_pose['position'] or None in receiver_pose['orientation']:
-                continue
+            other_is_drone = other_robot["type"] == "drone"
+            
+            # Determine detection range based on both robots' types
+            if is_drone:  # Detecting robot is a drone
+                if distance > detection_range:
+                    continue
+            else:  # Detecting robot is a ship
+                if other_is_drone:  # Target is a drone
+                    if distance > detection_range_ship2drone:
+                        continue
+                else:  # Target is a ship
+                    if distance > detection_range_ship2ship:
+                        continue
 
-            try:
-                distance = get_distance(transmitter_pose['position'], receiver_pose['position'])
+            # Create detection
+            detection = Detection()
+            detection.vehicle_type = Detection.DRONE if other_is_drone else Detection.SHIP
+            detection.is_friend = ((namespace in self.team_1 and other_ns in self.team_1) or 
+                                  (namespace in self.team_2 and other_ns in self.team_2))
 
-                # Determine detection range based on the type of the detected robot
-                if '/px4_' in robot:  # Detected robot is a drone
-                    if '/px4_' in namespace:  # Detecting robot is a drone
-                        if distance > detection_range:
-                            continue
-                    else:  # Detecting robot is a ship
-                        if distance > detection_range_ship2drone:
-                            continue
-                else:  # Detected robot is a ship
-                    if '/px4_' in namespace:  # Detecting robot is a drone
-                        if distance > detection_range:
-                            continue
-                    else:  # Detecting robot is a ship
-                        if distance > detection_range_ship2ship:
-                            continue
+            # Get other robot's position as tuple
+            other_position_tuple = (other_position["x"], other_position["y"], other_position["z"])
+            
+            # Get relative position in FRD frame
+            relative_position = get_relative_position_with_heading(
+                position_tuple,
+                orientation_tuple,
+                other_position_tuple
+            )
+            detection.relative_position.x = relative_position[0]   # Forward
+            detection.relative_position.y = relative_position[1]   # Right 
+            detection.relative_position.z = relative_position[2]   # Down
 
-                detection = Detection()
-                detection.vehicle_type = Detection.DRONE if '/px4_' in robot else Detection.SHIP
-                detection.is_friend = (namespace in self.team_1 and robot in self.team_1) or (namespace in self.team_2 and robot in self.team_2)
-
-                # Get relative position in FRD frame using heading-only orientation
-                # This provides more accurate height representation when the transmitter is tilted
-                relative_position = get_relative_position_with_heading(
-                    transmitter_pose['position'],
-                    transmitter_pose['orientation'],
-                    receiver_pose['position']
-                )
-                detection.relative_position.x = relative_position[0]   # Forward
-                detection.relative_position.y = relative_position[1]   # Right 
-                detection.relative_position.z = relative_position[2]   # Down
-
-                detections.append(detection)
-            except (TypeError, ValueError) as e:
-                self.get_logger().warn(f'Error calculating detection between {namespace} and {robot}: {e}')
-                continue
+            detections.append(detection)
 
         return detections
 
     def _communication_callback(self, msg, sender_ns):
         """
         Handle incoming communication messages.
-        :param msg: The communication message.
-        :param sender_ns: The namespace of the sender robot.
         """
-        # Check if sender position exists
-        if sender_ns not in self.robot_poses:
-            self.get_logger().warn(f'No pose data for sender {sender_ns}')
+        # Check if sender exists and is alive
+        if sender_ns not in self.robots or self.robots[sender_ns]["health"] <= 0:
+            self.get_logger().warn(f'No data for sender {sender_ns} or sender is not alive')
             return
             
-        sender_pose = self.robot_poses[sender_ns]
-        if None in sender_pose['position']:
+        sender = self.robots[sender_ns]
+        pos = sender["position"]
+        
+        # Validate sender position
+        if pos["x"] is None or pos["y"] is None or pos["z"] is None:
             self.get_logger().warn(f'Invalid position for sender {sender_ns}')
             return
 
-        communication_range = self.drone_communication_range if '/px4_' in sender_ns else self.ship_communication_range
+        # Determine communication range based on sender type
+        communication_range = self.drone_communication_range if sender["type"] == "drone" else self.ship_communication_range
         
-        for ns in self.namespaces:
-            if ns == sender_ns:
+        # Forward the message to alive robots within range
+        for ns, robot in self.robots.items():
+            if ns == sender_ns or robot["health"] <= 0:
                 continue
-
-            if ns not in self.robot_poses:
-                continue
-
-            receiver_pose = self.robot_poses[ns]
-            if None in receiver_pose['position']:
-                continue
-
-            distance = get_distance(sender_pose['position'], receiver_pose['position'])
-            
-            if distance <= communication_range:
-                string_msg = String()
-                string_msg.data = msg.data
-                self.communication_publishers[ns].publish(string_msg)
+                
+            # Use the pre-calculated distances
+            if ns in sender["distances"]:
+                distance = sender["distances"][ns]
+                
+                if distance <= communication_range:
+                    string_msg = String()
+                    string_msg.data = msg.data
+                    self.communication_publishers[ns].publish(string_msg)
 
     ##########################################
     # WEAPON SYSTEMS (MISSILES AND KAMIKAZE) #
     ##########################################
 
-    def _find_targets_in_range(self, source_ns, source_position, range_limit):
-        """
-        Find all targets within a specified range of the source using the distance cache.
+    def _fire_missile_callback(self, request, response):
+        """Handle missile firing requests."""
+        shooter_ns = request.robot_name
+        self.get_logger().info(f'Received missile fire request from {shooter_ns}')
 
-        Args:
-            source_ns (str): Namespace of the source (e.g., shooter or kamikaze robot).
-            source_position (tuple): Position of the source (x, y, z).
-            range_limit (float): Maximum range to consider.
-
-        Returns:
-            list: List of (robot, distance, position) tuples for targets in range.
-        """
-        targets_in_range = []
-        if source_ns not in self.distance_cache:
-            return targets_in_range
-
-        for target_ns, distance in self.distance_cache[source_ns].items():
-            if distance <= range_limit:
-                target_pose = self.robot_poses[target_ns]
-                targets_in_range.append((target_ns, distance, target_pose['position']))
-        return targets_in_range
-
-    def _apply_damage_to_targets(self, targets, damage):
-        """
-        Apply damage to one or more targets.
-
-        Args:
-            targets (list): List of (robot, distance, position) tuples for targets.
-            damage (int): Amount of damage to apply.
-        """
-        for target in targets:
-            target_id = target[0]
-            self.get_logger().info(f'Applying {damage} damage to {target_id}')
-            self._update_health(target_id, damage=damage)
-
-    def _validate_shooter(self, shooter_ns, response):
-        """
-        Validate shooter exists and has valid pose data.
-
-        Args:
-            shooter_ns: Namespace of the shooter.
-            response: Service response object to populate if validation fails.
-
-        Returns:
-            bool: True if shooter is valid, False otherwise.
-        """
-        if shooter_ns not in self.namespaces:
-            self.get_logger().warn(f'{shooter_ns} not found in robot list. Cannot fire missile.')
+        # Validate shooter exists and is alive
+        if shooter_ns not in self.robots or self.robots[shooter_ns]["health"] <= 0:
+            self.get_logger().warn(f'{shooter_ns} not found or not alive. Cannot fire missile.')
             response.has_fired = False
             response.ammo = 0
-            return False
-
-        if shooter_ns not in self.robot_poses:
-            self.get_logger().warn(f"No pose found for '{shooter_ns}'. Cannot fire missile.")
+            return response
+        
+        shooter = self.robots[shooter_ns]
+        is_drone = shooter["type"] == "drone"
+        
+        # Check ammunition
+        if shooter["ammo"] <= 0:
+            self.get_logger().warn(f'{shooter_ns} cannot fire: Out of ammunition.')
             response.has_fired = False
-            response.ammo = self.magazines[shooter_ns]
-            return False
-
-        shooter_pose = self.robot_poses[shooter_ns]
-        if None in shooter_pose['position'] or None in shooter_pose['orientation']:
+            response.ammo = 0
+            return response
+        
+        # Check valid position
+        pos = shooter["position"]
+        ori = shooter["orientation"]
+        if (pos["x"] is None or pos["y"] is None or pos["z"] is None or
+            ori["x"] is None or ori["y"] is None or ori["z"] is None or ori["w"] is None):
             self.get_logger().warn(f"Invalid pose for '{shooter_ns}'. Cannot fire missile.")
             response.has_fired = False
-            response.ammo = self.magazines[shooter_ns]
-            return False
-
-        return True
-
-    def _check_ammunition_and_cooldown(self, shooter_ns, response):
-        """
-        Check if shooter has ammunition and is not in cooldown.
-
-        Args:
-            shooter_ns: Namespace of the shooter.
-            response: Service response object to populate.
-
-        Returns:
-            bool: True if shooter can fire, False otherwise.
-        """
-        current_time = self.get_clock().now()
-        cooldown = self.drone_cooldown if '/px4_' in shooter_ns else self.ship_cooldown
-
-        # Calculate time difference in seconds
-        time_since_last_fire = (current_time - self.last_fire_time[shooter_ns]).nanoseconds / 1e9
-
-        # Check ammunition first
-        if self.magazines[shooter_ns] <= 0:
-            self.get_logger().warn(f'{shooter_ns} cannot fire: Out of ammunition (0 missiles remaining).')
-            response.has_fired = False
-            response.ammo = self.magazines[shooter_ns]
-            return False
+            response.ammo = shooter["ammo"]
+            return response
         
-        # Then check cooldown
+        # Check cooldown
+        current_time = self.get_clock().now()
+        cooldown = self.drone_cooldown if is_drone else self.ship_cooldown
+        time_since_last_fire = (current_time - shooter["last_fire_time"]).nanoseconds / 1e9
+        
         if time_since_last_fire < cooldown:
             time_remaining = cooldown - time_since_last_fire
-            self.get_logger().warn(f'{shooter_ns} cannot fire: Cooldown period active (ready in {time_remaining:.1f} seconds).')
+            self.get_logger().warn(f'{shooter_ns} cannot fire: Cooldown ({time_remaining:.2f}s remaining).')
             response.has_fired = False
-            response.ammo = self.magazines[shooter_ns]
-            return False
+            response.ammo = shooter["ammo"]
+            return response
         
-        # If both checks pass, fire the missile
-        self.get_logger().info(f'{shooter_ns} fired a missile. Remaining ammo: {self.magazines[shooter_ns] - 1}')
-        # Decrease magazine count
-        self.magazines[shooter_ns] -= 1
-        response.has_fired = True
-        response.ammo = self.magazines[shooter_ns]
-        # Update last fire time
-        self.last_fire_time[shooter_ns] = current_time
-        return True
-
-    def _fire_missile_callback(self, request, response):
-        """
-        Handle missile firing requests.
-
-        Process:
-        1. Validate shooter and get their position.
-        2. Check ammunition and cooldown.
-        3. Find targets within range and alignment.
-        4. Apply damage to the closest aligned target.
-
-        Args:
-            request: Contains robot_name of the shooter.
-            response: Will contain has_fired status and remaining ammo.
-        """
-        self.get_logger().info(f'Received missile fire request from {request.robot_name}')
-
-        # Validate shooter and check ammunition/cooldown
-        shooter_ns = request.robot_name
-        if not self._validate_shooter(shooter_ns, response):
-            return response
-        if not self._check_ammunition_and_cooldown(shooter_ns, response):
-            return response
-
         # Get shooter position and orientation
-        if '/flag_ship_' in shooter_ns:
-            # Use the global cannon pose for alignment checks
+        if shooter["type"] == "ship":
+            # Use the global cannon pose for ships
             cannon_pose = self.gz.get_global_cannon_pose(shooter_ns)
             shooter_position = (
                 cannon_pose["position"]["x"],
@@ -987,91 +802,132 @@ class GameMasterNode(Node):
             )
         else:
             # For drones, use their regular pose
-            shooter_pose = self.robot_poses[shooter_ns]
-            shooter_position = shooter_pose['position']
-            shooter_orientation = shooter_pose['orientation']
-
-        # Find targets within missile range using the distance cache
-        missile_range = self.drone_missile_range if '/px4_' in shooter_ns else self.ship_missile_range
-        targets_in_range = self._find_targets_in_range(shooter_ns, shooter_position, missile_range)
-
-        # Check alignment and apply damage to the closest target
-        aligned_targets = self._find_aligned_targets(shooter_position, shooter_orientation, targets_in_range, missile_range)
+            shooter_position = (pos["x"], pos["y"], pos["z"])
+            shooter_orientation = (ori["x"], ori["y"], ori["z"], ori["w"])
+        
+        # Find targets within missile range
+        missile_range = self.drone_missile_range if is_drone else self.ship_missile_range
+        targets_in_range = []
+        
+        for target_ns, distance in shooter["distances"].items():
+            if distance <= missile_range and target_ns in self.robots:
+                target = self.robots[target_ns]
+                if target["health"] <= 0:
+                    continue
+                    
+                target_position = (
+                    target["position"]["x"],
+                    target["position"]["y"],
+                    target["position"]["z"]
+                )
+                if None not in target_position:
+                    targets_in_range.append((target_ns, distance, target_position))
+        
+        # Update ammunition and fire time
+        with self.robot_lock:
+            shooter["ammo"] -= 1
+            shooter["last_fire_time"] = current_time
+        
+        response.has_fired = True
+        response.ammo = shooter["ammo"]
+        
+        # Check alignment and apply damage
+        aligned_targets = self._find_aligned_targets(
+            shooter_position, 
+            shooter_orientation, 
+            targets_in_range, 
+            missile_range
+        )
+        
         if aligned_targets:
             closest_target = min(aligned_targets, key=lambda x: x[1])
-            self._apply_damage_to_targets([closest_target], self.drone_missile_damage if '/px4_' in shooter_ns else self.ship_missile_damage)
+            target_ns = closest_target[0]
+            distance = closest_target[1]
+            damage = self.drone_missile_damage if is_drone else self.ship_missile_damage
+            self._update_health(target_ns, damage=damage)
+            self.get_logger().info(f'Missile hit: {target_ns} at distance {self._format_float(distance)}m')
         else:
             self.get_logger().info(f'MISSILE MISSED: No aligned targets for {shooter_ns}')
-
+        
         return response
 
     def _kamikaze_callback(self, request, response):
         """
         Handle the kamikaze service request.
-
-        Process:
-        1. Validate kamikaze robot and get position.
-        2. Apply damage to the kamikaze robot itself.
-        3. Find all robots within explosion range.
-        4. Apply explosion damage to all affected robots.
-
-        Args:
-            request: Contains robot_name of the kamikaze robot.
-            response: Empty response.
         """
         kamikaze_ns = request.robot_name
         self.get_logger().info(f'Received kamikaze request from {kamikaze_ns}')
 
-        # Ensure only drones can use the kamikaze service
-        if '/flag_ship_' in kamikaze_ns:
+        # Ensure only drones can use the kamikaze service and drone is alive
+        if kamikaze_ns not in self.robots:
+            self.get_logger().warn(f'{kamikaze_ns} not found. Cannot detonate.')
+            return response
+            
+        robot = self.robots[kamikaze_ns]
+        
+        # Don't check health here - we want kamikazes to work during destruction process
+        
+        if robot["type"] == "ship":
             self.get_logger().warn(f"Kamikaze service is not available for flagships: {kamikaze_ns}")
             return response
 
-        if not kamikaze_ns or kamikaze_ns not in self.namespaces:
-            self.get_logger().warn(f'{kamikaze_ns} not found in robot list. Cannot detonate.')
-            return response
-
-        # Check if robot has a valid pose
-        if kamikaze_ns not in self.robot_poses:
-            self.get_logger().warn(f"No pose data for {kamikaze_ns}")
-            return response
-
-        kamikaze_pose = self.robot_poses[kamikaze_ns]
-        kamikaze_position = kamikaze_pose['position']
-
-        if None in kamikaze_position:
+        # Check valid position
+        pos = robot["position"]
+        if pos["x"] is None or pos["y"] is None or pos["z"] is None:
             self.get_logger().warn(f"Invalid position data for {kamikaze_ns}")
             return response
 
-        self.get_logger().info(f'💥 KAMIKAZE: {kamikaze_ns} detonating at position {kamikaze_position}')
+        # Format position for logging with only 2 decimal places
+        formatted_pos = self._format_position(pos)
+        self.get_logger().info(f'💥 KAMIKAZE: {kamikaze_ns} detonating at position {formatted_pos}')
 
-        # 1. Apply damage to the kamikaze robot itself
-        self._update_health(kamikaze_ns, damage=self.explosion_damage, from_kamikaze=True)
+        # Save nearby targets before applying damage to kamikaze drone
+        nearby_targets = []
+        with self.robot_lock:
+            for target_ns, distance in robot["distances"].items():
+                # Only include living robots within explosion range
+                if (distance <= self.explosion_range and 
+                    target_ns != kamikaze_ns and 
+                    target_ns in self.robots and 
+                    self.robots[target_ns]["health"] > 0):
+                    nearby_targets.append((target_ns, distance))
+            
+            # Ensure the kamikaze drone is fully dead to prevent recursive calls
+            robot["health"] = 0
+        
+        # Log the targets in explosion range
+        if nearby_targets:
+            formatted_targets = [(ns, self._format_float(dist)) for ns, dist in nearby_targets]
+            self.get_logger().info(f'Robots within explosion range: {formatted_targets}')
+        
+        # Remove the drone from simulation first
+        model_id = robot["model_id"]
+        model_name = robot["model_name"]
+        if model_id is not None and model_name is not None:
+            self._kill_drone(kamikaze_ns, model_id, model_name)
+        
+        # Apply explosion damage to nearby robots
+        for target_ns, distance in nearby_targets:
+            self.get_logger().info(f'Applying {self.explosion_damage} damage to {target_ns} at distance {self._format_float(distance)}m')
+            
+            # Double-check that the target is still alive before applying damage
+            # (in case another explosion has already destroyed it)
+            with self.robot_lock:
+                if target_ns in self.robots and self.robots[target_ns]["health"] > 0:
+                    # Release the lock before calling _update_health to avoid deadlocks
+                    target_is_alive = True
+                else:
+                    target_is_alive = False
+                    
+            # Only apply damage if target is still alive
+            if target_is_alive:
+                self._update_health(target_ns, damage=self.explosion_damage)
 
-        # 2. Find all robots within explosion range using the distance cache
-        targets_in_range = self._find_targets_in_range(kamikaze_ns, kamikaze_position, self.explosion_range)
-
-        # 3. Apply explosion damage to all affected robots (pass from_kamikaze=True)
-        for target in targets_in_range:
-            target_id = target[0]
-            self.get_logger().info(f'Applying {self.explosion_damage} damage to {target_id}')
-            self._update_health(target_id, damage=self.explosion_damage, from_kamikaze=True)
-
-        self.get_logger().info(f'Kamikaze explosion from {kamikaze_ns} affected {len(targets_in_range)} robots')
         return response
 
     def _find_aligned_targets(self, shooter_position, shooter_orientation, targets_in_range, missile_range):
         """
         Filter targets that are aligned with the shooter's orientation.
-
-        Args:
-            shooter_position (tuple): Position of the shooter (x, y, z).
-            shooter_orientation (tuple): Orientation of the shooter (x, y, z, w).
-            targets_in_range (list): List of targets in range, each as (robot, distance, position).
-            missile_range (float): Maximum range of the missile.
-
-        Returns:
-            list: List of aligned targets, each as (robot, distance, position).
         """
         aligned_targets = []
         for target in targets_in_range:
@@ -1079,7 +935,7 @@ class GameMasterNode(Node):
             target_position = target[2]
 
             # Determine target padding based on type
-            if '/px4_' in target_id:
+            if self.robots[target_id]["type"] == "drone":
                 target_padding = (self.drone_padding_x, self.drone_padding_y, self.drone_padding_z)
             else:
                 target_padding = (self.ship_padding_x, self.ship_padding_y, self.ship_padding_z)
@@ -1100,135 +956,122 @@ class GameMasterNode(Node):
 
         return aligned_targets
 
-
     ################################
     # HEALTH AND DAMAGE MANAGEMENT #
     ################################
 
-    def _update_health(self, ns, health=None, damage=0, from_kamikaze=False):
+    def _update_health(self, ns, health=None, damage=0):
         """
-        Update the health of the specified robot by setting a new health value or reducing it by a given damage amount.
-        :param ns: The namespace of the robot.
-        :param health: The health value to set (optional).
-        :param damage: The amount of damage to apply (optional).
-        :param from_kamikaze: Flag to prevent recursive kamikaze calls (optional).
+        Update the health of a robot.
+        
+        Args:
+            ns (str): The namespace of the robot
+            health (int, optional): New health value to set
+            damage (int, optional): Amount of damage to apply
         """
-        # Validate namespace input
-        if not ns or not isinstance(ns, str):
-            self.get_logger().warn(f'Invalid namespace: {ns}. Cannot update health.')
+        # Validate namespace exists
+        if ns not in self.robots:
+            self.get_logger().warn(f"Robot {ns} not found, cannot update health")
             return
+                
+        # Skip if robot is already dead
+        with self.robot_lock:
+            if self.robots[ns]["health"] <= 0:
+                return
+                
+            # Calculate new health if damage was specified
+            current_health = self.robots[ns]["health"]
+            if damage > 0:
+                health = max(0, current_health - damage)
             
-        if ns not in self.namespaces and ns not in self.dead_robots:
-            self.get_logger().warn(f'{ns} not found in robot list : {self.namespaces}. Cannot update health.')
-            return
+            if health is None:
+                return
+                
+            # Update health in the robot dictionary
+            old_health = current_health
+            self.robots[ns]["health"] = health
             
-        if damage > 0:
-            # Calculate damage
-            current_health = self.health_points.get(ns, 0)
-            health = max(0, current_health - damage)
-            
-        if health is not None:
-            self.health_points[ns] = health
-            self.get_logger().debug(f'{ns} health is now {health}')
-            # send health data to the health topic for those that are interested
+            # Publish health to topics (inside the lock to prevent race conditions)
             health_msg = Int32()
             health_msg.data = health
-            self.health_publishers[ns].publish(health_msg)
-
-            if health == 0:
-                # If a drone is killed, remove it from the simulation
-                if 'px4_' in ns:
-                    # Only log DESTROYED for initial destruction, not for kamikaze self-damage
-                    if not from_kamikaze:
-                        self.get_logger().info(f'💥 DESTROYED: {ns} is eliminated')
-                        # Create a request for the kamikaze service
-                        request = Kamikaze.Request()
-                        request.robot_name = ns
-                        # Process it directly rather than using a client
-                        self._kamikaze_callback(request, Kamikaze.Response())
+            if ns in self.health_publishers:
+                self.health_publishers[ns].publish(health_msg)
+        
+        # Log outside of the lock
+        self.get_logger().info(f"Updated health for {ns}: {health}")
+        
+        # Handle robot destruction if health reaches 0
+        if health <= 0 and old_health > 0:
+            if self.robots[ns]["type"] == "drone":
+                self._handle_drone_destruction(ns)
+            else:
+                self._handle_ship_destruction(ns)
                     
-                    # Store the final state regardless of destruction source
-                    if ns in self.namespaces and ns in self.robot_poses:
-                        self.dead_robots[ns] = {
-                            'position': self.robot_poses[ns]['position'],
-                            'orientation': self.robot_poses[ns]['orientation'],
-                            'velocity': (0.0, 0.0, 0.0),
-                            'health': 0,
-                            'ammo': self.magazines.get(ns, 0)
-                        }
-                        self.get_logger().info(f'Stored final state for {ns}')
-                    
-                    # Safely remove the namespace if it exists
-                    if ns in self.namespaces:
-                        self.get_logger().info(f'Removing {ns} from namespaces list')
-                        self.namespaces.remove(ns)
-                        # Update the GazeboPosesTracker with the new list of namespaces
-                        self.gz = GazeboPosesTracker(self.namespaces, logger=self.get_logger(), world_name=self.gazebo_world_name)
-                        # If the new GazeboPosesTracker is not fully initialized and the model of a drone is removed,
-                        # it will not be able to find it and gazebo_subscriber.py will crash
-                        time.sleep(0.5)
-                        # Now kill the drone and remove it using imported functions
-                        self._kill_drone(ns)
-                    else:
-                        self.get_logger().warn(f'{ns} already removed from namespaces list')
+        return health
 
-                # If a flagship is destroyed, end the game and determine the winner
-                # Then stop the simulation
-                elif 'flag_ship_' in ns:
-                    self.get_logger().info(f'💥 FLAGSHIP DESTROYED: {ns}')              
-                    self._end_game()
-        return
+    def _handle_drone_destruction(self, ns, from_kamikaze=False):
+        """Handle a drone being destroyed"""
+        self.get_logger().info(f'### DESTROYED: {ns} is eliminated ###')
+        
+        # We don't need the from_kamikaze check anymore since we only trigger kamikaze directly
+        # from damage (not recursively from other kamikazes)
+        
+        # Create a request for the kamikaze service
+        request = Kamikaze.Request()
+        request.robot_name = ns
+        # Process it directly rather than using a client
+        self._kamikaze_callback(request, Kamikaze.Response())
+
+    def _handle_ship_destruction(self, ns):
+        """Handle a ship being destroyed"""
+        self.get_logger().info(f'### FLAGSHIP DESTROYED: {ns} ###')
+        
+        # End the game when a flagship is destroyed
+        self._end_game()
 
     def _publish_health_status(self):
         """
-        Publish health status for all robots every 2 seconds.
+        Publish health status for all robots periodically.
         """
-        health_status = {ns: self.health_points[ns] for ns in self.namespaces}
-        for ns in self.namespaces:
+        health_status = {}
+        for ns, robot in self.robots.items():
+            health_status[ns] = robot["health"]
             health_msg = Int32()
-            health_msg.data = self.health_points[ns]
+            health_msg.data = robot["health"]
             self.health_publishers[ns].publish(health_msg)
-        if self.namespaces:
+            
+        if health_status:
             self.get_logger().info(f'Robot health: {health_status}')
 
-    def _kill_drone(self, namespace):
+    def _kill_drone(self, namespace, model_id, model_name):
         """
         Remove a drone from the simulation when it's destroyed.
-        Uses kill_drone_from_game_master in non-blocking mode to avoid holding up the game master.
         
         Args:
             namespace (str): The namespace of the drone to remove
+            model_id: The Gazebo model ID
+            model_name: The Gazebo model name
         """
-        start_time = self.get_clock().now()
+        if model_id is None or model_name is None:
+            self.get_logger().warn(f"No model data for {namespace}, cannot kill drone")
+            return
         
-        if namespace in self.drone_models:
-            # Get model data
-            model_data = self.drone_models[namespace]
-            
-            # Extract the base name pattern (remove instance number)
-            model_name = model_data['model_name']
-            base_name_parts = model_name.rsplit('_', 1)[0]
-            
-            # Call the kill_drone_from_game_master function with non-blocking mode
-            success = kill_drone_from_game_master(
-                namespace=namespace,
-                drone_model_base_name=base_name_parts,
-                drone_models={namespace: model_data['id']},
-                logger=self.get_logger(),
-                world_name=self.gazebo_world_name,
-                gz_node=self.gz_node,
-                non_blocking=True
-            )
-            
-            # Calculate and log duration
-            end_time = self.get_clock().now()
-            duration = (end_time - start_time).nanoseconds / 1e9
-            self.get_logger().info(f"⏱️ Drone kill operation for {namespace} initiated in {duration:.4f} seconds")
-            
-            if not success:
-                self.get_logger().error(f"Failed to initiate kill process for {namespace}")
-        else:
-            self.get_logger().warn(f"No model data found for {namespace}, cannot kill drone")
+        # Extract the base name pattern (remove instance number)
+        base_name_parts = model_name.rsplit('_', 1)[0]
+        
+        # Call the kill_drone_from_game_master function with non-blocking mode
+        success = kill_drone_from_game_master(
+            namespace=namespace,
+            drone_model_base_name=base_name_parts,
+            drone_models={namespace: model_id},
+            logger=self.get_logger(),
+            world_name=self.gazebo_world_name,
+            gz_node=self.gz_node,
+            non_blocking=True
+        )
+        
+        if not success:
+            self.get_logger().error(f"Failed to initiate kill process for {namespace}")
 
     ###############################
     # GAME TIMING AND TERMINATION #
@@ -1237,9 +1080,6 @@ class GameMasterNode(Node):
     def _game_timer_callback(self):
         """
         Monitor game progress and check for end conditions.
-        Tracks:
-        - Remaining game time
-        - Publishes the remaining time to /game_master/time topic.
         """
         if self.start_time.seconds_nanoseconds()[0] == 0:
             self.start_time = self.get_clock().now()
@@ -1248,7 +1088,7 @@ class GameMasterNode(Node):
             return
 
         current_time = self.get_clock().now()
-        # Calculate elapsed time using proper ROS2 time methods
+        # Calculate elapsed time
         elapsed_duration = current_time - self.start_time
         elapsed_seconds = elapsed_duration.nanoseconds / 1e9      
         self.remaining_time = max(0, int(self.game_duration - elapsed_seconds))
@@ -1258,49 +1098,50 @@ class GameMasterNode(Node):
         time_msg.data = self.remaining_time
         self.time_publisher.publish(time_msg)
         
-        # Safety check - ensure we only end if elapsed time is reasonable (prevent false end on startup)
+        # End game if time is up
         if elapsed_seconds > 1.0 and elapsed_seconds >= self.game_duration:
-            self.get_logger().info(f"Game duration reached: {elapsed_seconds:.2f} >= {self.game_duration}")
+            self.get_logger().info(f"Game duration reached: {self._format_float(elapsed_seconds)} >= {self.game_duration}")
             self._end_game()
         
-        # Add periodic progress updates with flagship health
+        # Add periodic progress updates
         if int(elapsed_seconds) % 60 == 0 and int(elapsed_seconds) > 0:
-            self.get_logger().info(f"GAME STATUS: {elapsed_seconds:.0f}/{self.game_duration} seconds elapsed, {self.remaining_time} seconds remaining")
+            self.get_logger().info(f"GAME STATUS: {int(elapsed_seconds)}/{self.game_duration} seconds elapsed, {self.remaining_time} seconds remaining")
             
-            # Calculate current flagship health (works if there more than 1 flsh_ship too)
-            team1_ship_health = sum(self.health_points.get(ns, 0) for ns in self.team_1 if '/flag_ship_' in ns)
-            team2_ship_health = sum(self.health_points.get(ns, 0) for ns in self.team_2 if '/flag_ship_' in ns)
+            # Calculate current flagship health
+            team1_ships = [ns for ns in self.team_1 if "/flag_ship_" in ns and self.robots[ns]["health"] > 0]
+            team2_ships = [ns for ns in self.team_2 if "/flag_ship_" in ns and self.robots[ns]["health"] > 0]
+            team1_ship_health = sum(self.robots[ns]["health"] for ns in team1_ships)
+            team2_ship_health = sum(self.robots[ns]["health"] for ns in team2_ships)
             
             # Count surviving drones
-            team1_surviving_drones = len([ns for ns in self.team_1 if '/px4_' in ns and self.health_points.get(ns, 0) > 0])
-            team2_surviving_drones = len([ns for ns in self.team_2 if '/px4_' in ns and self.health_points.get(ns, 0) > 0])
+            team1_surviving_drones = sum(1 for ns in self.team_1 if "/px4_" in ns and self.robots[ns]["health"] > 0)
+            team2_surviving_drones = sum(1 for ns in self.team_2 if "/px4_" in ns and self.robots[ns]["health"] > 0)
             
             self.get_logger().info(f"STATUS: Team 1 ship health: {team1_ship_health}, drones: {team1_surviving_drones}")
             self.get_logger().info(f"STATUS: Team 2 ship health: {team2_ship_health}, drones: {team2_surviving_drones}")
 
     def _end_game(self):
         """
-        Handle game termination and results logging based on new win conditions:
-        1. Team that destroyed enemy flagship wins
-        2. Otherwise, team with healthiest flagship wins
-        3. If flagship health is tied, team with most surviving drones wins
-        4. If everything is tied, it's a draw
+        Handle game termination and results logging.
         """
         self.get_logger().info('Game Over')
-        # Calculate current flagship health (works if there more than 1 flsh_ship too)
-        team1_ship_health = sum(self.health_points.get(ns, 0) for ns in self.team_1 if '/flag_ship_' in ns)
-        team2_ship_health = sum(self.health_points.get(ns, 0) for ns in self.team_2 if '/flag_ship_' in ns)   
-        # Count surviving drones
-        team1_surviving_drones = len([ns for ns in self.team_1 if '/px4_' in ns and self.health_points.get(ns, 0) > 0])
-        team2_surviving_drones = len([ns for ns in self.team_2 if '/px4_' in ns and self.health_points.get(ns, 0) > 0])
         
-        # Determine the winner based on new rules
+        # Calculate team status
+        team1_ships = [ns for ns in self.team_1 if "/flag_ship_" in ns and self.robots[ns]["health"] > 0]
+        team2_ships = [ns for ns in self.team_2 if "/flag_ship_" in ns and self.robots[ns]["health"] > 0]
+        team1_ship_health = sum(self.robots[ns]["health"] for ns in team1_ships)
+        team2_ship_health = sum(self.robots[ns]["health"] for ns in team2_ships)
+        
+        team1_surviving_drones = sum(1 for ns in self.team_1 if "/px4_" in ns and self.robots[ns]["health"] > 0)
+        team2_surviving_drones = sum(1 for ns in self.team_2 if "/px4_" in ns and self.robots[ns]["health"] > 0)
+        
+        # Determine the winner
         result = "Game Over\n"
         
-        if team2_ship_health == 0:
+        if team2_ship_health == 0 and team1_ship_health > 0:
             result += 'Team 1 wins! (Destroyed enemy flagship)\n'
             winner = "team_1"
-        elif team1_ship_health == 0:
+        elif team1_ship_health == 0 and team2_ship_health > 0:
             result += 'Team 2 wins! (Destroyed enemy flagship)\n'
             winner = "team_2"
         elif team1_ship_health > team2_ship_health:
@@ -1320,18 +1161,20 @@ class GameMasterNode(Node):
             winner = "draw"
         
         # Get surviving and destroyed drones for Team 1
-        team1_surviving_drones_names = [ns for ns in self.team_1 if '/px4_' in ns and self.health_points.get(ns, 0) > 0]
-        team1_destroyed_drones_names = [ns for ns in self.team_1 if '/px4_' in ns and self.health_points.get(ns, 0) == 0]
+        all_team1_ships = [ns for ns in self.team_1 if "/flag_ship_" in ns] 
+        team1_surviving_drones_names = [ns for ns in self.team_1 if "/px4_" in ns and self.robots[ns]["health"] > 0]
+        team1_destroyed_drones_names = [ns for ns in self.team_1 if "/px4_" in ns and self.robots[ns]["health"] <= 0]
 
         # Get surviving and destroyed drones for Team 2
-        team2_surviving_drones_names = [ns for ns in self.team_2 if '/px4_' in ns and self.health_points.get(ns, 0) > 0]
-        team2_destroyed_drones_names = [ns for ns in self.team_2 if '/px4_' in ns and self.health_points.get(ns, 0) == 0]
+        all_team2_ships = [ns for ns in self.team_2 if "/flag_ship_" in ns]
+        team2_surviving_drones_names = [ns for ns in self.team_2 if "/px4_" in ns and self.robots[ns]["health"] > 0]
+        team2_destroyed_drones_names = [ns for ns in self.team_2 if "/px4_" in ns and self.robots[ns]["health"] <= 0]
 
         # Add detailed statistics
-        result += f"Team 1 flagship health: {team1_ship_health}/{len([ns for ns in self.team_1 if '/flag_ship_' in ns]) * self.ship_health}\n"
+        result += f"Team 1 flagship health: {team1_ship_health}/{len(all_team1_ships) * self.ship_health}\n"
         result += f"Team 1 surviving drones: {', '.join(team1_surviving_drones_names) if team1_surviving_drones_names else 'None'}\n"
         result += f"Team 1 destroyed drones: {', '.join(team1_destroyed_drones_names) if team1_destroyed_drones_names else 'None'}\n"
-        result += f"Team 2 flagship health: {team2_ship_health}/{len([ns for ns in self.team_2 if '/flag_ship_' in ns]) * self.ship_health}\n"
+        result += f"Team 2 flagship health: {team2_ship_health}/{len(all_team2_ships) * self.ship_health}\n"
         result += f"Team 2 surviving drones: {', '.join(team2_surviving_drones_names) if team2_surviving_drones_names else 'None'}\n"
         result += f"Team 2 destroyed drones: {', '.join(team2_destroyed_drones_names) if team2_destroyed_drones_names else 'None'}\n"
         result += f"Winner: {winner}\n"
@@ -1341,14 +1184,9 @@ class GameMasterNode(Node):
         self.get_logger().info("Results written successfully. Shutting down.")
         # Create a one-shot timer that will trigger shutdown after a short delay
         self.shutdown_timer = self.create_timer(1.0, self._delayed_shutdown, callback_group=rclpy.callback_groups.MutuallyExclusiveCallbackGroup())
-        
+
     def _save_game_results(self, result):
-        """
-        Save game results to files.
-        
-        Args:
-            result (str): Formatted game results
-        """
+        """Save game results to files."""
         # Locate the SWARMz4 directory
         home_dir = os.path.expanduser("~")
         swarmz4_path = None
@@ -1428,28 +1266,21 @@ class GameMasterNode(Node):
             self.get_logger().warn(f"Error canceling timers: {e}")
 
         # Create a thread to actually shut down ROS after a short delay
-        # This is necessary because we can't call rclpy.shutdown() directly from a callback
         threading.Thread(target=self._actual_shutdown).start()
 
     def _actual_shutdown(self):
         """Actually shut down ROS after a small delay"""
         time.sleep(0.5)  # Small delay to allow final messages to be logged
         self.get_logger().info("Terminating ROS...")
-        # Force shutdown
         rclpy.shutdown()
         
 def main(args=None):
     rclpy.init(args=args)
     game_master_node = GameMasterNode()
     
-    # Set up a clean destruction process
-    def cleanup_and_shutdown():
-        if rclpy.ok():
-            rclpy.shutdown()
-    
     # Use atexit to ensure proper cleanup
     import atexit
-    atexit.register(cleanup_and_shutdown)
+    atexit.register(lambda: rclpy.shutdown() if rclpy.ok() else None)
     
     executor = rclpy.executors.MultiThreadedExecutor()
     try:
@@ -1459,9 +1290,8 @@ def main(args=None):
         pass
     finally:
         game_master_node.destroy_node()
-        # Only call shutdown if ROS context is still initialized
-        cleanup_and_shutdown()
-
+        if rclpy.ok():
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

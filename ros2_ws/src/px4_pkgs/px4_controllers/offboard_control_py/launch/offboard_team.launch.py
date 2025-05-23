@@ -165,7 +165,7 @@ def generate_drone_nodes(context, *args, **kwargs):
             config = {'coordinate_sysyem':'NED', 'offboard_mode':'position'}
 
         # Launch MAVROS as subprocess (not as Node)
-        launch_mavros_subprocess(namespace, drone_id, tgt_system)
+        # launch_mavros_subprocess(namespace, drone_id, tgt_system)
 
         # Offboard controller node (still as ROS2 node)
         controller_node = Node(
