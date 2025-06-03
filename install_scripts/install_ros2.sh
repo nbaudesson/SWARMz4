@@ -46,6 +46,7 @@ install_ros2_humble() {
     sudo apt install ros-humble-gazebo-ros -y
     sudo apt install ros-humble-ros-gz-bridge -y
     sudo apt install ros-humble-ros-gzharmonic -y
+    sudo apt install ros-humble-rqt-bag -y
 
     sudo apt install libyaml-cpp-dev -y # Required for ROS 2 to parse yaml files in cpp
     sudo apt install python3-colcon-common-extensions -y
@@ -81,6 +82,7 @@ install_ros2_jazzy() {
     sudo apt install ros-jazzy-gazebo-ros -y
     sudo apt install ros-jazzy-ros-gz-bridge -y
     sudo apt install ros-jazzy-ros-gzharmonic -y
+    sudo apt install ros-humble-rqt-bag -y
 
     sudo apt install libyaml-cpp-dev -y # Required for ROS 2 to parse yaml files in cpp
     sudo apt install python3-colcon-common-extensions -y

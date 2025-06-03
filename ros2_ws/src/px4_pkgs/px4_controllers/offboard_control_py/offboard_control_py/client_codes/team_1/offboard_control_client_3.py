@@ -46,10 +46,11 @@ class DroneController(Node):
     # State machine states
     STATE_INIT = 0
     STATE_TAKEOFF = 1
-    STATE_SEARCH = 2
-    STATE_POSITION = 3
-    STATE_MAINTAIN = 4
-    STATE_COMPLETE = 5
+    STATE_POST_TAKEOFF_WAIT = 2
+    STATE_SEARCH = 3
+    STATE_POSITION = 4
+    STATE_MAINTAIN = 5
+    STATE_COMPLETE = 6
     
     def __init__(self):
         """Initialize the drone controller with all necessary connections."""
@@ -243,7 +244,7 @@ class DroneController(Node):
         
         self.message_publisher = self.create_publisher(
             String,
-            f'{self.namespace}/incoming_messages',
+            f'{self.namespace}/out_going_messages',
             10,
             callback_group=self.action_group
         )
@@ -289,7 +290,7 @@ class DroneController(Node):
         # Message subscription
         self.message_subscription = self.create_subscription(
             String,
-            f'{self.namespace}/out_going_messages',
+            f'{self.namespace}/incoming_messages',
             self.message_callback,
             10,
             callback_group=self.subscriber_group
@@ -334,6 +335,9 @@ class DroneController(Node):
         
         elif self.state == self.STATE_TAKEOFF:
             self.handle_takeoff_state()
+            
+        elif self.state == self.STATE_POST_TAKEOFF_WAIT:
+            self.handle_post_takeoff_wait_state()
         
         elif self.state == self.STATE_SEARCH:
             self.handle_search_state()
@@ -408,6 +412,7 @@ class DroneController(Node):
         state_names = {
             self.STATE_INIT: "INIT",
             self.STATE_TAKEOFF: "TAKEOFF",
+            self.STATE_POST_TAKEOFF_WAIT: "POST_TAKEOFF_WAIT",
             self.STATE_SEARCH: "SEARCH",
             self.STATE_POSITION: "POSITION",
             self.STATE_MAINTAIN: "MAINTAIN",
@@ -466,6 +471,24 @@ class DroneController(Node):
             else:
                 self.get_logger().warning('Cannot takeoff - no position estimate available')
                 time.sleep(0.5)  # Avoid rapid retry
+
+    def handle_post_takeoff_wait_state(self):
+        """Wait for 15 seconds after takeoff before proceeding to search."""
+        current_time = time.time()
+        wait_duration = 15.0  # seconds
+        
+        # Calculate time spent waiting
+        time_elapsed = current_time - self.state_changed_time
+        
+        # Log the waiting progress periodically
+        if not hasattr(self, '_wait_log_timer') or current_time - self._wait_log_timer > 3.0:
+            self.get_logger().info(f'Post-takeoff wait: {time_elapsed:.1f}s / {wait_duration:.1f}s')
+            self._wait_log_timer = current_time
+        
+        # Transition to search state after waiting period
+        if time_elapsed >= wait_duration:
+            self.get_logger().info(f'Post-takeoff wait complete ({wait_duration} seconds)')
+            self.change_state(self.STATE_SEARCH)
     
     def handle_search_state(self):
         """Handle search state - scan for the friendly ship."""
@@ -1087,8 +1110,8 @@ class DroneController(Node):
                 
                 # State-specific success handling
                 if self.state == self.STATE_TAKEOFF:
-                    self.get_logger().info('Takeoff complete, transitioning to search')
-                    self.change_state(self.STATE_SEARCH)
+                    self.get_logger().info('Takeoff complete, beginning 15-second wait period')
+                    self.change_state(self.STATE_POST_TAKEOFF_WAIT)
                     
                 elif self.state == self.STATE_POSITION:
                     self.get_logger().info('Initial positioning complete, transitioning to maintenance')

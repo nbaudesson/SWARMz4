@@ -471,8 +471,8 @@ launch_team_servers() {
         OFFBOARD_SERVER_PIDS+=("offboard_servers_$team_num")
     fi
     
-    echo "Waiting 5 seconds for offboard controllers to initialize..."
-    sleep 5  # Increased wait time for better initialization
+    echo "Waiting 0.5 seconds for offboard controllers to initialize..."
+    sleep 0.5  # Increased wait time for better initialization
     
     cmd="ros2 run boat_driver cannon_server --ros-args -r __ns:=/flag_ship_$team_num"
 
@@ -487,9 +487,6 @@ launch_team_servers() {
         # For tmux sessions, store the session name for potential cleanup
         CANNON_SERVER_PIDS+=("cannon_server_$team_num")
     fi
-    
-    echo "Waiting 2 seconds for cannon to initialize..."
-    sleep 2  # Increased wait time for better initialization
 }
 #===========================================================================
 # 7. BRIDGE FUNCTIONS

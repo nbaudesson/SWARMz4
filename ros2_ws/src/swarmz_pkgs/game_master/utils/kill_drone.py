@@ -228,23 +228,7 @@ def shutdown_drone(instance_number, logger=None):
         logger.error(f"Error shutting down the drone '{instance_number}':\n{e.stderr}", file=sys.stderr)
         sys.exit(e.returncode)
 
-def kill_drone_from_game_master_thread(namespace, drone_model_base_name, drone_models={}, logger=None, world_name="game_world", gz_node=None):
-    """
-    Thread target function that performs the actual drone kill procedure.
-    
-    Args:
-        Same as kill_drone_from_game_master
-    """
-    try:
-        return kill_drone_from_game_master(namespace, drone_model_base_name, drone_models, logger, world_name, gz_node, non_blocking=False)
-    except Exception as e:
-        if logger:
-            logger.error(f"Error in kill drone thread for {namespace}: {e}")
-        else:
-            print(f"Error in kill drone thread for {namespace}: {e}")
-        return False
-
-def kill_drone_from_game_master(namespace, drone_model_base_name, drone_models={}, logger=None, world_name="game_world", gz_node=None, non_blocking=False):
+def kill_drone_from_game_master(namespace, model_name, model_id=None, logger=None, world_name="game_world", gz_node=None, non_blocking=False):
     """
     Remove a drone from the simulation using a sequential process:
     1. Try to remove the Gazebo model
@@ -257,8 +241,8 @@ def kill_drone_from_game_master(namespace, drone_model_base_name, drone_models={
     
     Args:
         namespace (str): The namespace of the drone to remove (e.g., '/px4_1')
-        drone_model_base_name (str): Base name pattern for drone models (e.g., 'x500_lidar_front')
-        drone_models (dict): Optional dictionary mapping namespaces to model IDs (if already known)
+        model_name (str): Base name pattern for drone models (e.g., 'x500_lidar_front')
+        model_id (int): instance ID of the drone model, or None to find it automatically
         logger: Optional logger object to receive log messages
         world_name (str): Name of the Gazebo world
         gz_node: Optional existing Gazebo transport node to use
@@ -290,32 +274,38 @@ def kill_drone_from_game_master(namespace, drone_model_base_name, drone_models={
         log_warn(f"{namespace} is not a drone, cannot kill")
         return False
     
-    # Extract instance number from namespace
-    instance_number = int(namespace.split('_')[-1])
-    
     # Find the model ID if we didn't already have it
-    if namespace in drone_models and drone_models[namespace]:
-        model_id = drone_models[namespace]
-    else:
-        model_name = f"{drone_model_base_name}_{instance_number}"
+    if model_id is None:
         model_id = get_model_id(model_name, logger, world_name, gz_node)
+        if model_id is None:
+            log_warn(f"Model ID for {model_name} not found, cannot proceed with kill sequence")
+            return False
+        else:
+            log_info(f"Found model ID {model_id} for {model_name} in namespace {namespace}")
     
     # Define the sequential kill process
     def sequential_kill_process():
         try:
+            # Extract instance number from the namespace (e.g., '/px4_2' -> 2)
+            if '/px4_' in namespace:
+                try:
+                    instance_number = int(namespace.split('_')[-1])
+                except (IndexError, ValueError):
+                    log_warn(f"Could not extract instance number from {namespace}")
+                    return False 
+
             # Step 1: Try to remove the model from Gazebo
-            model_removed = False
             if model_id:
                 log_info(f"Attempting to remove model with ID {model_id} from Gazebo")
                 # Use an event to track if removal failed
                 fail_event = threading.Event()
                 remove_model(model_id, fail_event, logger, world_name, gz_node)
                 model_removed = not fail_event.is_set()
-                log_info(f"Model removal {'succeeded' if model_removed else 'failed'} for model with ID {model_id}")
+                log_info(f"Model removal request {'succeeded' if model_removed else 'failed'} for model with ID {model_id}")
             else:
                 log_warn(f"No model ID found for {namespace}, skipping Gazebo model removal")
             
-            # Step 2: If model removal failed, try shutdown_drone
+            # Step 2: Try shutdown_drone if needed
             cmd_remove = "gz model --list"
             result = subprocess.run(
                 cmd_remove,
@@ -325,14 +315,15 @@ def kill_drone_from_game_master(namespace, drone_model_base_name, drone_models={
                 stderr=subprocess.PIPE,
                 text=True
                 )
-            model = f"{drone_model_base_name}_{instance_number}"
 
-            if model in result.stdout and instance_number != 0:
+            if model_name in result.stdout and model_removed is False:
                 try:
                     shutdown_drone(instance_number, logger)
                     log_info(f"Shutdown of drone {instance_number} completed")
                 except Exception as e:
                     log_error(f"Error shutting down drone {instance_number}: {e}")
+            else:
+                log_info(f"Model {model_name} not found in Gazebo, skipping emergency shutdown")
             
             # Step 3: Kill ROS2 nodes with the drone's namespace
             try:
@@ -344,9 +335,7 @@ def kill_drone_from_game_master(namespace, drone_model_base_name, drone_models={
             # Step 4: For drones other than drone 0, kill the drone's PX4 processes
             if instance_number != 0:
                 try:
-                    # Kill the px4 instance
                     subprocess.run(f'pkill -f "px4 -i {instance_number}"', shell=True, check=False)
-                    # Kill any other px4 related processes
                     subprocess.run(f'pkill -f "px4_{instance_number}"', shell=True, check=False)
                     log_info(f"PX4 processes for drone {instance_number} killed")
                 except Exception as e:

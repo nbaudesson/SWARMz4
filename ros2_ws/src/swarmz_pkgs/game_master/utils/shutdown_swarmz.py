@@ -18,8 +18,6 @@ def shutdown_ros2_and_gazebo():
 
     ros2_nodes_to_kill = [
         "game_master_node",
-        "missile_server",
-        "kamikaze_server"
     ]
 
     for node in ros2_nodes_to_kill:

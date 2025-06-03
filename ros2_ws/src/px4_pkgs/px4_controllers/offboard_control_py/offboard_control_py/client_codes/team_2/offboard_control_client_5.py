@@ -64,7 +64,6 @@ class DroneController(Node):
         self.declare_parameter('coordinate_system', 'NED')
         self.declare_parameter('drone_id', -1)
         self.declare_parameter('spawn_position_file', 'spawn_position.yaml')
-        self.declare_parameter('return_to_base', True)
         
         # ====== DRONE IDENTIFICATION ======
         self.setup_drone_identity()
@@ -90,7 +89,7 @@ class DroneController(Node):
         self.state = self.STATE_INIT
         self.state_changed_time = time.time()
         self.target_position = (130.0, 260.0, -10.0, 0.0)  # x, y, z, yaw
-        self.return_to_base = self.get_parameter('return_to_base').value
+        self.return_to_base = False  # Hardcoded to False - never return to base
         self.wait_time_start = None
         self.wait_duration = 300.0  # 5 minutes wait time
         self.wait_notification_interval = 60.0  # Notify every minute
@@ -278,14 +277,14 @@ class DroneController(Node):
         # Message communication
         self.message_publisher = self.create_publisher(
             String,
-            f'{self.namespace}/incoming_messages',
+            f'{self.namespace}/out_going_messages',
             10,
             callback_group=self.action_group
         )
         
         self.message_subscription = self.create_subscription(
             String,
-            f'{self.namespace}/out_going_messages',
+            f'{self.namespace}/incoming_messages',
             self.message_callback,
             10,
             callback_group=self.subscriber_group
@@ -309,11 +308,30 @@ class DroneController(Node):
     # BEHAVIOR IMPLEMENTATION                       #
     #################################################
     
+    def check_state_timeout(self):
+        """Check if we've been in the current state too long and take recovery action."""
+        current_time = time.time()
+        time_in_state = current_time - self.state_changed_time
+        
+        if self.state == self.STATE_INIT and time_in_state > 30.0:
+            self.get_logger().warning(f'Initialization taking longer than expected ({time_in_state:.1f}s)')
+            self.state_changed_time = current_time  # Reset timer to avoid spam
+        
+        elif self.state == self.STATE_TAKEOFF and time_in_state > 30.0:
+            self.get_logger().warning(f'Takeoff taking longer than expected ({time_in_state:.1f}s), ' 
+                                    f'waiting for offboard_control_px4 response...')
+            self.state_changed_time = current_time
+            
+        elif self.state == self.STATE_NAVIGATE and time_in_state > 60.0:
+            self.get_logger().warning(f'Navigation taking longer than expected ({time_in_state:.1f}s), '
+                                    f'waiting for completion...')
+            self.state_changed_time = current_time
+    
     def behavior_callback(self):
         """Main behavior control loop, defining the drone's state machine."""
         
-        # Check for state timeouts
-        if self.state != self.STATE_COMPLETE:
+        # Check for state timeouts (except for WAIT state)
+        if self.state != self.STATE_WAIT:
             self.check_state_timeout()
         
         # State machine
@@ -328,34 +346,6 @@ class DroneController(Node):
             
         elif self.state == self.STATE_WAIT:
             self.handle_wait_state()
-            
-        elif self.state == self.STATE_COMPLETE:
-            self.handle_complete_state()
-    
-    def check_state_timeout(self):
-        """Check if we've been in the current state too long and take recovery action."""
-        current_time = time.time()
-        time_in_state = current_time - self.state_changed_time
-        
-        if self.state == self.STATE_INIT and time_in_state > 30.0:
-            self.get_logger().warning(f'Initialization taking longer than expected ({time_in_state:.1f}s)')
-            self.state_changed_time = current_time  # Reset timer to avoid spam
-        
-        elif self.state == self.STATE_TAKEOFF and time_in_state > 30.0:
-            self.get_logger().warning(f'Takeoff taking longer than expected ({time_in_state:.1f}s), ' 
-                                    f'waiting for offboard_control_px4 response...')
-            # Reset the timer so we don't spam warnings
-            self.state_changed_time = current_time
-            
-        elif self.state == self.STATE_NAVIGATE and time_in_state > 60.0:
-            self.get_logger().warning(f'Navigation taking longer than expected ({time_in_state:.1f}s), '
-                                    f'waiting for completion...')
-            # Reset timer to avoid spam
-            self.state_changed_time = current_time
-            
-        elif self.state == self.STATE_WAIT and time_in_state > self.wait_duration:
-            self.get_logger().info(f'Waiting for {time_in_state:.1f}s, target mission complete')
-            self.change_state(self.STATE_COMPLETE)
     
     def change_state(self, new_state):
         """Change to a new state with logging and timing."""
@@ -434,16 +424,11 @@ class DroneController(Node):
         # Initialize wait time if not already set
         if self.wait_time_start is None:
             self.wait_time_start = current_time
-            self.send_message("Drone 5 in position at x=130, y=260, z=-10. Ready as target.")
             
         # Periodically report wait status
         time_waiting = current_time - self.wait_time_start
         if current_time - self.last_wait_notification > self.wait_notification_interval:
             self.get_logger().info(f'Waiting at target position for {time_waiting:.1f}s')
-            
-            # Send a message every minute to confirm position
-            self.send_message(f"Drone 5 maintaining position at target coordinates. "
-                            f"Waiting for {time_waiting:.1f}s.")
             
             self.last_wait_notification = current_time
         
@@ -465,12 +450,9 @@ class DroneController(Node):
         if not self.latest_detections or current_time - self.last_detection_time > 10.0:
             return
             
-        # Look for drone 0 specifically
-        drone0_detected = False
+        # Look for enemy drones
         for detection in self.latest_detections:
-            if not detection.is_friend and detection.drone_id == 0:
-                drone0_detected = True
-                
+            if not detection.is_friend and detection.vehicle_type == Detection.DRONE:
                 # Only log if we haven't recently
                 if not hasattr(self, '_drone0_log_time') or current_time - self._drone0_log_time > 10.0:
                     distance = math.sqrt(
@@ -480,116 +462,13 @@ class DroneController(Node):
                     )
                     
                     self.get_logger().info(
-                        f'Drone 0 detected at distance {distance:.1f}m, '
+                        f'Enemy drone detected at distance {distance:.1f}m, '
                         f'relative position: F={detection.relative_position.x:.1f}, '
                         f'R={detection.relative_position.y:.1f}, '
                         f'D={detection.relative_position.z:.1f}'
                     )
                     
-                    # Send message to team about drone 0
-                    if distance < 30.0:  # Only alert if close
-                        self.send_message(
-                            f"Alert: Drone 0 detected at {distance:.1f}m distance. "
-                            f"I am at target position."
-                        )
-                    
                     self._drone0_log_time = current_time
-    
-    def handle_complete_state(self):
-        """Handle mission completion behavior."""
-        # Initialize completion steps if needed
-        if not hasattr(self, 'completion_phase'):
-            self.completion_phase = 'initializing'
-            self.completion_start_time = time.time()
-            self.get_logger().info('Mission complete, determining next action')
-        
-        # Handle the different completion phases
-        if self.completion_phase == 'initializing':
-            # Choose next action based on configuration
-            if self.return_to_base:
-                self.get_logger().info('Returning to spawn position')
-                self.completion_phase = 'returning_safe_altitude'
-                self.set_offboard_parameters(offboard_mode='position', coordinate_system='NED')
-            else:
-                self.get_logger().info('Hovering at current position')
-                self.completion_phase = 'hovering'
-                self.set_offboard_parameters(offboard_mode='position', coordinate_system='NED')
-        
-        elif self.completion_phase == 'returning_safe_altitude':
-            # First go to a safe altitude above spawn position
-            if not self.action_in_progress:
-                x, y = self.spawn_position
-                safe_altitude = -10.0  # 10 meters above ground in NED
-                
-                # Check if we're already at safe altitude
-                if self.estimated_position and abs(self.estimated_position['z'] - safe_altitude) < 2.0:
-                    self.get_logger().info('Already at safe altitude, proceeding to final approach')
-                    self.completion_phase = 'final_approach'
-                else:
-                    self.get_logger().info(f'Moving to safe altitude above spawn: x={x:.1f}, y={y:.1f}, z={safe_altitude}')
-                    success = self.navigate_to(x, y, safe_altitude, 0.0)
-                    
-                    if success:
-                        self.action_in_progress = True
-                        self.completion_phase = 'final_approach'
-                    else:
-                        self.get_logger().error('Failed to navigate to safe altitude, switching to hover')
-                        self.completion_phase = 'hovering'
-        
-        elif self.completion_phase == 'final_approach':
-            # Now descend to landing position
-            if not self.action_in_progress:
-                x, y = self.spawn_position
-                # Get ground level at spawn position (or use a safe default like -2.0)
-                ground_altitude = -2.0  # 2 meters above ground
-                
-                self.get_logger().info(f'Final approach to landing site: x={x:.1f}, y={y:.1f}, z={ground_altitude}')
-                success = self.navigate_to(x, y, ground_altitude, 0.0)
-                
-                if success:
-                    self.action_in_progress = True
-                    self.completion_phase = 'landing'
-                else:
-                    self.get_logger().error('Failed to initiate final approach, switching to hover')
-                    self.completion_phase = 'hovering'
-        
-        elif self.completion_phase == 'landing':
-            # If we've reached the spawn position, initiate landing
-            if not self.action_in_progress:
-                self.get_logger().info('Reached spawn position, initiating landing')
-                
-                # Change to local_NED coordinate system for landing
-                self.set_offboard_parameters(offboard_mode='position', coordinate_system='local_NED')
-                
-                time.sleep(0.1)
-                
-                # Send landing command: maintain x,y and land (z=0)
-                success = self.navigate_to(0.0, 0.0, 0.0, 0.0)
-                
-                if success:
-                    self.get_logger().info('Landing command sent')
-                    self.action_in_progress = True
-                    self.completion_phase = 'landed'
-                else:
-                    self.get_logger().error('Failed to initiate landing, switching to hover')
-                    self.completion_phase = 'hovering'
-        
-        elif self.completion_phase == 'landed':
-            # Check if we've reached ground level
-            if not self.action_in_progress:
-                self.get_logger().info('Mission complete and landed successfully')
-                self.completion_phase = 'shutdown'
-        
-        elif self.completion_phase == 'hovering':
-            # Just continue hovering at current position
-            if time.time() - self.completion_start_time > 10.0:
-                if not hasattr(self, '_hover_log_timer') or time.time() - self._hover_log_timer > 30.0:
-                    self.get_logger().info('Continuing to hover at current position')
-                    self._hover_log_timer = time.time()
-        
-        elif self.completion_phase == 'shutdown':
-            # Nothing to do, mission is complete
-            pass
     
     #################################################
     # MOVEMENT AND NAVIGATION METHODS               #
@@ -758,8 +637,6 @@ class DroneController(Node):
                     
                 elif self.state == self.STATE_NAVIGATE:
                     self.change_state(self.STATE_WAIT)
-                    # Send a message indicating drone 5 is in position
-                    self.send_message("Drone 5 in position at x=130, y=260, z=-10. Ready as target.")
             else:
                 self.get_logger().warning('Goal failed')
             
@@ -812,40 +689,17 @@ class DroneController(Node):
     
     def health_callback(self, msg):
         """Handle health updates from game master."""
-        old_health = getattr(self, 'health', 100)
+        old_health = getattr(self, 'health', 1)
         self.health = msg.data
         
-        # Only log significant health changes
-        if self.health < old_health:
-            self.get_logger().warning(f'Health changed: {old_health} -> {self.health}')
-            
-            # If health drops below 50, send a message that we're damaged
-            if self.health < 50 and old_health >= 50:
-                self.send_message(f"Drone 5 damaged! Health at {self.health}%")
-                
-            # If health drops below 30, consider mission complete to avoid destruction
-            if self.health < 30:
-                self.get_logger().warning('Health critically low, completing mission')
-                self.change_state(self.STATE_COMPLETE)
-                
-            # If health drops to 0, we've been destroyed
-            if self.health == 0:
-                self.get_logger().error("Drone 5 has been destroyed!")
+        # Health changed from 1 to 0 = drone destroyed
+        if old_health == 1 and self.health == 0:
+            self.get_logger().error("Drone 5 has been destroyed!")
     
     def message_callback(self, msg):
         """Handle incoming messages from game master."""
         self.latest_message = msg.data
         self.get_logger().info(f'Received message: {msg.data}')
-        
-        # If drone 0 is asking about our position, respond
-        if "drone 5" in msg.data.lower() and ("position" in msg.data.lower() or "where" in msg.data.lower()):
-            if self.estimated_position:
-                response = (
-                    f"Drone 5 reporting position: x={self.estimated_position['x']:.1f}, "
-                    f"y={self.estimated_position['y']:.1f}, z={self.estimated_position['z']:.1f}. "
-                    f"I am at the target location."
-                )
-                self.send_message(response)
 
 
 def main(args=None):

@@ -282,14 +282,14 @@ class DroneController(Node):
         # Message communication
         self.message_publisher = self.create_publisher(
             String,
-            f'{self.namespace}/incoming_messages',
+            f'{self.namespace}/out_going_messages',
             10,
             callback_group=self.action_group
         )
         
         self.message_subscription = self.create_subscription(
             String,
-            f'{self.namespace}/out_going_messages',
+            f'{self.namespace}/incoming_messages',
             self.message_callback,
             10,
             callback_group=self.subscriber_group
@@ -356,7 +356,11 @@ class DroneController(Node):
             # Don't force state changes, just provide warnings
             
         elif self.state == self.STATE_SCAN and time_in_state > 120.0:
-            self.get_logger().warning(f'Been scanning for {time_in_state:.1f}s with no detections')
+            # Only log every 20 seconds to reduce output
+            if not hasattr(self, '_last_scan_warning_time') or current_time - self._last_scan_warning_time >= 20.0:
+                self.get_logger().warning(f'Been scanning for {time_in_state:.1f}s with no detections')
+                self._last_scan_warning_time = current_time
+                
             if not self.latest_detections:
                 self.get_logger().info('No detections after extended scan, proceeding to completion')
                 self.change_state(self.STATE_COMPLETE)
@@ -610,25 +614,43 @@ class DroneController(Node):
             return
             
         # Check if enemy is still at the right position before firing
+        # BUT ONLY if we haven't exhausted our alignment attempts already
+        enemy_in_range = False
         enemy_ready_to_fire = False
+        closest_distance = float('inf')
+        
         for detection in self.latest_detections:
             if not detection.is_friend:
                 rel_f = detection.relative_position.x
                 rel_r = detection.relative_position.y
                 rel_d = detection.relative_position.z
+                distance = math.sqrt(rel_f**2 + rel_r**2 + rel_d**2)
+                
+                if distance < closest_distance:
+                    closest_distance = distance
                 
                 # Check if enemy is at ideal position (20m in front with 2m margin)
-                if (abs(rel_f - 20.0) <= 2.0 and 
-                    abs(rel_r) <= 2.0 and 
-                    abs(rel_d) <= 2.0):
+                if (abs(rel_f - 20.0) <= 2.0 and abs(rel_r) <= 2.0 and abs(rel_d) <= 2.0):
                     enemy_ready_to_fire = True
                     break
+                
+                # Check if enemy is at least in reasonable range (10-40m)
+                if 10.0 <= rel_f <= 40.0 and abs(rel_r) <= 5.0:
+                    enemy_in_range = True
         
-        if not enemy_ready_to_fire:
-            self.get_logger().warning('Enemy no longer at optimal firing position, realigning')
+        # If we're out of alignment attempts, accept any enemy in reasonable range
+        # Otherwise, enforce strict positioning
+        acceptable_target = (self.alignment_attempts >= 5 and enemy_in_range) or enemy_ready_to_fire
+        
+        if not acceptable_target and self.alignment_attempts < 5:
+            self.get_logger().warning(f'Enemy not in optimal firing position, realigning (attempt {self.alignment_attempts+1}/5)')
             self.alignment_complete = False
             self.change_state(self.STATE_ALIGN)
             return
+        
+        if not enemy_in_range and not enemy_ready_to_fire:
+            self.get_logger().warning(f'No targetable enemies in range, but proceeding with attack after {self.alignment_attempts} alignment attempts')
+            # Continue anyway since we've tried enough times
                 
         # Send message with position information
         if not self.message_sent and self.estimated_position:
@@ -662,16 +684,33 @@ class DroneController(Node):
                 
         # Wait 1 second before firing missile
         if self.message_sent and not self.missile_fired:
-            if self.wait_start_time and time.time() - self.wait_start_time >= 1.0:
+            if self.wait_start_time and time.time() - self.wait_start_time >= 1.0:  # Changed from 5.0 to 1.0 as per request
                 # Fire missile at enemy
                 success = self.fire_missile()
                 self.missile_fired = success
                 
-                # Move to COMPLETE state
+                # After firing, check if we need to look for more targets
                 if success:
-                    self.get_logger().info('Missile fired, mission complete')
-                    self.change_state(self.STATE_COMPLETE)
-    
+                    self.get_logger().info('Missile fired successfully')
+                    # Reset flags for potential next target instead of going to COMPLETE state
+                    self.reset_attack_flags()
+                    # Check if we have more ammo and enemies to go after
+                    if self.missile_count > 0:
+                        self.get_logger().info(f'Still have {self.missile_count} missiles, looking for more targets')
+                        self.change_state(self.STATE_SCAN)
+                    else:
+                        self.get_logger().info('Out of missiles, mission complete')
+                        self.change_state(self.STATE_COMPLETE)
+
+    def reset_attack_flags(self):
+        """Reset flags to prepare for another attack sequence."""
+        self.message_sent = False
+        self.missile_fired = False
+        self.alignment_complete = False
+        self.alignment_attempts = 0
+        self.target_enemy = None
+        self.get_logger().info('Attack flags reset, ready to engage next target')
+
     def handle_complete_state(self):
         """Handle mission completion behavior."""
         # Initialize completion steps if needed
@@ -999,7 +1038,7 @@ class DroneController(Node):
         """Process detection information from game master."""
         if not msg.detections:
             return
-            
+        
         self.last_detection_time = time.time()
         self.latest_detections = msg.detections
         
@@ -1014,17 +1053,23 @@ class DroneController(Node):
                     change_text = f" (increased from {self.previous_enemy_count})"
                 else:
                     change_text = f" (decreased from {self.previous_enemy_count})"
-            
+        
             if enemy_count > 0:
-                self.get_logger().info(f'Detected {enemy_count} enemies{change_text}')
+                self.get_logger().info(f'Detected {enemy_count} enemies{change_text}. Waiting for 5 enemy drones before attacking.')
             elif hasattr(self, 'previous_enemy_count') and self.previous_enemy_count > 0:
                 self.get_logger().info('No enemies detected')
-        
+    
         # Store the current count for next comparison
         self.previous_enemy_count = enemy_count
         
-        # In SCAN state, transition to ALIGN state when enemy detected
-        if self.state == self.STATE_SCAN and enemy_count > 0:
+        # In SCAN state, only transition to ALIGN state when at least 5 enemies are detected
+        if self.state == self.STATE_SCAN and enemy_count >= 5:
+            self.get_logger().info(f'Target threshold reached! Detected {enemy_count}/5 enemy drones')
+            
+            # Find the closest enemy to target
+            closest_enemy = None
+            min_distance = float('inf')
+            
             for detection in msg.detections:
                 if not detection.is_friend:
                     # Calculate distance
@@ -1033,15 +1078,24 @@ class DroneController(Node):
                         detection.relative_position.y**2 + 
                         detection.relative_position.z**2
                     )
-                    self.get_logger().info(
-                        f'Enemy detected at ~{distance:.1f}m! '
-                        f'Position: F={detection.relative_position.x:.1f}, '
-                        f'R={detection.relative_position.y:.1f}, '
-                        f'D={detection.relative_position.z:.1f}'
-                    )
-                    self.target_enemy = detection
-                    self.change_state(self.STATE_ALIGN)
-                    break
+                    if distance < min_distance:
+                        min_distance = distance
+                        closest_enemy = detection
+            
+            if closest_enemy:
+                self.get_logger().info(
+                    f'Targeting closest enemy at ~{min_distance:.1f}m! '
+                    f'Position: F={closest_enemy.relative_position.x:.1f}, '
+                    f'R={closest_enemy.relative_position.y:.1f}, '
+                    f'D={closest_enemy.relative_position.z:.1f}'
+                )
+                self.target_enemy = closest_enemy
+                self.change_state(self.STATE_ALIGN)
+        # If in SCAN state but not enough enemies yet, keep logging progress
+        elif self.state == self.STATE_SCAN and enemy_count > 0:
+            if not hasattr(self, '_scan_progress_timer') or time.time() - self._scan_progress_timer > 5.0:
+                self.get_logger().info(f'Waiting for more enemies: {enemy_count}/5 detected')
+                self._scan_progress_timer = time.time()
     
     def health_callback(self, msg):
         """Handle health updates from game master."""

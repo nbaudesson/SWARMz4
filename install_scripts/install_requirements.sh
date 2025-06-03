@@ -18,6 +18,7 @@ check_ros2_repo_configured() {
     sudo apt install ros-humble-gazebo-ros -y
     sudo apt install ros-humble-ros-gz-bridge -y
     sudo apt install ros-humble-ros-gzharmonic -y
+    sudo apt install ros-humble-rqt-bag -y
     else
         echo "Skipping ROS 2 package installation. Will be handled in complete ROS 2 install."
     fi

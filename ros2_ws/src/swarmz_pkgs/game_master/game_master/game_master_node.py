@@ -14,6 +14,9 @@ Features:
 - Automated game results logging
 - Missile firing system
 - Kamikaze/self-destruct functionality
+
+Replay the game using the `ros2 bag play` command with the recorded game state.
+    ros2 bag play ../results/bags/game_state_<timestamp>
 """
 
 import rclpy
@@ -23,11 +26,11 @@ from rclpy.node import Node
 from std_msgs.msg import String, Int32
 from utils.gazebo_subscriber import GazeboPosesTracker
 from swarmz_interfaces.msg import Detections, Detection, GameState, RobotState
-from utils.tools import get_distance, get_relative_position_with_orientation, get_relative_position_with_heading, get_stable_namespaces, is_aligned_HB
+from utils.tools import get_distance, get_relative_position_with_orientation, get_relative_position_with_heading, get_stable_namespaces, is_aligned_HB, is_aligned_HB_cylinder
 from utils.kill_drone import get_model_id, kill_drone_from_game_master
 from swarmz_interfaces.srv import Kamikaze, Missile
 import time
-import threading
+import threading, subprocess
 import os
 from datetime import datetime
 from gz.transport13 import Node as GzNode
@@ -88,13 +91,17 @@ class GameMasterNode(Node):
         self._update_positions_and_distance()
         
         # Setup game timers
-        self.timer = self.create_timer(0.5, self._detections_callback)
-        self.update_positions_timer = self.create_timer(0.1, self._update_positions_and_distance)
+        self.detections_timer = self.create_timer(0.2, self._detections_callback)
+        self.update_positions_timer = self.create_timer((1/50), self._update_positions_and_distance)
         
         # Initialize game timer
         current_time = self.get_clock().now()
         self.start_time = current_time
         self.game_timer = self.create_timer(1.0, self._game_timer_callback)
+
+        # start ros bagging game_state if enabled
+        if self.get_parameter('record_game_state').get_parameter_value().bool_value:
+            self._start_recording()
         
         self.get_logger().info("Game Master Node initialized successfully")
     
@@ -160,6 +167,7 @@ class GameMasterNode(Node):
         self.declare_parameter('drone_health', 1)
         self.declare_parameter('ship_health', 6)
         self.declare_parameter('game_duration', 300)  # 5 minutes
+        self.declare_parameter('record_game_state', True)
         self.declare_parameter('gazebo_world_name', 'game_world_water')
 
         self.drone_detection_range = self.get_parameter('drone_detection_range').get_parameter_value().double_value
@@ -171,6 +179,7 @@ class GameMasterNode(Node):
         self.ship_health = self.get_parameter('ship_health').get_parameter_value().integer_value
         self.game_duration = self.get_parameter('game_duration').get_parameter_value().integer_value
         self.remaining_time = self.game_duration
+        self.recording_process = None
         self.gazebo_world_name = self.get_parameter('gazebo_world_name').get_parameter_value().string_value
 
     def _init_missile_parameters(self):
@@ -259,6 +268,13 @@ class GameMasterNode(Node):
             self._safe_shutdown_unbalanced()
             return False
         
+        # Check if there are at least 12 robots in total
+        total_robots = len(team1_drones) + len(team1_ships) + len(team2_drones) + len(team2_ships)
+        if len(team1_drones) + len(team1_ships) + len(team2_drones) + len(team2_ships) < 12:
+            self.get_logger().error(f"Unbalanced teams: Total robots ({total_robots}) must be at least 12.")
+            self._safe_shutdown_unbalanced()
+            return False
+        
         # Update team sets
         self.team_1 = set(team1_drones + team1_ships)
         self.team_2 = set(team2_drones + team2_ships)
@@ -299,17 +315,6 @@ class GameMasterNode(Node):
         self.get_logger().info(f"Initialized {len(self.robots)} robots")
         return True
 
-    def _safe_shutdown_unbalanced(self):
-        """Safely shut down the node when teams are unbalanced."""
-        self.get_logger().error("Shutting down due to unbalanced teams.")
-        self.get_logger().error("For a fair game, ensure both teams have at least one ship and similar numbers of drones.")
-        
-        # Set the shutdown flag to prevent new thread creation
-        self.is_shutting_down = True
-        
-        # Create a thread to actually shut down ROS after a short delay
-        threading.Thread(target=self._actual_shutdown).start()
-
     def _setup_communications(self):
         """Set up all publishers, subscribers and services."""
         # Publishers for health points, detections, and communications
@@ -321,8 +326,8 @@ class GameMasterNode(Node):
         self.boat_position_publishers = {ns: self.create_publisher(Pose, f'{ns}/localization', 10) for ns in ships}
 
         # Subscribers for communications
-        self.communication_publishers = {ns: self.create_publisher(String, f'{ns}/out_going_messages', 10) for ns in self.robots.keys()}
-        self.communication_subscribers = {ns: self.create_subscription(String, f'{ns}/incoming_messages', 
+        self.communication_publishers = {ns: self.create_publisher(String, f'{ns}/incoming_messages', 10) for ns in self.robots.keys()}
+        self.communication_subscribers = {ns: self.create_subscription(String, f'{ns}/out_going_messages', 
                                           lambda msg, ns=ns: self._communication_callback(msg, ns), 10) 
                                          for ns in self.robots.keys()}
         
@@ -346,6 +351,7 @@ class GameMasterNode(Node):
     def _get_model_ids(self, namespaces, world_name="game_world_water"):
         """
         Get Gazebo model IDs and names for the list of robot namespaces.
+        With retry logic if model ID retrieval fails.
         """
         model_data = {}
         for ns in namespaces:
@@ -360,16 +366,28 @@ class GameMasterNode(Node):
                 else:
                     model_name = f"x500_{instance_number}"
 
-                # Get the model ID using the determined model name
+                # Get the model ID using the determined model name - first attempt
                 model_id = get_model_id(model_name, logger=self.get_logger(), world_name=world_name)
+                
+                # If first attempt failed, wait 1 second and try again
+                if model_id is None:
+                    self.get_logger().warn(f"First attempt to get model ID for {model_name} failed. Waiting 1 second before retry...")
+                    time.sleep(1.0)  # Wait for 1 second
+                    model_id = get_model_id(model_name, logger=self.get_logger(), world_name=world_name)
+                    
+                    if model_id is None:
+                        self.get_logger().error(f"Second attempt also failed. Could not find model ID for {ns} (model name: {model_name})")
+                    else:
+                        self.get_logger().info(f"Retry successful! Found model ID {model_id} for {ns} (model name: {model_name})")
+                
+                # Store the model ID if found
                 if model_id:
                     model_data[ns] = {
                         'id': model_id,
                         'model_name': model_name
                     }
                     self.get_logger().info(f"Found model ID {model_id} for {ns} (model name: {model_name})")
-                else:
-                    self.get_logger().error(f"Could not find model ID for {ns} (model name: {model_name})")
+                
         return model_data
 
     ####################################
@@ -436,7 +454,7 @@ class GameMasterNode(Node):
         try:
             if ns not in self.robots or self.robots[ns]["health"] <= 0:
                 return 0
-                
+                    
             pose = self.gz.get_pose(ns)
             
             # Check if pose has valid values
@@ -454,16 +472,32 @@ class GameMasterNode(Node):
                 self.robots[ns]["orientation"]["z"] = pose['orientation']['z']
                 self.robots[ns]["orientation"]["w"] = pose['orientation']['w']
 
-            # Check if a ship and publish its pose
+            # Check if a ship and publish its pose with coordinate frame transformation
             if self.robots[ns]["type"] == "ship":
                 boat_pose = Pose()
-                boat_pose.position.x = pose['position']['x']
-                boat_pose.position.y = pose['position']['y']
+                
+                # Swap X and Y to match PX4 coordinate system
+                # Gazebo: X is East, Y is North
+                # PX4: X is North, Y is East
+                boat_pose.position.x = pose['position']['y']  # Y in Gazebo becomes X (North) in PX4
+                boat_pose.position.y = pose['position']['x']  # X in Gazebo becomes Y (East) in PX4
                 boat_pose.position.z = pose['position']['z']
-                boat_pose.orientation.x = pose['orientation']['x']
-                boat_pose.orientation.y = pose['orientation']['y']
-                boat_pose.orientation.z = pose['orientation']['z']
-                boat_pose.orientation.w = pose['orientation']['w']
+                
+                # Apply 90-degree rotation around Z-axis to align orientation
+                # This transforms the quaternion from Gazebo's frame to PX4's frame
+                # Original quaternion
+                qx = pose['orientation']['x']
+                qy = pose['orientation']['y']
+                qz = pose['orientation']['z']
+                qw = pose['orientation']['w']
+                
+                # 90-degree rotation around Z-axis (converts from ENU to NED-like frame)
+                # Apply quaternion multiplication: q_result = q_rotation * q_original
+                # where q_rotation is [0, 0, sin(π/4), cos(π/4)] = [0, 0, 0.7071, 0.7071]
+                boat_pose.orientation.x = qy  # Simple 90-degree Z rotation transformation
+                boat_pose.orientation.y = -qx
+                boat_pose.orientation.z = qz
+                boat_pose.orientation.w = qw
                 
                 if ns in self.boat_position_publishers:
                     self.boat_position_publishers[ns].publish(boat_pose)
@@ -514,14 +548,22 @@ class GameMasterNode(Node):
         """
         Publish a GameState message containing the state of all robots.
         """
+        if not hasattr(self, 'start_time'):
+            return  # Ensure start_time is set before publishing
         try:
             game_state = GameState()
-            game_state.remaining_time = float(self.remaining_time)
+            
+            # Calculate remaining time at higher frequency (50Hz)
+            current_time = self.get_clock().now()
+            elapsed_duration = current_time - self.start_time
+            elapsed_seconds = elapsed_duration.nanoseconds / 1e9
+            remaining_time = max(0.0, float(self.game_duration - elapsed_seconds))
+            game_state.remaining_time = remaining_time
             
             # Add simulation time (from ROS clock)
             game_state.sim_time = self.get_clock().now().to_msg()
             
-            # Get current wall time and convert to ROS Time message
+            # Add real time
             current_time = time.time_ns()
             seconds = current_time // 1_000_000_000
             nanoseconds = current_time % 1_000_000_000
@@ -862,13 +904,21 @@ class GameMasterNode(Node):
         if kamikaze_ns not in self.robots:
             self.get_logger().warn(f'{kamikaze_ns} not found. Cannot detonate.')
             return response
-            
+
         robot = self.robots[kamikaze_ns]
-        
-        # Don't check health here - we want kamikazes to work during destruction process
-        
-        if robot["type"] == "ship":
+
+        # Remove the drone from simulation first
+        model_id = robot["model_id"]
+        model_name = robot["model_name"]
+        if model_id is not None and model_name is not None:
+            self._kill_drone(kamikaze_ns, model_id, model_name)
+
+        # Only allow if drone and health > 0
+        if robot["type"] != "drone":
             self.get_logger().warn(f"Kamikaze service is not available for flagships: {kamikaze_ns}")
+            return response
+        if robot["health"] <= 0:
+            self.get_logger().warn(f"Kamikaze service denied: {kamikaze_ns} is already destroyed (health <= 0)")
             return response
 
         # Check valid position
@@ -899,12 +949,6 @@ class GameMasterNode(Node):
         if nearby_targets:
             formatted_targets = [(ns, self._format_float(dist)) for ns, dist in nearby_targets]
             self.get_logger().info(f'Robots within explosion range: {formatted_targets}')
-        
-        # Remove the drone from simulation first
-        model_id = robot["model_id"]
-        model_name = robot["model_name"]
-        if model_id is not None and model_name is not None:
-            self._kill_drone(kamikaze_ns, model_id, model_name)
         
         # Apply explosion damage to nearby robots
         for target_ns, distance in nearby_targets:
@@ -940,8 +984,9 @@ class GameMasterNode(Node):
             else:
                 target_padding = (self.ship_padding_x, self.ship_padding_y, self.ship_padding_z)
 
-            # Check alignment using is_aligned_HB
-            aligned_result = is_aligned_HB(
+            # Check alignment using is_aligned_HB or is_aligned_HB_cylinder
+            # aligned_result = is_aligned_HB(
+            aligned_result = is_aligned_HB_cylinder(
                 self,
                 shooter_position,
                 shooter_orientation,
@@ -987,34 +1032,34 @@ class GameMasterNode(Node):
             if health is None:
                 return
                 
-            # Update health in the robot dictionary
-            old_health = current_health
-            self.robots[ns]["health"] = health
-            
-            # Publish health to topics (inside the lock to prevent race conditions)
-            health_msg = Int32()
-            health_msg.data = health
-            if ns in self.health_publishers:
-                self.health_publishers[ns].publish(health_msg)
-        
-        # Log outside of the lock
-        self.get_logger().info(f"Updated health for {ns}: {health}")
-        
         # Handle robot destruction if health reaches 0
-        if health <= 0 and old_health > 0:
+        if health <= 0 and current_health > 0:
             if self.robots[ns]["type"] == "drone":
                 self._handle_drone_destruction(ns)
             else:
                 self._handle_ship_destruction(ns)
+            # wait to ensure the destruction is processed before updating health
+            time.sleep(0.1)
+        
+        with self.robot_lock:
+            self.robots[ns]["health"] = health
+            
+        # Publish health to topics (inside the lock to prevent race conditions)
+        health_msg = Int32()
+        health_msg.data = health
+        if ns in self.health_publishers:
+            self.health_publishers[ns].publish(health_msg)
+    
+        # Log outside of the lock
+        self.get_logger().info(f"Updated health for {ns}: {health}")
+        
+
                     
         return health
 
-    def _handle_drone_destruction(self, ns, from_kamikaze=False):
+    def _handle_drone_destruction(self, ns):
         """Handle a drone being destroyed"""
         self.get_logger().info(f'### DESTROYED: {ns} is eliminated ###')
-        
-        # We don't need the from_kamikaze check anymore since we only trigger kamikaze directly
-        # from damage (not recursively from other kamikazes)
         
         # Create a request for the kamikaze service
         request = Kamikaze.Request()
@@ -1056,14 +1101,11 @@ class GameMasterNode(Node):
             self.get_logger().warn(f"No model data for {namespace}, cannot kill drone")
             return
         
-        # Extract the base name pattern (remove instance number)
-        base_name_parts = model_name.rsplit('_', 1)[0]
-        
         # Call the kill_drone_from_game_master function with non-blocking mode
         success = kill_drone_from_game_master(
             namespace=namespace,
-            drone_model_base_name=base_name_parts,
-            drone_models={namespace: model_id},
+            model_name=model_name,
+            model_id=model_id,
             logger=self.get_logger(),
             world_name=self.gazebo_world_name,
             gz_node=self.gz_node,
@@ -1125,6 +1167,9 @@ class GameMasterNode(Node):
         Handle game termination and results logging.
         """
         self.get_logger().info('Game Over')
+
+        # Stop ros bagging game_state
+        self._stop_recording()
         
         # Calculate team status
         team1_ships = [ns for ns in self.team_1 if "/flag_ship_" in ns and self.robots[ns]["health"] > 0]
@@ -1243,6 +1288,56 @@ class GameMasterNode(Node):
         with open(individual_result_file, 'w') as file:
             file.write(result)
 
+    def _start_recording(self):
+        """Start recording the game state topic"""
+        try:
+            # Create a timestamp for the bag file name
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            # Define the output directory in the SWARMz4 folder
+            home_dir = os.path.expanduser("~")
+            bag_dir = os.path.join(home_dir, "SWARMz4", "results", "bags")
+            os.makedirs(bag_dir, exist_ok=True)
+            
+            # Define bag path
+            bag_path = os.path.join(bag_dir, f"game_state_{timestamp}")
+            
+            # Start the recording process
+            self.get_logger().info(f"Starting ROS bag recording to {bag_path}")
+            self.recording_process = subprocess.Popen(
+                ["ros2", "bag", "record", "/game_master/game_state", "-o", bag_path],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+        except Exception as e:
+            self.get_logger().error(f"Failed to start recording: {e}")
+
+    def _stop_recording(self):
+        """Stop the ROS bag recording"""
+        if self.recording_process is not None:
+            self.get_logger().info("Stopping ROS bag recording")
+            try:
+                # Terminate the recording process
+                self.recording_process.terminate()
+                self.recording_process.wait(timeout=5)
+                self.get_logger().info("ROS bag recording stopped successfully")
+            except Exception as e:
+                self.get_logger().error(f"Error stopping recording: {e}")
+                # Force kill if terminate doesn't work
+                try:
+                    self.recording_process.kill()
+                except:
+                    pass
+            self.recording_process = None
+    
+    def __del__(self):
+        """Ensure recording is stopped when the node is destroyed"""
+        try:
+            if hasattr(self, 'recording_process') and self.recording_process is not None:
+                self._stop_recording()
+        except:
+            # During shutdown, logging might not work anymore
+            pass
+
     def _delayed_shutdown(self):
         """Perform delayed shutdown after game ends"""
         self.get_logger().info("Shutting down...")
@@ -1257,7 +1352,7 @@ class GameMasterNode(Node):
         
         # Cancel all timers
         try:
-            self.timer.cancel()
+            self.detections_timer.cancel()
             self.update_positions_timer.cancel()
             self.game_timer.cancel()
             self.health_timer.cancel()
@@ -1268,12 +1363,23 @@ class GameMasterNode(Node):
         # Create a thread to actually shut down ROS after a short delay
         threading.Thread(target=self._actual_shutdown).start()
 
+    def _safe_shutdown_unbalanced(self):
+        """Safely shut down the node when teams are unbalanced."""
+        self.get_logger().error("Shutting down due to unbalanced teams.")
+        self.get_logger().error("For a fair game, ensure both teams have at least one ship and similar numbers of drones.")
+        
+        # Set the shutdown flag to prevent new thread creation
+        self.is_shutting_down = True
+        
+        # Create a thread to actually shut down ROS after a short delay
+        threading.Thread(target=self._actual_shutdown).start()
+
     def _actual_shutdown(self):
         """Actually shut down ROS after a small delay"""
         time.sleep(0.5)  # Small delay to allow final messages to be logged
         self.get_logger().info("Terminating ROS...")
         rclpy.shutdown()
-        
+
 def main(args=None):
     rclpy.init(args=args)
     game_master_node = GameMasterNode()
@@ -1281,6 +1387,17 @@ def main(args=None):
     # Use atexit to ensure proper cleanup
     import atexit
     atexit.register(lambda: rclpy.shutdown() if rclpy.ok() else None)
+
+    def signal_handler(sig, frame):
+        """Handle Ctrl+C and other termination signals"""
+        if game_master_node.recording_process is not None:
+            game_master_node.get_logger().info("Stopping recording before shutdown...")
+            game_master_node._stop_recording()
+        rclpy.shutdown()
+
+    import signal
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
     
     executor = rclpy.executors.MultiThreadedExecutor()
     try:

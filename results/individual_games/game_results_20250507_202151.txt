@@ -1,9 +1,0 @@
-Game Over
-The game is a draw! (Equal flagship health and surviving drones)
-Team 1 flagship health: 6/6
-Team 1 surviving drones: /px4_0, /px4_1, /px4_2, /px4_3, /px4_4
-Team 1 destroyed drones: None
-Team 2 flagship health: 6/6
-Team 2 surviving drones: /px4_5, /px4_6, /px4_7, /px4_8, /px4_9
-Team 2 destroyed drones: None
-Winner: draw

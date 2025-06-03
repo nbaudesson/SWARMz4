@@ -276,14 +276,14 @@ class DroneController(Node):
         # Message communication
         self.message_publisher = self.create_publisher(
             String,
-            f'{self.namespace}/incoming_messages',
+            f'{self.namespace}/out_going_messages',
             10,
             callback_group=self.action_group
         )
         
         self.message_subscription = self.create_subscription(
             String,
-            f'{self.namespace}/out_going_messages',
+            f'{self.namespace}/incoming_messages',
             self.message_callback,
             10,
             callback_group=self.subscriber_group

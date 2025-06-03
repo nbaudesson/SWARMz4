@@ -5,7 +5,7 @@ Drone 9 Controller
 This module implements a controller for drone 9 that:
 1. Takes off to 10m altitude
 2. Navigates to position x=116.22, y=269.39, z=-10
-3. Stays at that position
+3. Stays at that position as a target for drone 0
 
 Usage:
     ros2 run offboard_control_py offboard_control_client_9 --ros-args -r __ns:=/px4_9
@@ -38,14 +38,16 @@ from ament_index_python.packages import get_package_share_directory
 
 class DroneController(Node):
     """
-    Simple controller for drone 9 that positions it at a specific location and stays there.
+    Controller for drone 9 that implements a simple target-waiting behavior.
+    Uses improved state management and position tracking from offboard_control_client_0.
     """
     
-    # State machine states - simplified to just 3 states
+    # State machine states
     STATE_INIT = 0
     STATE_TAKEOFF = 1
     STATE_NAVIGATE = 2
-    STATE_WAIT = 3  # Just wait at position forever
+    STATE_WAIT = 3
+    STATE_COMPLETE = 4
     
     def __init__(self):
         """Initialize the drone controller with all necessary connections."""
@@ -86,8 +88,13 @@ class DroneController(Node):
         # Mission-specific variables
         self.state = self.STATE_INIT
         self.state_changed_time = time.time()
-        self.target_position = (116.22, 269.39, -10.0, 0.0)  # Target position (x, y, z, yaw)
-        self.position_refresh_interval = 60.0  # Refresh position command every minute
+        self.target_position = (116.22, 269.39, -10.0, 0.0)  # x, y, z, yaw
+        self.return_to_base = False  # Hardcoded to False - never return to base
+        self.wait_time_start = None
+        self.wait_duration = 300.0  # 5 minutes wait time
+        self.wait_notification_interval = 60.0  # Notify every minute
+        self.last_wait_notification = 0.0
+        self.position_refresh_interval = 30.0  # Refresh position command every 30 seconds
         self.last_position_refresh = 0.0
         
         # ====== OFFBOARD CONTROL ======
@@ -270,14 +277,14 @@ class DroneController(Node):
         # Message communication
         self.message_publisher = self.create_publisher(
             String,
-            f'{self.namespace}/incoming_messages',
+            f'{self.namespace}/out_going_messages',
             10,
             callback_group=self.action_group
         )
         
         self.message_subscription = self.create_subscription(
             String,
-            f'{self.namespace}/out_going_messages',
+            f'{self.namespace}/incoming_messages',
             self.message_callback,
             10,
             callback_group=self.subscriber_group
@@ -301,11 +308,31 @@ class DroneController(Node):
     # BEHAVIOR IMPLEMENTATION                       #
     #################################################
     
+    def check_state_timeout(self):
+        """Check if we've been in the current state too long and take recovery action."""
+        current_time = time.time()
+        time_in_state = current_time - self.state_changed_time
+        
+        if self.state == self.STATE_INIT and time_in_state > 30.0:
+            self.get_logger().warning(f'Initialization taking longer than expected ({time_in_state:.1f}s)')
+            self.state_changed_time = current_time  # Reset timer to avoid spam
+        
+        elif self.state == self.STATE_TAKEOFF and time_in_state > 30.0:
+            self.get_logger().warning(f'Takeoff taking longer than expected ({time_in_state:.1f}s), ' 
+                                    f'waiting for offboard_control_px4 response...')
+            self.state_changed_time = current_time
+            
+        elif self.state == self.STATE_NAVIGATE and time_in_state > 60.0:
+            self.get_logger().warning(f'Navigation taking longer than expected ({time_in_state:.1f}s), '
+                                    f'waiting for completion...')
+            self.state_changed_time = current_time
+    
     def behavior_callback(self):
         """Main behavior control loop, defining the drone's state machine."""
         
-        # Check for state timeouts
-        self.check_state_timeout()
+        # Check for state timeouts (except for WAIT state)
+        if self.state != self.STATE_WAIT:
+            self.check_state_timeout()
         
         # State machine
         if self.state == self.STATE_INIT:
@@ -320,27 +347,6 @@ class DroneController(Node):
         elif self.state == self.STATE_WAIT:
             self.handle_wait_state()
     
-    def check_state_timeout(self):
-        """Check if we've been in the current state too long and take recovery action."""
-        current_time = time.time()
-        time_in_state = current_time - self.state_changed_time
-        
-        if self.state == self.STATE_INIT and time_in_state > 30.0:
-            self.get_logger().warning(f'Initialization taking longer than expected ({time_in_state:.1f}s)')
-            self.state_changed_time = current_time  # Reset timer to avoid spam
-        
-        elif self.state == self.STATE_TAKEOFF and time_in_state > 30.0:
-            self.get_logger().warning(f'Takeoff taking longer than expected ({time_in_state:.1f}s), ' 
-                                     f'waiting for offboard_control_px4 response...')
-            # Reset the timer so we don't spam warnings
-            self.state_changed_time = current_time
-            
-        elif self.state == self.STATE_NAVIGATE and time_in_state > 60.0:
-            self.get_logger().warning(f'Navigation taking longer than expected ({time_in_state:.1f}s), '
-                                     f'waiting for completion...')
-            # Reset timer to avoid spam
-            self.state_changed_time = current_time
-    
     def change_state(self, new_state):
         """Change to a new state with logging and timing."""
         old_state = self.state
@@ -352,7 +358,8 @@ class DroneController(Node):
             self.STATE_INIT: "INIT",
             self.STATE_TAKEOFF: "TAKEOFF",
             self.STATE_NAVIGATE: "NAVIGATE",
-            self.STATE_WAIT: "WAIT"
+            self.STATE_WAIT: "WAIT",
+            self.STATE_COMPLETE: "COMPLETE"
         }
         
         self.get_logger().info(f'State transition: {state_names[old_state]} -> {state_names[new_state]}')
@@ -371,16 +378,16 @@ class DroneController(Node):
     def handle_takeoff_state(self):
         """Handle the TAKEOFF state behavior."""
         if not self.action_in_progress:
-            height = 10.0  # 10m takeoff altitude
+            height = 10.0
             
             if self.estimated_position:
                 self.set_offboard_parameters(offboard_mode='position', coordinate_system='local_NED')
                 
                 success = self.navigate_to(
-                    0.0,    # Stay at current x position
-                    0.0,    # Stay at current y position
+                    self.estimated_position['x'],
+                    self.estimated_position['y'],
                     -height,  # Negative is up in NED
-                    0.0     # Keep current heading
+                    0.0
                 )
                 
                 if success:
@@ -392,7 +399,7 @@ class DroneController(Node):
                     self._takeoff_wait_log_timer = time.time()
     
     def handle_navigate_state(self):
-        """Handle the NAVIGATE state behavior."""
+        """Handle the NAVIGATE state behavior - go to target position."""
         if not self.action_in_progress:
             self.set_offboard_parameters(offboard_mode='position', coordinate_system='NED')
             
@@ -408,28 +415,32 @@ class DroneController(Node):
                 self.get_logger().error('Failed to send navigation command')
     
     def handle_wait_state(self):
-        """Handle the WAIT state behavior - just stay at the target position indefinitely."""
+        """
+        Handle the WAIT state behavior - maintain position at the target
+        and wait to be detected by drone 0.
+        """
         current_time = time.time()
         
-        # Periodically report that we're waiting at position
-        if not hasattr(self, '_wait_log_timer') or current_time - self._wait_log_timer > 30.0:
-            time_in_state = current_time - self.state_changed_time
-            self.get_logger().info(f'Waiting at position: x={self.target_position[0]}, y={self.target_position[1]}, z={self.target_position[2]} for {time_in_state:.1f}s')
-            self._wait_log_timer = current_time
+        # Initialize wait time if not already set
+        if self.wait_time_start is None:
+            self.wait_time_start = current_time
             
-            # Send a status message
-            self.send_message(f"Drone {self.drone_id} maintaining position at x={self.target_position[0]}, "
-                             f"y={self.target_position[1]}, z={self.target_position[2]}.")
+        # Periodically report wait status
+        time_waiting = current_time - self.wait_time_start
+        if current_time - self.last_wait_notification > self.wait_notification_interval:
+            self.get_logger().info(f'Waiting at target position for {time_waiting:.1f}s')
+            
+            self.last_wait_notification = current_time
         
         # Periodically refresh position command to ensure we stay in place
-        if not self.action_in_progress and current_time - self.last_position_refresh > self.position_refresh_interval:
+        if current_time - self.last_position_refresh > self.position_refresh_interval and not self.action_in_progress:
             x, y, z, yaw = self.target_position
             self.get_logger().info('Refreshing position to maintain target coordinates')
             success = self.navigate_to(x, y, z, yaw)
             if success:
                 self.last_position_refresh = current_time
-        
-        # Check for enemy drones and report
+                
+        # Check for enemy drone (particularly drone 0) and report
         self.check_for_enemies()
     
     def check_for_enemies(self):
@@ -439,41 +450,25 @@ class DroneController(Node):
         if not self.latest_detections or current_time - self.last_detection_time > 10.0:
             return
             
-        # Count enemies
-        enemy_count = sum(1 for d in self.latest_detections if not d.is_friend)
-        
-        # Only log if we have enemies and haven't recently
-        if enemy_count > 0 and (not hasattr(self, '_enemy_log_time') or current_time - self._enemy_log_time > 30.0):
-            # Find closest enemy
-            closest_enemy = None
-            min_distance = float('inf')
-            
-            for detection in self.latest_detections:
-                if not detection.is_friend:
+        # Look for enemy drones
+        for detection in self.latest_detections:
+            if not detection.is_friend and detection.vehicle_type == Detection.DRONE:
+                # Only log if we haven't recently
+                if not hasattr(self, '_drone0_log_time') or current_time - self._drone0_log_time > 10.0:
                     distance = math.sqrt(
                         detection.relative_position.x**2 + 
                         detection.relative_position.y**2 + 
                         detection.relative_position.z**2
                     )
-                    if distance < min_distance:
-                        min_distance = distance
-                        closest_enemy = detection
-            
-            if closest_enemy:
-                self.get_logger().info(
-                    f'Detected enemy drone at distance {min_distance:.1f}m, '
-                    f'relative position: F={closest_enemy.relative_position.x:.1f}, '
-                    f'R={closest_enemy.relative_position.y:.1f}, '
-                    f'D={closest_enemy.relative_position.z:.1f}'
-                )
-                
-                # Send message about enemy if they're close
-                if min_distance < 50.0:
-                    self.send_message(
-                        f"Drone {self.drone_id} reporting: Enemy drone detected at {min_distance:.1f}m distance."
+                    
+                    self.get_logger().info(
+                        f'Enemy drone detected at distance {distance:.1f}m, '
+                        f'relative position: F={detection.relative_position.x:.1f}, '
+                        f'R={detection.relative_position.y:.1f}, '
+                        f'D={detection.relative_position.z:.1f}'
                     )
-            
-            self._enemy_log_time = current_time
+                    
+                    self._drone0_log_time = current_time
     
     #################################################
     # MOVEMENT AND NAVIGATION METHODS               #
@@ -543,6 +538,21 @@ class DroneController(Node):
             self._pending_hover_time = hover_time
             
         return True
+    
+    def return_to_spawn(self, altitude=-5.0, yaw=0.0):
+        """
+        Navigate back to the drone's spawn position.
+        
+        Args:
+            altitude: Z coordinate for return height (negative is up)
+            yaw: Yaw angle in degrees
+            
+        Returns:
+            bool: True if command was sent successfully
+        """
+        x, y = self.spawn_position
+        self.get_logger().info(f'Returning to spawn position: x={x}, y={y}, z={altitude}, yaw={yaw}')
+        return self.navigate_to(x, y, altitude, yaw)
     
     def send_message(self, message):
         """Send a message to other team members."""
@@ -627,9 +637,6 @@ class DroneController(Node):
                     
                 elif self.state == self.STATE_NAVIGATE:
                     self.change_state(self.STATE_WAIT)
-                    # Send a message indicating drone 9 is in position
-                    self.send_message(f"Drone {self.drone_id} in position at x={self.target_position[0]}, "
-                                     f"y={self.target_position[1]}, z={self.target_position[2]}.")
             else:
                 self.get_logger().warning('Goal failed')
             
@@ -670,7 +677,7 @@ class DroneController(Node):
         friend_count = sum(1 for d in msg.detections if d.is_friend)
         enemy_count = len(msg.detections) - friend_count
         
-        # Only log occasionally or when count changes
+        # Log detection summary with changes
         if not hasattr(self, 'previous_detection_counts'):
             self.previous_detection_counts = {'friend': 0, 'enemy': 0}
             
@@ -682,32 +689,17 @@ class DroneController(Node):
     
     def health_callback(self, msg):
         """Handle health updates from game master."""
-        old_health = self.health
+        old_health = getattr(self, 'health', 1)
         self.health = msg.data
         
-        # Only log if health changed 
-        if old_health != self.health:
-            self.get_logger().info(f'Health changed: {old_health} -> {self.health}')
-            
-            # If health drops to 0, send a message (drone destroyed)
-            if self.health == 0:
-                self.get_logger().error(f"Drone {self.drone_id} has been destroyed!")
-                self.send_message(f"Drone {self.drone_id} damaged! Health at {self.health}%")
+        # Health changed from 1 to 0 = drone destroyed
+        if old_health == 1 and self.health == 0:
+            self.get_logger().error("Drone 9 has been destroyed!")
     
     def message_callback(self, msg):
         """Handle incoming messages from game master."""
         self.latest_message = msg.data
         self.get_logger().info(f'Received message: {msg.data}')
-        
-        # If someone asks about our position, respond
-        if f"drone {self.drone_id}" in msg.data.lower() and ("position" in msg.data.lower() or "where" in msg.data.lower()):
-            if self.estimated_position:
-                response = (
-                    f"Drone {self.drone_id} reporting position: x={self.estimated_position['x']:.1f}, "
-                    f"y={self.estimated_position['y']:.1f}, z={self.estimated_position['z']:.1f}. "
-                    f"I am at the designated position."
-                )
-                self.send_message(response)
 
 
 def main(args=None):

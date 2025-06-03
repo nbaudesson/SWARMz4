@@ -2,7 +2,7 @@ PX4-Autopilot
 Micro-XRCE-DDS-Agent
 stand_alone_gazebo/QGroundControl.AppImage
 QGroundControl.AppImage
-game_results
+results
 ros2_ws/install/
 ros2_ws/build/
 ros2_ws/log/

@@ -6,7 +6,7 @@ This module implements a controller for drone 2 that:
 1. Takes off to 3m altitude
 2. Detects the friendly ship
 3. Positions itself 2m above the ship and follows it
-4. After 15 seconds, executes kamikaze
+4. After 5 seconds, executes kamikaze
 
 Usage:
     ros2 run offboard_control_py offboard_control_client_2 --ros-args -r __ns:=/px4_2
@@ -274,14 +274,14 @@ class DroneController(Node):
         # Message communication
         self.message_publisher = self.create_publisher(
             String,
-            f'{self.namespace}/incoming_messages',
+            f'{self.namespace}/out_going_messages',
             10,
             callback_group=self.action_group
         )
         
         self.message_subscription = self.create_subscription(
             String,
-            f'{self.namespace}/out_going_messages',
+            f'{self.namespace}/incoming_messages',
             self.message_callback,
             10,
             callback_group=self.subscriber_group
@@ -349,7 +349,7 @@ class DroneController(Node):
         
         elif self.state == self.STATE_FOLLOW_SHIP and time_in_state > 30.0:
             # If we've been following for too long without executing kamikaze, check if detection is lost
-            if self.follow_start_time and current_time - self.follow_start_time >= 15.0:
+            if self.follow_start_time and current_time - self.follow_start_time >= 5.0:
                 if not self.friendly_ship_detection or current_time - self.last_detection_time > 5.0:
                     self.get_logger().warning('Ship detection lost after follow period, attempting kamikaze anyway')
                     self.change_state(self.STATE_KAMIKAZE)
@@ -434,10 +434,10 @@ class DroneController(Node):
                 self._lost_ship_log_timer = time.time()
             return
                 
-        # Check if we've been following for 15 seconds and should execute kamikaze
+        # Check if we've been following for 5 seconds and should execute kamikaze
         current_time = time.time()
-        if self.follow_start_time and current_time - self.follow_start_time >= 15.0:
-            self.get_logger().info('15 seconds elapsed following ship, transitioning to KAMIKAZE state')
+        if self.follow_start_time and current_time - self.follow_start_time >= 5.0:
+            self.get_logger().info('5 seconds elapsed following ship, transitioning to KAMIKAZE state')
             self.change_state(self.STATE_KAMIKAZE)
             return
             
