@@ -3,6 +3,7 @@ sudo apt update
 sudo apt-get install build-essential -y
 sudo apt-get install cmake -y
 sudo apt-get install git -y
+sudo apt-get install gnupg -y
 # QGC
 sudo apt install gstreamer1.0-plugins-bad gstreamer1.0-libav gstreamer1.0-gl -y
 sudo apt install libfuse2 -y

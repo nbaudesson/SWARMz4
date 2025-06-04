@@ -44,333 +44,300 @@ colcon build --packages-select offboard_control_py px4_controllers_interfaces
 source install/setup.bash
 ```
 
-## Controller Types
+## System Architecture
 
-**PX4 Unified Controller** (`offboard_control_px4`):
-   - Supports multiple coordinate systems
-   - Configure with `coordinate_system` parameter
-   - Available coordinate systems:
-     - `NED`: Global position control (North-East-Down)
-     - `FRD`: Relative position control (Forward-Right-Down)
-     - `FLU`: Relative position control (Forward-Left-Up)
-   - Position and velocity control modes
+### Launching the System
 
-**Mission Control** (`offboard_control_client`):
-   - Call several controllers through ROS2 action clients
-   - Multi-drone mission execution
-   - YAML mission configuration
-   - Progress monitoring
+The system consists of multiple components that need to be launched:
 
-## Coordinate Systems
+1. **PX4 Offboard Controllers** - One per drone:
+   ```bash
+   ros2 launch offboard_control_py offboard_team.launch.py team_id:=1 coordinate_system:=NED
+   ```
 
-1. **NED Frame**:
+2. **Drone Behavior Controllers** - For customized behaviors:
+   ```bash
+   ros2 launch offboard_control_py offboard_clients.launch.py team_id:=1
+   ```
+
+3. **Single Drone Launch** - For testing:
+   ```bash
+   ros2 run offboard_control_py offboard_control_px4 --ros-args -r __ns:=/px4_1 -p coordinate_system:=NED
+   ```
+
+### Controller Types
+
+1. **PX4 Unified Controller** (`offboard_control_px4`):
+   - Low-level drone control
+   - Supports multiple coordinate systems and control modes
+   - Implements automatic takeoff, landing, and position holding
+
+2. **Mission Controller** (`offboard_control_client`):
+   - High-level behavior implementation
+   - Uses a template structure for customizing drone behaviors
+   - Communicates with `offboard_control_px4` via Action Client
+
+## Control Interfaces
+
+There are three main ways to control the drones:
+
+### 1. Action Server Interface (Recommended)
+
+The Action Server provides feedback and status tracking:
+
+```bash
+# Send goal with feedback
+ros2 action send_goal /px4_1/goto_position px4_controllers_interfaces/action/GotoPosition \
+    "{target: {position: {x: 5.0, y: 0.0, z: -2.0}, yaw: 0.0}}" --feedback
+
+# Send goal and wait for result
+ros2 action send_goal -w /px4_1/goto_position px4_controllers_interfaces/action/GotoPosition \
+    "{target: {position: {x: 5.0, y: 0.0, z: -2.0}, yaw: 0.0}}"
+
+# Cancel goal
+ros2 action cancel /px4_1/goto_position
+```
+
+### 2. Topic Interface
+
+Direct topic publishing for simpler control:
+
+```bash
+# Position command
+ros2 topic pub /px4_1/target_pose px4_controllers_interfaces/msg/PointYaw \
+    "{position: {x: 5.0, y: 0.0, z: -2.0}, yaw: 0.0}"
+
+# Velocity command (when in velocity mode)
+ros2 topic pub /px4_1/target_pose px4_controllers_interfaces/msg/PointYaw \
+    "{position: {x: 1.0, y: 0.0, z: 0.0}, yaw: 0.0}"
+```
+
+### 3. Programmatic Control
+
+Using the provided template:
+
+```python
+# Example: Navigate to a position
+def navigate_to_position(self):
+    self.set_offboard_parameters(offboard_mode='position', coordinate_system='NED')
+    success = self.navigate_to(5.0, 0.0, -2.0, 0.0)
+    if success:
+        self.get_logger().info('Navigation command sent')
+
+# Example: Send velocity commands
+def move_forward(self):
+    self.set_offboard_parameters(offboard_mode='velocity', coordinate_system='FLU')
+    self.send_velocity(1.0, 0.0, 0.0, 0.0)  # Forward at 1 m/s
+```
+
+The `offboard_control_client_template.py` provides a comprehensive framework with:
+- State machine for managing drone behavior
+- Movement and navigation methods
+- Combat functions
+- Team communication
+- Position tracking and utility functions
+
+## Configuration Parameters
+
+### Key Parameters for `offboard_control_px4`
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `coordinate_system` | `'NED'` | Coordinate frame for commands |
+| `offboard_mode` | `'position'` | Control mode (position/velocity) |
+| `takeoff_height` | `5.0` | Height for takeoff in meters |
+| `hover_timeout` | `10.0` | Time to hover before auto-landing |
+| `position_threshold` | `0.15` | Distance threshold for position reached |
+| `command_velocity_timeout` | `2.0` | Timeout for velocity commands |
+
+### Coordinate Systems Explained
+
+1. **NED Frame** (North-East-Down):
+   - Global navigation frame
    - X: North (positive)
    - Y: East (positive)
-   - Z: Down (positive)
+   - Z: Down (positive, negative is up)
    - Yaw: 0° = North, 90° = East
 
-2. **FRD Frame**:
-   - X: Forward (drone's heading)
-   - Y: Right (relative to heading)
-   - Z: Down (positive)
+2. **FRD Frame** (Forward-Right-Down):
+   - Body-relative frame
+   - X: Forward (aligned with drone's heading)
+   - Y: Right (perpendicular to heading)
+   - Z: Down (positive, negative is up)
    - Yaw: Relative to current heading
 
-3. **FLU Frame**:
-   - X: Forward (drone's heading)
-   - Y: Left (relative to heading)
-   - Z: Up (positive)
+3. **FLU Frame** (Forward-Left-Up):
+   - Body-relative frame
+   - X: Forward (aligned with drone's heading)
+   - Y: Left (perpendicular to heading)
+   - Z: Up (positive, negative is down)
    - Yaw: Relative to current heading
 
-## Usage
+### Control Modes
+
+1. **Position Mode** (`offboard_mode: 'position'`):
+   - Commands absolute positions in chosen coordinate frame
+   - Drone calculates velocity to reach the target
+   - More stable for precise positioning
+
+2. **Velocity Mode** (`offboard_mode: 'velocity'`):
+   - Direct control of vehicle velocity vector and yaw rate
+   - Commands timeout after `command_velocity_timeout` seconds
+   - Useful for smoother manual control or tracking
+
+## Code Examples
 
 ### 1. Basic Position Control with NED Frame
 
-Launch a single drone controller:
-```bash
-ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 coordinate_system:=NED
+```python
+def mission_sequence(self):
+    # Take off
+    self.set_offboard_parameters('position', 'NED')
+    self.navigate_to(0.0, 0.0, -5.0, 0.0)  # Up 5 meters
+    
+    # Fly to waypoint
+    self.navigate_to(10.0, 0.0, -5.0, 90.0)  # 10m North, 90° heading
+    
+    # Return to base
+    self.return_to_spawn(altitude=-3.0)
 ```
 
-Send position commands:
-```bash
-# Using action server (recommended)
-ros2 action send_goal /px4_1/goto_position px4_controllers_interfaces/action/GotoPosition "{target: {position: {x: 5.0, y: 0.0, z: -2.0}, yaw: 0.0}}"
+### 2. Relative Movement with FRD Frame
 
-# Using topic interface
-ros2 topic pub /px4_1/target_pose px4_controllers_interfaces/msg/PointYaw "{position: {x: 5.0, y: 0.0, z: -2.0}, yaw: 0.0}"
+```python
+def patrol_area(self):
+    self.set_offboard_parameters('position', 'FRD')
+    
+    # Move 5m forward relative to current heading
+    self.navigate_to(5.0, 0.0, 0.0, 0.0)
+    
+    # Turn 90° and move 3m right
+    self.navigate_to(0.0, 3.0, 0.0, 90.0)
+    
+    # Move back 5m
+    self.navigate_to(-5.0, 0.0, 0.0, 0.0)
 ```
 
-### 2. Relative Position Control with FRD Frame
+### 3. Velocity Control Example
 
-Launch with FRD coordinate system:
-```bash
-ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 coordinate_system:=FRD
+```python
+def track_target(self, target_velocity):
+    self.set_offboard_parameters('velocity', 'FLU')
+    
+    # Match target velocity
+    self.send_velocity(
+        target_velocity.x,
+        target_velocity.y,
+        target_velocity.z,
+        target_velocity.yaw_rate
+    )
 ```
-
-Send relative movement commands:
-```bash
-# Move 5 meters forward
-ros2 action send_goal /px4_1/goto_position px4_controllers_interfaces/action/GotoPosition "{target: {position: {x: 5.0, y: 0.0, z: 0.0}, yaw: 0.0}}"
-
-# Move 3 meters right and up 1 meter with 90° rotation
-ros2 action send_goal /px4_1/goto_position px4_controllers_interfaces/action/GotoPosition "{target: {position: {x: 0.0, y: 3.0, z: -1.0}, yaw: 90.0}}"
-```
-
-### 3. Forward-Left-Up (FLU) Control
-
-Launch with FLU coordinate system:
-```bash
-ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 coordinate_system:=FLU
-```
-
-Send commands in FLU frame:
-```bash
-# Move 5 meters forward
-ros2 action send_goal /px4_1/goto_position px4_controllers_interfaces/action/GotoPosition "{target: {position: {x: 5.0, y: 0.0, z: 2.0}, yaw: 0.0}}"
-
-# Move 3 meters left and up 1 meter with 90° rotation
-ros2 action send_goal /px4_1/goto_position px4_controllers_interfaces/action/GotoPosition "{target: {position: {x: 0.0, y: 3.0, z: 1.0}, yaw: 90.0}}"
-```
-
-### 4. Velocity Control
-
-The `offboard_control_px4` node also provides velocity control. Set the `offboard_mode` parameter to `velocity`:
-
-```bash
-# Launch with velocity control mode
-ros2 run offboard_control_py offboard_control_px4 --ros-args -r __ns:=/px4_1 -p coordinate_system:=FLU -p offboard_mode:=velocity
-```
-
-Parameters for velocity control:
-```yaml
-max_horizontal_speed: 12.0     # Maximum horizontal velocity (m/s)
-max_vertical_speed: 12.0       # Maximum vertical velocity (m/s)
-max_yaw_rate: 10.0            # Maximum yaw rate (rad/s)
-velocity_timeout: 2.0          # Time before zeroing velocity (s)
-coordinate_system: 'FLU'      # Reference frame (FLU/FRD/NED)
-takeoff_height: 2.0           # Target takeoff height (m)
-hover_timeout: 10.0           # Hover time before auto-land (s)
-land_height_threshold: 1.0    # Height to trigger landing (m)
-```
-
-Send velocity commands:
-```bash
-ros2 topic pub /px4_1/cmd_vel geometry_msgs/msg/Twist \
-  "{linear: {x: 1.0, y: 0.0, z: 0.0}, angular: {z: 0.0}}"
-```
-
-### 5. Multi-Drone Missions
-
-1. Create a mission file (e.g., `missions/my_mission.yaml`):
-```yaml
-"1": [  # Drone 1 waypoints
-  {x: 5.0, y: 0.0, z: -2.0, yaw: 90.0, time: 5.0},
-  {x: 5.0, y: 5.0, z: -2.0, yaw: 180.0, time: 3.0}
-]
-"2": [  # Drone 2 waypoints
-  {x: -5.0, y: 0.0, z: -2.0, yaw: -90.0, time: 5.0},
-  {x: -5.0, y: -5.0, z: -2.0, yaw: -180.0, time: 3.0}
-]
-```
-
-2. Launch the mission:
-```bash
-ros2 run offboard_control_py offboard_control_client --ros-args -p mission_file:=my_mission.yaml
-```
-
-## Configuration
-
-### 1. Spawn Positions (`config/spawn_position.yaml`)
-This file is automatically generated each time `launch_game.sh` is run. The script:
-- Generates random spawn positions for each team within their designated field areas
-- Team 1 spawns in the first 20% of field length
-- Team 2 spawns in the last 20% of field length
-- Drones within each team are arranged in a line with 2m spacing
-- Transforms Gazebo coordinates to NED frame coordinates
-- Updates the YAML file with the new positions
-
-Example of generated spawn positions:
-```yaml
-"1": {  # Team 1
-  "1": {x: 0.0, y: 0.0, yaw: 0.0},  # Drone 1
-  "2": {x: 2.0, y: 0.0, yaw: 0.0}   # Drone 2
-}
-```
-
-Manual editing of this file is not recommended as it will be overwritten on the next launch.
-
-### 2. Controller Configuration (`config/controller_config.yaml`)
-```yaml
-"1": {  # Team 1
-  "1": "NED",  # Drone 1 uses NED frame
-  "2": "FRD"   # Drone 2 uses FRD frame
-}
-```
-
-## Launch Files
-
-1. `offboard_control.launch.py`: Basic controller launch to run several controllers for one team of drones
-   ```bash
-   ros2 launch offboard_control_py offboard_control.launch.py \
-     team_id:=1 \
-     coordinate_system:=NED \
-     config_file:=my_config.yaml \
-     spawn_file:=my_spawn.yaml
-   ```
-
-2. `game_test.launch.py` : Complete test environment : 2 teams launcher + Mission controller for both teams (not acceptable in actual games) + Game Master launcher (to run a game)
-   ```bash
-   ros2 launch offboard_control_py game_test.launch.py
-   ```
 
 ## Advanced Usage
 
-### Mission Control System
-The `offboard_control_client` demonstrates how to control multiple drones using ROS2 action clients. It is an exemple code to show you how to multiple drones at once from a single node (in this case using the positions controllers). Here are some more exemples:
+### State Machine Implementation
 
-### Controller client Components
+The template client implements a state machine with these states:
+- `STATE_INIT`: Initial setup
+- `STATE_TAKEOFF`: Executing takeoff sequence
+- `STATE_MISSION`: Main mission execution
+- `STATE_COMBAT`: Engaging targets
+- `STATE_RTL`: Return to launch
+- `STATE_COMPLETE`: Mission completion
 
-1. **Action Client Interface**
-   - Each drone exposes a GotoPosition action server
-   - Commands are sent as action goals
-   - Feedback provides position and distance info
-   - Results indicate success/failure
-
-2. **Position Commands**
-   ```python
-   # Send absolute position (NED frame)
-   ned_client.send_command(x=5.0, y=0.0, z=-2.0, yaw=0.0)
-   
-   # Send relative position (FRD frame)
-   frd_client.send_command(x=2.0, y=1.0, z=0.0, yaw=90.0)
-   ```
-
-3. **Goal Tracking**
-   ```python
-   def goal_response_callback(self, future):
-       goal_handle = future.result()
-       if goal_handle.accepted:
-           result_future = goal_handle.get_result_async()
-           result_future.add_done_callback(self.get_result_callback)
-
-   def get_result_callback(self, future):
-       result = future.result().result
-       if result.success:
-           # Goal reached successfully
-           self.handle_success()
-       else:
-           # Goal failed
-           self.handle_failure()
-   ```
-
-### 3. Example: Simple Waypoint Controller
-
+Example state handler:
 ```python
-import rclpy
-from rclpy.node import Node
-from rclpy.action import ActionClient
-from px4_controllers_interfaces.action import GotoPosition
-
-class WaypointController(Node):
-    def __init__(self):
-        super().__init__('waypoint_controller')
+def handle_mission_state(self):
+    """Main mission behavior implementation"""
+    if not self.action_in_progress:
+        if not hasattr(self, 'waypoint_index'):
+            self.waypoint_index = 0
+            self.waypoints = [
+                (10.0, 0.0, -5.0, 0.0),  # (x, y, z, yaw)
+                (10.0, 10.0, -5.0, 90.0),
+                (0.0, 10.0, -5.0, 180.0)
+            ]
         
-        # Create drone client
-        self.drone = CustomDroneClient(self, drone_id='1')
-        
-        # Define waypoints
-        self.waypoints = [
-            {'x': 5.0, 'y': 0.0, 'z': -2.0, 'yaw': 0.0},
-            {'x': 5.0, 'y': 5.0, 'z': -2.0, 'yaw': 90.0}
-        ]
-        self.current_waypoint = 0
-        
-        # Start mission
-        self.send_next_waypoint()
-        
-    def send_next_waypoint(self):
-        if self.current_waypoint < len(self.waypoints):
-            wp = self.waypoints[self.current_waypoint]
-            self.drone.send_command(wp['x'], wp['y'], wp['z'], wp['yaw'])
-
-    def handle_success(self):
-        self.current_waypoint += 1
-        self.send_next_waypoint()
+        # Get next waypoint
+        if self.waypoint_index < len(self.waypoints):
+            x, y, z, yaw = self.waypoints[self.waypoint_index]
+            success = self.navigate_to(x, y, z, yaw)
+            
+            if success:
+                self.waypoint_index += 1
+        else:
+            self.change_state(self.STATE_RTL)
 ```
 
-### 4. Advanced Features
+### Multi-Drone Formation
 
-1. **Retry Logic**
-   ```python
-   class RetryableClient:
-       def __init__(self, max_retries=3, retry_delay=2.0):
-           self.max_retries = max_retries
-           self.retry_delay = retry_delay
-           self.current_retry = 0
+Use the template to implement formation flying:
 
-       def handle_failure(self):
-           if self.current_retry < self.max_retries:
-               self.current_retry += 1
-               self.node.create_timer(
-                   self.retry_delay,
-                   self.retry_waypoint
-               )
-   ```
+```python
+class FormationController(DroneController):
+    def __init__(self):
+        super().__init__()
+        self.formation_offset = (2.0, 2.0, 0.0)  # Relative to leader
+    
+    def follow_leader(self, leader_position):
+        # Calculate formation position
+        x = leader_position.x + self.formation_offset[0]
+        y = leader_position.y + self.formation_offset[1]
+        z = leader_position.z + self.formation_offset[2]
+        
+        # Navigate to formation position
+        self.navigate_to(x, y, z, leader_position.yaw)
+```
 
-2. **Progress Monitoring**
-   ```python
-   class MonitoredClient:
-       def __init__(self):
-           self.start_time = time.time()
-           self.progress_interval = 5.0
-           self.last_progress_time = 0
+## Coordinate System Usage
 
-       def update_progress(self):
-           current_time = time.time()
-           if current_time - self.last_progress_time >= self.progress_interval:
-               # Log progress
-               self.last_progress_time = current_time
-   ```
+### 1. NED Frame (Global Navigation)
 
-3. **Position Holding**
-   ```python
-   class HoldPositionClient:
-       def hold_current_position(self):
-           if self.current_pos:
-               self.send_command(
-                   self.current_pos.x,
-                   self.current_pos.y,
-                   self.current_pos.z,
-                   self.current_yaw
-               )
-   ```
+Best for:
+- Navigation between GPS waypoints
+- Operations in known environments
+- Coordinating multiple drones in absolute positions
 
-### 5. Best Practices
+```bash
+# Launch with NED frame
+ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 coordinate_system:=NED
+```
 
-1. **Error Handling**
-   - Always check for valid position data
-   - Implement timeout protection
-   - Handle connection losses gracefully
+```python
+# Go to absolute position
+controller.navigate_to(10.0, 20.0, -5.0, 90.0)  # 10m North, 20m East, 5m altitude
+```
 
-2. **Resource Management**
-   - Clean up action clients properly
-   - Cancel ongoing goals when needed
-   - Release resources in destructors
+### 2. FRD Frame (Relative Navigation)
 
-3. **Safety Features**
-   - Implement position validation
-   - Add maximum velocity limits
-   - Include emergency stop capability
+Best for:
+- Moving relative to current heading
+- Obstacle avoidance maneuvers
+- Visual-based navigation
 
-4. **Testing**
-   ```python
-   def test_controller():
-       rclpy.init()
-       controller = WaypointController()
-       try:
-           rclpy.spin(controller)
-       except KeyboardInterrupt:
-           controller.destroy_node()
-       rclpy.shutdown()
-   ```
+```bash
+# Launch with FRD frame
+ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 coordinate_system:=FRD
+```
 
-Remember that these are building blocks - you can mix and match features based on your specific needs. The key is to maintain robust error handling and clean resource management while implementing your custom control logic.
+```python
+# Move 5m forward, 2m right, stay at same height
+controller.navigate_to(5.0, 2.0, 0.0, 0.0)
+```
+
+### 3. FLU Frame (Robotics Convention)
+
+Best for:
+- Compatibility with robotics algorithms
+- Intuitive control (forward/left/up)
+- Visual servoing applications
+
+```bash
+# Launch with FLU frame
+ros2 launch offboard_control_py offboard_control.launch.py team_id:=1 coordinate_system:=FLU
+```
+
+```python
+# Move 3m forward, 1m left, up 2m
+controller.navigate_to(3.0, 1.0, 2.0, 0.0)
+```
