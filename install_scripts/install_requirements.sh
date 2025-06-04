@@ -25,14 +25,16 @@ check_ros2_repo_configured() {
 }
 # terminal
 sudo apt install tmux xterm expect switcheroo-control -y
+# Gazebo
+sudo apt-get install lsb-release -y
+sudo sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list'
+# wget http://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add -
+wget http://packages.osrfoundation.org/gazebo.key -qO- | sudo apt-key add -
+sudo cp /etc/apt/trusted.gpg /etc/apt/trusted.gpg.d
+sudo apt update
 # Gazebo messages
 sudo apt install libgz-transport13 -y
 # Gazebo plugins
-sudo apt-get install lsb-release -y
-sudo sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list'
-wget http://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add -
-sudo cp /etc/apt/trusted.gpg /etc/apt/trusted.gpg.d
-sudo apt update
 sudo apt install libgz-plugin2-dev -y
 sudo apt-get install libgz-sim8-dev -y
 # Pip
