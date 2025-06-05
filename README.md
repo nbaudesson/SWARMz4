@@ -133,6 +133,22 @@ The central controller for the entire simulation, managing game rules, teams, he
 ros2 launch game_master game_master.launch.py
 ```
 
+### Tuning
+
+Key performance parameters can be adjusted in configuration files:
+
+1. **Controller Parameters**:
+   ```bash
+   # Set maximum horizontal speed
+   ros2 run offboard_control_py offboard_control_px4 --ros-args -p horizontal_speed:=12.0
+   ```
+
+2. **Game Parameters** (in the Game Master node):
+   ```bash
+   # Launch with modified game parameters
+   ros2 launch game_master game_master.launch.py game_duration:=3000
+   ```
+
 ### 2. Boat Control System
 
 #### Boat Driver
@@ -242,19 +258,21 @@ def move_forward(self):
 
 ## Usage
 
-### Launching the Full Game
+### Game Master Demo
 
-To launch a complete game simulation with all components:
+The Game Master Demo provides a comprehensive demonstration of the SWARMz4 simulation capabilities:
 
 ```bash
+# Launch the complete demo
 ros2 launch game_master game_demo.launch.py
 ```
 
-This will start:
-- Gazebo simulation with the game environment
-- Game master node
-- All server nodes (drone controllers, cannon controllers)
-- Team 1 and Team 2 client nodes
+The demo demonstrates:
+- Drone and ship control
+- Team coordination
+- Detection and targeting systems
+- Missile firing and kamikaze attacks
+- Game timing and management
 
 ### Development Testing
 
@@ -293,3 +311,40 @@ You can replay a game using:
 ```bash
 ros2 bag play ~/SWARMz4/results/bags/game_state_<timestamp>
 ```
+
+### Monitoring and Debugging
+
+Here are some useful topics that provide information about your drone's status:
+
+1. **View Robot Status**:
+   ```bash
+   # Health status
+   ros2 topic echo /px4_1/health
+
+   # Position
+   ros2 topic echo /px4_1/fmu/out/vehicle_local_position
+   ```
+
+2. **Game Status**:
+   ```bash
+   # Remaining game time
+   ros2 topic echo /game_master/time
+
+   # Game state (includes all robot statuses)
+   ros2 topic echo /game_master/game_state
+   ```
+
+
+## Documentation Resources
+
+For more information about the components used in this project:
+
+- **PX4**: 
+  - [ROS 2 User Guide](https://docs.px4.io/main/en/ros2/user_guide.html)
+  - [PX4 Offboard Mode Guide](https://docs.px4.io/main/en/flight_modes/offboard.html)
+
+- **ROS2**: 
+  - [ROS 2 Humble Documentation](https://docs.ros.org/en/humble/index.html)
+
+- **Gazebo**: 
+  - [PX4 Multi-Vehicle Simulation with Gazebo](https://docs.px4.io/main/en/sim_gazebo_gz/multi_vehicle_simulation.html)
