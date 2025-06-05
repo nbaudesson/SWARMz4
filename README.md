@@ -256,6 +256,108 @@ def move_forward(self):
     self.send_velocity(1.0, 0.0, 0.0, 0.0)  # Forward at 1 m/s
 ```
 
+## Running the Simulation
+
+To run a complete simulation, follow these steps in order:
+
+### 1. Start the Simulation Environment
+
+First, launch the simulation environment with all drone and ship instances:
+
+```bash
+# From the SWARMz4 root folder
+./launch_scripts/launch_game.sh
+```
+
+This script:
+- Cleans up any existing processes
+- Starts the MicroXRCE-DDS Agent
+- Launches QGroundControl
+- Creates the Gazebo world with random team positions
+- Spawns all drones and ships at their respective positions
+- Sets up internal communication bridges
+
+Parameters:
+```bash
+./launch_scripts/launch_game.sh [HEADLESS_LEVEL] [SPAWN_FILE] [DRONES_PER_TEAM] [FIELD_LENGTH] [FIELD_WIDTH]
+```
+
+Example for GUI mode:
+```bash
+./launch_scripts/launch_game.sh 0
+```
+
+Example for headless mode with only GQC GUI:
+(This mode worked on a ubuntu 22, GPUless laptop with 12 cores CPU and 16G of RAM)
+```bash
+./launch_scripts/launch_game.sh 1
+```
+
+Example for full headless mode:
+```bash
+./launch_scripts/launch_game.sh 2
+```
+
+### 2. Launch Control Servers
+
+Once the simulation environment is running (wait for all drones and ships to appear in Gazebo), launch the control servers:
+
+```bash
+# In a new terminal
+source ~/SWARMz4/ros2_ws/install/setup.bash
+ros2 launch game_master game_servers.launch.py
+```
+
+This launches:
+- Offboard controllers for all drones
+- Cannon controllers for both ships
+
+### 3. Launch Your Client Code
+
+After servers are running, launch your custom client code:
+
+```bash
+# For a drone controller (in a new terminal)
+source ~/SWARMz4/ros2_ws/install/setup.bash
+ros2 run offboard_control_py offboard_control_client_demo --ros-args -r __ns:=/px4_1
+
+# For a ship controller (in a new terminal)
+source ~/SWARMz4/ros2_ws/install/setup.bash
+ros2 run boat_driver boat_client_demo --ros-args -r __ns:=/flag_ship_1
+```
+
+### 4. Start the Game Master
+
+Finally, start the Game Master to manage the game logic:
+
+```bash
+# In a new terminal
+source ~/SWARMz4/ros2_ws/install/setup.bash
+ros2 launch game_master game_master.launch.py
+```
+
+The Game Master will automatically:
+- Detect all robots and form balanced teams
+- Track health and positions
+- Handle detections between robots
+- Manage missile firing and kamikaze actions
+- Determine the winner when time runs out or a flagship is destroyed
+
+### All-in-One Demo Launch
+
+Alternatively, you can use the demo launch file that handles steps 2-4 automatically:
+
+```bash
+# After launch_game.sh is running:
+source ~/SWARMz4/ros2_ws/install/setup.bash
+ros2 launch game_master game_demo.launch.py
+```
+
+The demo launch:
+1. Starts drone and ship controllers for both teams
+2. Waits a few seconds for all clients to initialize
+3. Launches the Game Master to start the game
+
 ## Usage
 
 ### Game Master Demo
