@@ -79,10 +79,9 @@ install_ros2_jazzy() {
     echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
 
     sudo apt install ros-jazzy-tf-transformations -y
-    sudo apt install ros-jazzy-gazebo-ros -y
     sudo apt install ros-jazzy-ros-gz-bridge -y
-    sudo apt install ros-jazzy-ros-gzharmonic -y
-    sudo apt install ros-humble-rqt-bag -y
+    sudo apt install ros-jazzy-ros-gz -y
+    sudo apt install ros-jazzy-rqt-bag -y
 
     sudo apt install libyaml-cpp-dev -y
     sudo apt install python3-colcon-common-extensions -y
