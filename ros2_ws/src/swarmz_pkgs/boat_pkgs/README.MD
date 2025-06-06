@@ -64,8 +64,10 @@ You will also find a template for your boat client with the name `boat_client_te
 
 ```bash
 #Send velocity command to left thruster of team1 boat
-ros2 topic pub /flag_ship_1/left_propeller_cmd std_msgs/msg/Float64 "data: 2.0" --once
+ros2 topic pub /flag_ship_1/left_propeller_cmd std_msgs/msg/Float64 "data: 1.2" --once
 ```
+
+You can give the propellers values ranging from -1.2 to 1.2 (You can give more but the rotation speed of the propellers is capped to 1.2 rad/s in the boat model of Gazebo)
 
 Or your ship's localization with this 
 
